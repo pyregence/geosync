@@ -680,7 +680,7 @@
     (-main "-h")
     (with-command-line args
       (str "geosync: Update a running Geoserver instance from an XLS spreadsheet.\n"
-           "Copyright 2010-2012 Gary W. Johnson (gwjohnso@uvm.edu)\n")
+           "Copyright 2010-2012 Gary W. Johnson (gjohnson@sig-gis.com)\n")
       [[config-file           i "Path to a clojure file containing a map of configuration parameters."]
        [spreadsheet-filename  f "Path to the XLS spreadsheet."]
        [spreadsheet-sheetname s "Sheet name to use from the spreadsheet."]
