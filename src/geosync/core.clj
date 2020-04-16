@@ -24,15 +24,14 @@
 ;;;   instance.
 
 (ns geosync.core
-  (:gen-class)
-  (:use [clojure.set                  :only [map-invert]]
-        [clojure.java.io              :only [reader file]]
-        [clojure.java.shell           :only [with-sh-dir sh]]
-        [clojure.contrib.prxml        :only [prxml]]
-        [clojure.contrib.base64       :only [encode-str]]
-        [clojure.contrib.http.agent   :only [http-agent error? status message string]]
-        [clojure.contrib.command-line :only [with-command-line]]
-        [dk.ative.docjure.spreadsheet :only [load-workbook select-sheet select-columns]])
+  (:require [clojure.set                  :refer [map-invert]]
+            [clojure.java.io              :refer [reader file]]
+            [clojure.java.shell           :refer [with-sh-dir sh]]
+            [clojure.contrib.prxml        :refer [prxml]]
+            [clojure.contrib.base64       :refer [encode-str]]
+            [clojure.contrib.http.agent   :refer [http-agent error? status message string]]
+            [clojure.contrib.command-line :refer [with-command-line]]
+            [dk.ative.docjure.spreadsheet :refer [load-workbook select-sheet select-columns]])
   (:import (java.io InputStream OutputStream)))
 
 (def *rt* (java.lang.Runtime/getRuntime))
