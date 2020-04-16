@@ -1,0 +1,5 @@
+{:paths   ["src" "resources"]
+ :deps    {org.clojure/clojure         {:mvn/version "1.2.0"}
+           org.clojure/clojure-contrib {:mvn/version "1.2.0"}
+           dk.ative/docjure            {:mvn/version "1.4.0"}}
+ :aliases {:run {:main-opts ["-m" "geosync.core"]}}}

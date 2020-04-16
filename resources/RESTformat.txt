@@ -1,0 +1,794 @@
+To communicate with Geoserver, we must send it REST commands using
+HTTP.  These are documented below.
+
+* REST commands
+|----------------------------------------------------+--------+------------------------------------------------+---------------------------------------------|
+| URL                                                | Method | Action                                         | Notes                                       |
+|----------------------------------------------------+--------+------------------------------------------------+---------------------------------------------|
+| /workspaces                                        | GET    | List all workspaces                            |                                             |
+|                                                    | POST   | Create new workspace                           |                                             |
+| /workspaces/<ws>                                   | GET    | Return workspace <ws>                          |                                             |
+|                                                    | PUT    | Modify workspace <ws>                          |                                             |
+|                                                    | DELETE | Delete workspace <ws>                          |                                             |
+| /workspaces/default                                | GET    | Return default workspace                       |                                             |
+|                                                    | PUT    | Set default workspace                          |                                             |
+|----------------------------------------------------+--------+------------------------------------------------+---------------------------------------------|
+| /namespaces                                        | GET    | List all namespaces                            |                                             |
+|                                                    | POST   | Create new namespace                           |                                             |
+| /namespaces/<ns>                                   | GET    | Return namespace <ns>                          |                                             |
+|                                                    | PUT    | Modify namespace <ns>                          |                                             |
+|                                                    | DELETE | Delete namespace <ns>                          |                                             |
+| /namespaces/default                                | GET    | Return default namespace                       |                                             |
+|                                                    | PUT    | Set default namespace                          |                                             |
+|----------------------------------------------------+--------+------------------------------------------------+---------------------------------------------|
+| /workspaces/<ws>/datastores                        | GET    | List all datastores in workspace <ws>          |                                             |
+|                                                    | POST   | Create new datastore                           |                                             |
+| /workspaces/<ws>/datastores/<ds>                   | GET    | Return datastore <ds>                          |                                             |
+|                                                    | PUT    | Modify datastore <ds>                          |                                             |
+|                                                    | DELETE | Delete datastore <ds>                          |                                             |
+| /workspaces/<ws>/datastores/<ds>/file.<ext>        | GET    | Get zip file of datastore <ds>'s contents      | <ext> can be shp,gml,properties             |
+|                                                    | PUT    | Create/overwrite datastore <ds>'s files        |                                             |
+|----------------------------------------------------+--------+------------------------------------------------+---------------------------------------------|
+| /workspaces/<ws>/datastores/<ds>/featuretypes      | GET    | List all features types in datastore <ds>      |                                             |
+|                                                    | POST   | Create new feature type                        |                                             |
+| /workspaces/<ws>/datastores/<ds>/featuretypes/<ft> | GET    | Return feature type <ft>                       |                                             |
+|                                                    | PUT    | Modify feature type <ft>                       |                                             |
+|                                                    | DELETE | Delete feature type <ft>                       |                                             |
+|----------------------------------------------------+--------+------------------------------------------------+---------------------------------------------|
+| /workspaces/<ws>/coveragestores                    | GET    | List all coverage stores in workspace <ws>     |                                             |
+|                                                    | POST   | Create new coverage store                      |                                             |
+| /workspaces/<ws>/coveragestores/<cs>               | GET    | Return coverage store <cs>                     |                                             |
+|                                                    | PUT    | Modify coverage store <cs>                     |                                             |
+|                                                    | DELETE | Delete coverage store <cs>                     |                                             |
+| /workspaces/<ws>/coveragestores/<cs>/file.<ext>    | GET    | Get zip file of coverage store <cs>'s contents | <ext> can be geotiff,worldimage,imagemosaic |
+|                                                    | PUT    | Create/overwrite coverage store <cs>'s files   |                                             |
+|----------------------------------------------------+--------+------------------------------------------------+---------------------------------------------|
+| /workspaces/<ws>/coveragestores/<cs>/coverages     | GET    | List all coverages in coverage store <cs>      |                                             |
+|                                                    | POST   | Create new coverage                            |                                             |
+| /workspaces/<ws>/coveragestores/<cs>/coverages/<c> | GET    | Return coverage <c>                            |                                             |
+|                                                    | PUT    | Modify coverage <c>                            |                                             |
+|                                                    | DELETE | Delete coverage <c>                            |                                             |
+|----------------------------------------------------+--------+------------------------------------------------+---------------------------------------------|
+| /styles                                            | GET    | Return all styles                              |                                             |
+|                                                    | POST   | Create new style                               |                                             |
+| /styles/<s>                                        | GET    | Return style <s>                               |                                             |
+|                                                    | PUT    | Modify style <s>                               |                                             |
+|                                                    | DELETE | Delete style <s>                               |                                             |
+|----------------------------------------------------+--------+------------------------------------------------+---------------------------------------------|
+| /layers                                            | GET    | Return all layers                              |                                             |
+| /layers/<l>                                        | GET    | Return layer <l>                               |                                             |
+|                                                    | PUT    | Modify layer <l>                               |                                             |
+|                                                    | DELETE | Delete layer <l>                               |                                             |
+| /layers/<l>/styles                                 | GET    | Return all styles for layer <l>                |                                             |
+|                                                    | POST   | Add a new style to layer <l>                   |                                             |
+|----------------------------------------------------+--------+------------------------------------------------+---------------------------------------------|
+| /layergroups                                       | GET    | Return all layer groups                        |                                             |
+|                                                    | POST   | Add a new layer group                          |                                             |
+| /layergroups/<lg>                                  | GET    | Return layer group <lg>                        |                                             |
+|                                                    | PUT    | Modify layer group <lg>                        |                                             |
+|                                                    | DELETE | Delete layer group <lg>                        |                                             |
+|----------------------------------------------------+--------+------------------------------------------------+---------------------------------------------|
+| /reload                                            | POST   | Reloads the configuration from disk            | No, this isn't a typo.                      |
+|                                                    | PUT    | Reloads the configuration from disk            | POST and PUT both do the same thing.        |
+|----------------------------------------------------+--------+------------------------------------------------+---------------------------------------------|
+
+* Workspace format
+<workspace>
+  <name>puget</name>
+  <atom:link xmlns:atom="http://www.w3.org/2005/Atom" rel="alternate" href="http://ecoinformatics.uvm.edu/geoserver/rest/workspaces/puget.xml" type="application/xml"/>
+</workspace>
+
+<workspace> 
+  <name>puget</name> 
+  <dataStores> 
+    <atom:link xmlns:atom="http://www.w3.org/2005/Atom" rel="alternate" href="http://ecoinformatics.uvm.edu/geoserver/rest/workspaces/puget/datastores.xml" type="application/xml"/> 
+  </dataStores> 
+  <coverageStores> 
+    <atom:link xmlns:atom="http://www.w3.org/2005/Atom" rel="alternate" href="http://ecoinformatics.uvm.edu/geoserver/rest/workspaces/puget/coveragestores.xml" type="application/xml"/> 
+  </coverageStores> 
+</workspace>
+* Namespace format
+<namespace>
+  <name>puget</name>
+  <atom:link xmlns:atom="http://www.w3.org/2005/Atom" rel="alternate" href="http://ecoinformatics.uvm.edu/geoserver/rest/namespaces/puget.xml" type="application/xml"/>
+</namespace>
+
+<namespace> 
+  <prefix>puget</prefix> 
+  <uri>http://www.integratedmodelling.org/geo/ns/puget</uri> 
+  <featureTypes> 
+    <atom:link xmlns:atom="http://www.w3.org/2005/Atom" rel="alternate" href="http://ecoinformatics.uvm.edu/geoserver/rest/workspaces/puget/featuretypes.xml" type="application/xml"/> 
+  </featureTypes> 
+</namespace>
+* Data Store formats
+** Shapefile
+<dataStore> 
+  <name>lakes</name> 
+  <description>Lakes in Puget Sound</description> 
+  <type>Shapefile</type> 
+  <enabled>true</enabled> 
+  <workspace> 
+    <name>puget</name> 
+    <atom:link xmlns:atom="http://www.w3.org/2005/Atom" rel="alternate" href="http://ecoinformatics.uvm.edu/geoserver/rest/workspaces/puget.xml" type="application/xml"/> 
+  </workspace> 
+  <connectionParameters> 
+    <entry key="memory mapped buffer">true</entry> 
+    <entry key="create spatial index">true</entry> 
+    <entry key="charset">ISO-8859-1</entry> 
+    <entry key="url">file:data/puget/lakes/lakes.shp</entry> 
+    <entry key="namespace">http://www.integratedmodelling.org/geo/ns/puget</entry> 
+  </connectionParameters> 
+  <featureTypes> 
+    <atom:link xmlns:atom="http://www.w3.org/2005/Atom" rel="alternate" href="http://ecoinformatics.uvm.edu/geoserver/rest/workspaces/puget/datastores/lakes/featuretypes.xml" type="application/xml"/> 
+  </featureTypes> 
+</dataStore>
+** PostGIS database
+<dataStore> 
+  <name>aries</name> 
+  <description>PostGIS database: aries</description> 
+  <type>PostGIS</type> 
+  <enabled>true</enabled> 
+  <workspace> 
+    <name>puget</name> 
+    <atom:link xmlns:atom="http://www.w3.org/2005/Atom" rel="alternate" href="http://ecoinformatics.uvm.edu/geoserver/rest/workspaces/puget.xml" type="application/xml"/> 
+  </workspace> 
+  <connectionParameters> 
+    <entry key="Connection timeout">20</entry> 
+    <entry key="port">5432</entry> 
+    <entry key="dbtype">postgis</entry> 
+    <entry key="host">localhost</entry> 
+    <entry key="validate connections">true</entry> 
+    <entry key="max connections">10</entry> 
+    <entry key="database">aries</entry> 
+    <entry key="namespace">http://www.integratedmodelling.org/geo/ns/puget</entry> 
+    <entry key="schema">public</entry> 
+    <entry key="Loose bbox">false</entry> 
+    <entry key="Expose primary keys">false</entry> 
+    <entry key="fetch size">1000</entry> 
+    <entry key="Max open prepared statements">50</entry> 
+    <entry key="preparedStatements">false</entry> 
+    <entry key="user">postgres</entry> 
+    <entry key="min connections">1</entry> 
+  </connectionParameters> 
+  <featureTypes> 
+    <atom:link xmlns:atom="http://www.w3.org/2005/Atom" rel="alternate" href="http://ecoinformatics.uvm.edu/geoserver/rest/workspaces/puget/datastores/aries/featuretypes.xml" type="application/xml"/> 
+  </featureTypes> 
+</dataStore>
+* Feature Type format
+** Shapefile
+<featureType> 
+  <name>lakes</name> 
+  <nativeName>lakes</nativeName> 
+  <namespace> 
+    <name>puget</name> 
+    <atom:link xmlns:atom="http://www.w3.org/2005/Atom" rel="alternate" href="http://ecoinformatics.uvm.edu/geoserver/rest/namespaces/puget.xml" type="application/xml"/> 
+  </namespace> 
+  <title>Lakes in the Puget Sound</title> 
+  <abstract>Lakes in the Puget Sound</abstract> 
+  <nativeCRS class="projected">PROJCS[&quot;NAD_1983_HARN_StatePlane_Washington_South_FIPS_4602_Feet&quot;, 
+  GEOGCS[&quot;GCS_North_American_1983_HARN&quot;, 
+    DATUM[&quot;D_North_American_1983_HARN&quot;, 
+      SPHEROID[&quot;GRS_1980&quot;, 6378137.0, 298.257222101]], 
+    PRIMEM[&quot;Greenwich&quot;, 0.0], 
+    UNIT[&quot;degree&quot;, 0.017453292519943295], 
+    AXIS[&quot;Longitude&quot;, EAST], 
+    AXIS[&quot;Latitude&quot;, NORTH]], 
+  PROJECTION[&quot;Lambert_Conformal_Conic_2SP&quot;], 
+  PARAMETER[&quot;central_meridian&quot;, -120.5], 
+  PARAMETER[&quot;latitude_of_origin&quot;, 45.333333333333336], 
+  PARAMETER[&quot;standard_parallel_1&quot;, 47.333333333333336], 
+  PARAMETER[&quot;false_easting&quot;, 1640416.666666667], 
+  PARAMETER[&quot;false_northing&quot;, 0.0], 
+  PARAMETER[&quot;scale_factor&quot;, 1.0], 
+  PARAMETER[&quot;standard_parallel_2&quot;, 45.833333333333336], 
+  UNIT[&quot;foot_survey_us&quot;, 0.3048006096012192], 
+  AXIS[&quot;X&quot;, EAST], 
+  AXIS[&quot;Y&quot;, NORTH]]</nativeCRS> 
+  <srs>EPSG:2286</srs> 
+  <nativeBoundingBox> 
+    <minx>618565.386</minx> 
+    <maxx>2591186.559</maxx> 
+    <miny>102131.506</miny> 
+    <maxy>1367281.497</maxy> 
+    <crs class="projected">EPSG:2927</crs> 
+  </nativeBoundingBox> 
+  <latLonBoundingBox> 
+    <minx>-124.756</minx> 
+    <maxx>-116.54</maxx> 
+    <miny>45.543</miny> 
+    <maxy>49.081</maxy> 
+    <crs>EPSG:4326</crs> 
+  </latLonBoundingBox> 
+  <projectionPolicy>FORCE_DECLARED</projectionPolicy> 
+  <enabled>true</enabled> 
+  <store class="dataStore"> 
+    <name>lakes</name> 
+    <atom:link xmlns:atom="http://www.w3.org/2005/Atom" rel="alternate" href="http://ecoinformatics.uvm.edu/geoserver/rest/workspaces/puget/datastores/lakes.xml" type="application/xml"/> 
+  </store> 
+  <maxFeatures>0</maxFeatures> 
+  <numDecimals>0</numDecimals> 
+</featureType>
+** PostGIS table
+<featureType> 
+  <name>pugetlake</name> 
+  <nativeName>pugetlake</nativeName> 
+  <namespace> 
+    <name>puget</name> 
+    <atom:link xmlns:atom="http://www.w3.org/2005/Atom" rel="alternate" href="http://ecoinformatics.uvm.edu/geoserver/rest/namespaces/puget.xml" type="application/xml"/> 
+  </namespace> 
+  <title>Lakes in the Puget Sound</title> 
+  <abstract>Lakes in the Puget Sound</abstract> 
+  <nativeCRS class="projected">PROJCS[&quot;NAD83(HARN) / Washington South (ftUS)&quot;, 
+  GEOGCS[&quot;NAD83(HARN)&quot;, 
+    DATUM[&quot;NAD83 (High Accuracy Regional Network)&quot;, 
+      SPHEROID[&quot;GRS 1980&quot;, 6378137.0, 298.257222101, AUTHORITY[&quot;EPSG&quot;,&quot;7019&quot;]], 
+      TOWGS84[-0.991, 1.9072, 0.5129, 0.0257899075194932, -0.009650098960270402, -0.011659943232342112, 0.0], 
+      AUTHORITY[&quot;EPSG&quot;,&quot;6152&quot;]], 
+    PRIMEM[&quot;Greenwich&quot;, 0.0, AUTHORITY[&quot;EPSG&quot;,&quot;8901&quot;]], 
+    UNIT[&quot;degree&quot;, 0.017453292519943295], 
+    AXIS[&quot;Geodetic longitude&quot;, EAST], 
+    AXIS[&quot;Geodetic latitude&quot;, NORTH], 
+    AUTHORITY[&quot;EPSG&quot;,&quot;4152&quot;]], 
+  PROJECTION[&quot;Lambert Conic Conformal (2SP)&quot;, AUTHORITY[&quot;EPSG&quot;,&quot;9802&quot;]], 
+  PARAMETER[&quot;central_meridian&quot;, -120.5], 
+  PARAMETER[&quot;latitude_of_origin&quot;, 45.333333333333336], 
+  PARAMETER[&quot;standard_parallel_1&quot;, 47.33333333333333], 
+  PARAMETER[&quot;false_easting&quot;, 1640416.667], 
+  PARAMETER[&quot;false_northing&quot;, 0.0], 
+  PARAMETER[&quot;scale_factor&quot;, 1.0], 
+  PARAMETER[&quot;standard_parallel_2&quot;, 45.833333333333336], 
+  UNIT[&quot;foot_survey_us&quot;, 0.30480060960121924], 
+  AXIS[&quot;Easting&quot;, EAST], 
+  AXIS[&quot;Northing&quot;, NORTH], 
+  AUTHORITY[&quot;EPSG&quot;,&quot;2927&quot;]]</nativeCRS> 
+  <srs>EPSG:2927</srs> 
+  <nativeBoundingBox> 
+    <minx>618565.375</minx> 
+    <maxx>2591186.75</maxx> 
+    <miny>102131.5</miny> 
+    <maxy>1367281.5</maxy> 
+    <crs class="projected">EPSG:2927</crs> 
+  </nativeBoundingBox> 
+  <latLonBoundingBox> 
+    <minx>-124.756</minx> 
+    <maxx>-116.54</maxx> 
+    <miny>45.543</miny> 
+    <maxy>49.081</maxy> 
+    <crs>EPSG:4326</crs> 
+  </latLonBoundingBox> 
+  <projectionPolicy>FORCE_DECLARED</projectionPolicy> 
+  <enabled>true</enabled> 
+  <store class="dataStore"> 
+    <name>aries</name> 
+    <atom:link xmlns:atom="http://www.w3.org/2005/Atom" rel="alternate" href="http://ecoinformatics.uvm.edu/geoserver/rest/workspaces/puget/datastores/aries.xml" type="application/xml"/> 
+  </store> 
+  <maxFeatures>0</maxFeatures> 
+  <numDecimals>0</numDecimals> 
+</featureType>
+* Coverage store format
+<coverageStore> 
+  <name>elevation</name> 
+  <description>SRTM data for Madagascar</description> 
+  <type>GeoTIFF</type> 
+  <enabled>true</enabled> 
+  <workspace> 
+    <name>mg</name> 
+    <atom:link xmlns:atom="http://www.w3.org/2005/Atom" rel="alternate" href="http://ecoinformatics.uvm.edu/geoserver/rest/workspaces/mg.xml" type="application/xml"/> 
+  </workspace> 
+  <url>file:coverages/mg/elevation/srtm_s_elev_c_Clip.tif</url> 
+  <coverages> 
+    <atom:link xmlns:atom="http://www.w3.org/2005/Atom" rel="alternate" href="http://ecoinformatics.uvm.edu/geoserver/rest/workspaces/mg/coveragestores/elevation/coverages.xml" type="application/xml"/> 
+  </coverages> 
+</coverageStore>
+* Coverage format
+<coverage> 
+  <name>elevation</name> 
+  <namespace> 
+    <name>mg</name> 
+    <atom:link xmlns:atom="http://www.w3.org/2005/Atom" rel="alternate" href="http://ecoinformatics.uvm.edu/geoserver/rest/namespaces/mg.xml" type="application/xml"/> 
+  </namespace> 
+  <title>SRTM data for Madagascar</title> 
+  <description>Generated from GeoTIFF</description> 
+  <abstract>SRTM data for Madagascar</abstract> 
+  <keywords> 
+    <string>WCS</string> 
+    <string>GeoTIFF</string> 
+    <string>srtm_s_elev_c_Clip</string> 
+  </keywords> 
+  <nativeCRS>GEOGCS[&quot;WGS 84&quot;, 
+  DATUM[&quot;World Geodetic System 1984&quot;, 
+    SPHEROID[&quot;WGS 84&quot;, 6378137.0, 298.257223563, AUTHORITY[&quot;EPSG&quot;,&quot;7030&quot;]], 
+    AUTHORITY[&quot;EPSG&quot;,&quot;6326&quot;]], 
+  PRIMEM[&quot;Greenwich&quot;, 0.0, AUTHORITY[&quot;EPSG&quot;,&quot;8901&quot;]], 
+  UNIT[&quot;degree&quot;, 0.017453292519943295], 
+  AXIS[&quot;Geodetic longitude&quot;, EAST], 
+  AXIS[&quot;Geodetic latitude&quot;, NORTH], 
+  AUTHORITY[&quot;EPSG&quot;,&quot;4326&quot;]]</nativeCRS> 
+  <srs>EPSG:4326</srs> 
+  <nativeBoundingBox> 
+    <minx>42.09</minx> 
+    <maxx>51.61</maxx> 
+    <miny>-25.913</miny> 
+    <maxy>-11.39</maxy> 
+    <crs>EPSG:4326</crs> 
+  </nativeBoundingBox> 
+  <latLonBoundingBox> 
+    <minx>42.09</minx> 
+    <maxx>51.61</maxx> 
+    <miny>-25.913</miny> 
+    <maxy>-11.39</maxy> 
+    <crs>EPSG:4326</crs> 
+  </latLonBoundingBox> 
+  <projectionPolicy>REPROJECT_TO_DECLARED</projectionPolicy> 
+  <enabled>true</enabled> 
+  <metadata> 
+    <entry key="dirName">elevation_srtm_s_elev_c_Clip</entry> 
+  </metadata> 
+  <store class="coverageStore"> 
+    <name>elevation</name> 
+    <atom:link xmlns:atom="http://www.w3.org/2005/Atom" rel="alternate" href="http://ecoinformatics.uvm.edu/geoserver/rest/workspaces/mg/coveragestores/elevation.xml" type="application/xml"/> 
+  </store> 
+  <nativeFormat>GeoTIFF</nativeFormat> 
+  <grid dimension="2"> 
+    <range> 
+      <low>0 0</low> 
+      <high>11425 17428</high> 
+    </range> 
+    <transform> 
+      <scaleX>8.333333333325748E-4</scaleX> 
+      <scaleY>-8.333333333325741E-4</scaleY> 
+      <shearX>0.0</shearX> 
+      <shearY>0.0</shearY> 
+      <translateX>42.09000033326584</translateX> 
+      <translateY>-11.390000333373978</translateY> 
+    </transform> 
+    <crs>EPSG:4326</crs> 
+  </grid> 
+  <supportedFormats> 
+    <string>GIF</string> 
+    <string>PNG</string> 
+    <string>JPEG</string> 
+    <string>TIFF</string> 
+    <string>ImageMosaic</string> 
+    <string>Gtopo30</string> 
+    <string>ArcGrid</string> 
+    <string>GEOTIFF</string> 
+  </supportedFormats> 
+  <interpolationMethods> 
+    <string>nearest neighbor</string> 
+    <string>bilinear</string> 
+    <string>bicubic</string> 
+  </interpolationMethods> 
+  <defaultInterpolationMethod>nearest neighbor</defaultInterpolationMethod> 
+  <dimensions> 
+    <coverageDimension> 
+      <name>GRAY_INDEX</name> 
+      <description>GridSampleDimension[-Infinity,Infinity]</description> 
+    </coverageDimension> 
+  </dimensions> 
+  <requestSRS> 
+    <string>EPSG:4326</string> 
+  </requestSRS> 
+  <responseSRS> 
+    <string>EPSG:4326</string> 
+  </responseSRS> 
+</coverage>
+* Style format (must be expressed in SLD, not XML)
+** XML
+<style> 
+  <name>line</name>
+  <filename>default_line.sld</filename>
+</style> 
+** SLD
+<sld:StyledLayerDescriptor xmlns="http://www.opengis.net/sld" xmlns:sld="http://www.opengis.net/sld" xmlns:ogc="http://www.opengis.net/ogc" xmlns:gml="http://www.opengis.net/gml" version="1.0.0">
+  <sld:NamedLayer>
+    <sld:Name>population</sld:Name>
+    <sld:UserStyle>
+      <sld:Name>population</sld:Name>
+      <sld:Title>Population in the United States</sld:Title>
+      <sld:Abstract>A sample filter that filters the United States into three
+      categories of population, drawn in different colors</sld:Abstract>
+      <sld:FeatureTypeStyle>
+        <sld:Name>name</sld:Name>
+        <sld:Title>title</sld:Title>
+        <sld:Abstract>abstract</sld:Abstract>
+        <sld:FeatureTypeName>Feature</sld:FeatureTypeName>
+        <sld:SemanticTypeIdentifier>generic:geometry</sld:SemanticTypeIdentifier>
+        <sld:Rule>
+          <sld:Title>&lt; 2M</sld:Title>
+          <ogc:Filter>
+            <ogc:PropertyIsLessThan>
+              <ogc:PropertyName>PERSONS</ogc:PropertyName>
+              <ogc:Literal>2000000</ogc:Literal>
+            </ogc:PropertyIsLessThan>
+          </ogc:Filter>
+          <sld:PolygonSymbolizer>
+            <sld:Fill>
+              <sld:CssParameter name="fill">
+                <ogc:Literal>#4DFF4D</ogc:Literal>
+              </sld:CssParameter>
+              <sld:CssParameter name="fill-opacity">
+                <ogc:Literal>0.7</ogc:Literal>
+              </sld:CssParameter>
+            </sld:Fill>
+          </sld:PolygonSymbolizer>
+        </sld:Rule>
+        <sld:Rule>
+          <sld:Title>2M - 4M</sld:Title>
+          <ogc:Filter>
+            <ogc:PropertyIsBetween>
+              <ogc:PropertyName>PERSONS</ogc:PropertyName>
+              <ogc:LowerBoundary>
+                <ogc:Literal>2000000</ogc:Literal>
+              </ogc:LowerBoundary>
+              <ogc:UpperBoundary>
+                <ogc:Literal>4000000</ogc:Literal>
+              </ogc:UpperBoundary>
+            </ogc:PropertyIsBetween>
+          </ogc:Filter>
+          <sld:PolygonSymbolizer>
+            <sld:Fill>
+              <sld:CssParameter name="fill">
+                <ogc:Literal>#FF4D4D</ogc:Literal>
+              </sld:CssParameter>
+              <sld:CssParameter name="fill-opacity">
+                <ogc:Literal>0.7</ogc:Literal>
+              </sld:CssParameter>
+            </sld:Fill>
+          </sld:PolygonSymbolizer>
+        </sld:Rule>
+        <sld:Rule>
+          <sld:Title>&gt; 4M</sld:Title>
+          <ogc:Filter>
+            <ogc:PropertyIsGreaterThan>
+              <ogc:PropertyName>PERSONS</ogc:PropertyName>
+              <ogc:Literal>4000000</ogc:Literal>
+            </ogc:PropertyIsGreaterThan>
+          </ogc:Filter>
+          <sld:PolygonSymbolizer>
+            <sld:Fill>
+              <sld:CssParameter name="fill">
+                <ogc:Literal>#4D4DFF</ogc:Literal>
+              </sld:CssParameter>
+              <sld:CssParameter name="fill-opacity">
+                <ogc:Literal>0.7</ogc:Literal>
+              </sld:CssParameter>
+            </sld:Fill>
+          </sld:PolygonSymbolizer>
+        </sld:Rule>
+        <sld:Rule>
+          <sld:Title>Boundary</sld:Title>
+          <sld:LineSymbolizer>
+            <sld:Stroke>
+              <sld:CssParameter name="stroke">
+                <ogc:Literal>#000000</ogc:Literal>
+              </sld:CssParameter>
+              <sld:CssParameter name="stroke-linecap">
+                <ogc:Literal>butt</ogc:Literal>
+              </sld:CssParameter>
+              <sld:CssParameter name="stroke-linejoin">
+                <ogc:Literal>miter</ogc:Literal>
+              </sld:CssParameter>
+              <sld:CssParameter name="stroke-opacity">
+                <ogc:Literal>1</ogc:Literal>
+              </sld:CssParameter>
+              <sld:CssParameter name="stroke-width">
+                <ogc:Literal>1</ogc:Literal>
+              </sld:CssParameter>
+              <sld:CssParameter name="stroke-dashoffset">
+                <ogc:Literal>0</ogc:Literal>
+              </sld:CssParameter>
+            </sld:Stroke>
+          </sld:LineSymbolizer>
+          <sld:TextSymbolizer>
+            <sld:Label>
+              <ogc:PropertyName>STATE_ABBR</ogc:PropertyName>
+            </sld:Label>
+            <sld:Font>
+              <sld:CssParameter name="font-family">
+                <ogc:Literal>Times New Roman</ogc:Literal>
+              </sld:CssParameter>
+              <sld:CssParameter name="font-size">
+                <ogc:Literal>14</ogc:Literal>
+              </sld:CssParameter>
+              <sld:CssParameter name="font-style">
+                <ogc:Literal>Normal</ogc:Literal>
+              </sld:CssParameter>
+              <sld:CssParameter name="font-weight">
+                <ogc:Literal>normal</ogc:Literal>
+              </sld:CssParameter>
+            </sld:Font>
+            <sld:LabelPlacement>
+              <sld:PointPlacement>
+                <sld:AnchorPoint>
+                  <sld:AnchorPointX>
+                    <ogc:Literal>0.5</ogc:Literal>
+                  </sld:AnchorPointX>
+                  <sld:AnchorPointY>
+                    <ogc:Literal>0.5</ogc:Literal>
+                  </sld:AnchorPointY>
+                </sld:AnchorPoint>
+                <sld:Displacement>
+                  <sld:DisplacementX>
+                    <ogc:Literal>0</ogc:Literal>
+                  </sld:DisplacementX>
+                  <sld:DisplacementY>
+                    <ogc:Literal>0</ogc:Literal>
+                  </sld:DisplacementY>
+                </sld:Displacement>
+                <sld:Rotation>
+                  <ogc:Literal>0.0</ogc:Literal>
+                </sld:Rotation>
+              </sld:PointPlacement>
+            </sld:LabelPlacement>
+          </sld:TextSymbolizer>
+        </sld:Rule>
+      </sld:FeatureTypeStyle>
+    </sld:UserStyle>
+  </sld:NamedLayer>
+</sld:StyledLayerDescriptor>
+* Layer format
+** Shapefile
+<layer> 
+  <name>lakes</name> 
+  <type>VECTOR</type> 
+  <defaultStyle> 
+    <name>polygon</name> 
+    <atom:link xmlns:atom="http://www.w3.org/2005/Atom" rel="alternate" href="http://ecoinformatics.uvm.edu/geoserver/rest/styles/polygon.xml" type="application/xml"/> 
+  </defaultStyle> 
+  <resource class="featureType"> 
+    <name>lakes</name> 
+    <atom:link xmlns:atom="http://www.w3.org/2005/Atom" rel="alternate" href="http://ecoinformatics.uvm.edu/geoserver/rest/workspaces/puget/datastores/lakes/featuretypes/lakes.xml" type="application/xml"/> 
+  </resource> 
+  <enabled>true</enabled> 
+  <attribution> 
+    <logoWidth>0</logoWidth> 
+    <logoHeight>0</logoHeight> 
+  </attribution> 
+</layer>
+** PostGIS table
+<layer> 
+  <name>pugetlake</name> 
+  <type>VECTOR</type> 
+  <defaultStyle> 
+    <name>polygon</name> 
+    <atom:link xmlns:atom="http://www.w3.org/2005/Atom" rel="alternate" href="http://ecoinformatics.uvm.edu/geoserver/rest/styles/polygon.xml" type="application/xml"/> 
+  </defaultStyle> 
+  <resource class="featureType"> 
+    <name>pugetlake</name> 
+    <atom:link xmlns:atom="http://www.w3.org/2005/Atom" rel="alternate" href="http://ecoinformatics.uvm.edu/geoserver/rest/workspaces/puget/datastores/aries/featuretypes/pugetlake.xml" type="application/xml"/> 
+  </resource> 
+  <enabled>true</enabled> 
+  <attribution> 
+    <logoWidth>0</logoWidth> 
+    <logoHeight>0</logoHeight> 
+  </attribution> 
+</layer>
+** GeoTIFF
+<layer> 
+  <name>elevation</name> 
+  <type>RASTER</type> 
+  <defaultStyle> 
+    <name>raster</name> 
+    <atom:link xmlns:atom="http://www.w3.org/2005/Atom" rel="alternate" href="http://ecoinformatics.uvm.edu/geoserver/rest/styles/raster.xml" type="application/xml"/> 
+  </defaultStyle> 
+  <resource class="coverage"> 
+    <name>elevation</name> 
+    <atom:link xmlns:atom="http://www.w3.org/2005/Atom" rel="alternate" href="http://ecoinformatics.uvm.edu/geoserver/rest/workspaces/mg/coveragestores/elevation/coverages/elevation.xml" type="application/xml"/> 
+  </resource> 
+  <enabled>true</enabled> 
+  <attribution> 
+    <logoWidth>0</logoWidth> 
+    <logoHeight>0</logoHeight> 
+  </attribution> 
+</layer>
+* Layer group format
+<layerGroup> 
+  <name>spearfish</name> 
+  <layers> 
+    <layer> 
+      <name>sfdem</name> 
+      <atom:link xmlns:atom="http://www.w3.org/2005/Atom" rel="alternate" href="http://ecoinformatics.uvm.edu/geoserver/rest/layers/sfdem.xml" type="application/xml"/> 
+    </layer> 
+    <layer> 
+      <name>streams</name> 
+      <atom:link xmlns:atom="http://www.w3.org/2005/Atom" rel="alternate" href="http://ecoinformatics.uvm.edu/geoserver/rest/layers/streams.xml" type="application/xml"/> 
+    </layer> 
+    <layer> 
+      <name>roads</name> 
+      <atom:link xmlns:atom="http://www.w3.org/2005/Atom" rel="alternate" href="http://ecoinformatics.uvm.edu/geoserver/rest/layers/roads.xml" type="application/xml"/> 
+    </layer> 
+    <layer> 
+      <name>restricted</name> 
+      <atom:link xmlns:atom="http://www.w3.org/2005/Atom" rel="alternate" href="http://ecoinformatics.uvm.edu/geoserver/rest/layers/restricted.xml" type="application/xml"/> 
+    </layer> 
+    <layer> 
+      <name>archsites</name> 
+      <atom:link xmlns:atom="http://www.w3.org/2005/Atom" rel="alternate" href="http://ecoinformatics.uvm.edu/geoserver/rest/layers/archsites.xml" type="application/xml"/> 
+    </layer> 
+    <layer> 
+      <name>bugsites</name> 
+      <atom:link xmlns:atom="http://www.w3.org/2005/Atom" rel="alternate" href="http://ecoinformatics.uvm.edu/geoserver/rest/layers/bugsites.xml" type="application/xml"/> 
+    </layer> 
+  </layers> 
+  <styles> 
+    <style/> 
+    <style/> 
+    <style/> 
+    <style/> 
+    <style/> 
+    <style/> 
+  </styles> 
+  <bounds> 
+    <minx>589425.9342365642</minx> 
+    <maxx>609518.6719560538</maxx> 
+    <miny>4913959.224611808</miny> 
+    <maxy>4928082.949945881</maxy> 
+    <crs class="projected">EPSG:26713</crs> 
+  </bounds> 
+  <metadata> 
+    <entry key="rawStyleList"></entry> 
+  </metadata> 
+</layerGroup>
+
+* Translation procedure
+  Read each line from CSV file
+  If Workspace, remember it, else use last
+  If Store, remember it, else use last
+  If Layer,
+    If URI (we have a file-based data source), parse URI for type info: Shapefile or GeoTIFF,
+      If Type = Shapefile, create new Data Store, Feature Type, and Layer,
+      Else if Type = GeoTIFF, create Coverage Store, Coverage, and Layer,
+      Else ERROR
+    Else (we have a postgis data source), create new Feature Type and Layer,
+  Else if Store, create new Store and remember URI,
+  Else if Workspace, create new Workspace and Namespace,
+  Else ERROR
+
+  Creating a Workspace:
+    Name = <Workspace>
+
+    NOTE: If this is the first workspace, make it the default.
+
+  Creating a Namespace:
+    Prefix = <Workspace>
+    URI    = http://www.integratedmodelling.org/geo/ns/<Workspace>
+
+    NOTE: If this is the first namespace, make it the default.
+
+  Creating a Data Store:
+    Type = Parse <URI> [file: + .shp = Shapefile, postgis: = PostGIS]
+
+    If Shapefile,
+
+    Name = <Store>
+    Description = <Description>
+    Type = Shapefile
+    Enabled? = true
+    Workspace = <Workspace>
+    Memory Mapped Buffer? = true
+    Create Spatial Index? = true
+    Charset = ISO-8859-1
+    URL = <URI>
+    Namespace = http://www.integratedmodelling.org/geo/ns/<Workspace>
+
+    If PostGIS,
+
+    Name = <Store>
+    Description = <Description>
+    Type = PostGIS
+    Enabled? = true
+    Workspace = <Workspace>
+    DB Type = postgis
+    User = postgres
+    Host = localhost
+    Port = 5432
+    Validate Connections? = true
+    Connection Timeout = 20
+    Max Connections = 10
+    Min Connections = 1
+    Database = Parse <URI> [postgis:<Database>]
+    Namespace = http://www.integratedmodelling.org/geo/ns/<Workspace>
+    Schema = public
+    Loose BBox? = false
+    Expose Primary Keys? = false
+    Fetch Size = 1000
+    Max Open Prepared Statements = 50
+    PreparedStatements? = false
+
+  Creating a Coverage Store:
+    Type = Parse <URI> [file: + .tif = GeoTIFF]
+
+    Name = <Store>
+    Description = <Description>
+    Type = GeoTIFF
+    Enabled? = true
+    Workspace = <Workspace>
+    URL = <URI>
+
+  Creating a Feature Type:
+    Do this if you are creating a Layer and the current Store <URI> contains [file: + .shp = Shapefile, postgis: = PostGIS]
+    Alternately, do this is you are creating a Layer and <Default Style> is "point", "line", or "polygon".
+
+    Name = <Layer>
+    Native Name = <Layer>
+    Namespace = http://www.integratedmodelling.org/geo/ns/<Workspace>
+    Title = <Description>
+    Abstract = <Description>
+    Native CRS = Get WKT projection from ogrinfo
+    SRS = <Native SRS>
+    Native Min X = <Native Min X>
+    Native Max X = <Native Max X>
+    Native Min Y = <Native Min Y>
+    Native Max Y = <Native Max Y>
+    Native CRS = <Declared SRS>
+    Lat/Lon Min X = <Lat/Lon Min X>
+    Lat/Lon Max X = <Lat/Lon Max X>
+    Lat/Lon Min Y = <Lat/Lon Min Y>
+    Lat/Lon Max Y = <Lat/Lon Max Y>
+    Lat/Lon CRS = EPSG:4326
+    Projection Policy = If <Native SRS> != <Declared SRS>, use FORCE_DECLARED, else use KEEP_NATIVE
+    Enabled? = true
+    Data Store = <Store>
+    Max Features = 0
+    Num Decimals = 0
+
+  Creating a Coverage:
+    Do this if you are creating a Layer and the current Store <URI> contains [file: + .tif = GeoTIFF]
+    Alternately, do this is you are creating a Layer and <Default Style> is "raster".
+    Let Filename = Parse <URI> [file:/coverages/cstore/<Filename>.tif]
+
+    Name = <Layer>
+    Namespace = <Workspace>
+    Title = <Description>
+    Description = <Description>
+    Abstract = <Description>
+    Keywords = WCS, GeoTIFF, <Filename>
+    Native CRS = Get WKT projection from ogrinfo
+    SRS = <Native SRS>
+    Native Min X = <Native Min X>
+    Native Max X = <Native Max X>
+    Native Min Y = <Native Min Y>
+    Native Max Y = <Native Max Y>
+    Native CRS = <Declared SRS>
+    Lat/Lon Min X = <Lat/Lon Min X>
+    Lat/Lon Max X = <Lat/Lon Max X>
+    Lat/Lon Min Y = <Lat/Lon Min Y>
+    Lat/Lon Max Y = <Lat/Lon Max Y>
+    Lat/Lon CRS = EPSG:4326
+    Projection Policy = If <Native SRS> != <Declared SRS>, use FORCE_DECLARED, else use KEEP_NATIVE
+    Enabled? = true
+    Dir Name = <Store>_<Filename>
+    Coverage Store = <Store>
+    Native Format = GeoTIFF
+    Grid Dimension = <Grid Dimension>
+    Low X = <Low X>
+    Low Y = <Low Y>
+    High X = <High X>
+    High Y = <High Y>
+    Scale X = <Scale X>
+    Scale Y = <Scale Y>
+    Shear X = <Shear X>
+    Shear Y = <Shear Y>
+    Translate X = <Translate X>
+    Translate Y = <Translate Y>
+    Grid CRS = <Grid CRS>
+    Default Interpolation Method = <Default Interpolation Method>
+    Request SRS = <Declared SRS>, EPSG:4326 (if <Declared SRS> != EPSG:4326)
+    Response SRS = <Declared SRS>, EPSG:4326 (if <Declared SRS> != EPSG:4326)
+
+  Creating a Layer:
+    Name = <Layer>
+    Type = If <Default Style> is point, line, or polygon, use VECTOR. If <Default Style> is raster, use RASTER.
+    Default Style = <Default Style>
+    Resource Class = If <Default Style> is point, line, or polygon, use "feature type". If <Default Style> is raster, use "coverage".
+    Resource Name = <Layer>
+    Enabled? = true
+
+* Trouble Layers
+
+global:dem90m (raster)
+global:hydrosheds (raster)
+global:slope90m (raster)
+global:bathymetry_global (raster)
+All 6 of the RUSLE *factor.tif layers
