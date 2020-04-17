@@ -110,32 +110,32 @@
   (reset! current-postgis-database (extract-dbname URI))
   ["POST"
    (str "/workspaces/" Workspace "/datastores")
-   (xml [:dataStore
-         [:name Store]
-         [:description Description]
-         [:type "PostGIS"]
-         [:enabled "true"]
-         [:connectionParameters
-          [:entry {:key "host"}                         "localhost"]
-          [:entry {:key "port"}                         "5432"]
-          [:entry {:key "dbtype"}                       "postgis"]
-          [:entry {:key "database"}                     (extract-dbname URI)]
-          [:entry {:key "user"}                         postgis-user]
+   (xml
+    [:dataStore
+     [:name Store]
+     [:description Description]
+     [:type "PostGIS"]
+     [:enabled "true"]
+     [:connectionParameters
+      [:entry {:key "host"}                         "localhost"]
+      [:entry {:key "port"}                         "5432"]
+      [:entry {:key "dbtype"}                       "postgis"]
+      [:entry {:key "database"}                     (extract-dbname URI)]
+      [:entry {:key "user"}                         postgis-user]
 
-          [:entry {:key "namespace"}                    (str namespace-prefix Workspace)]
-          [:entry {:key "schema"}                       "public"]
+      [:entry {:key "namespace"}                    (str namespace-prefix Workspace)]
+      [:entry {:key "schema"}                       "public"]
 
-          [:entry {:key "min connections"}              "1"]
-          [:entry {:key "max connections"}              "10"]
-          [:entry {:key "validate connections"}         "true"]
-          [:entry {:key "Connection timeout"}           "20"]
+      [:entry {:key "min connections"}              "1"]
+      [:entry {:key "max connections"}              "10"]
+      [:entry {:key "validate connections"}         "true"]
+      [:entry {:key "Connection timeout"}           "20"]
 
-          [:entry {:key "fetch size"}                   "1000"]
-          [:entry {:key "Loose bbox"}                   "false"]
-          [:entry {:key "Expose primary keys"}          "false"]
-          [:entry {:key "preparedStatements"}           "false"]
-          [:entry {:key "Max open prepared statements"} "50"]
-          ]])])
+      [:entry {:key "fetch size"}                   "1000"]
+      [:entry {:key "Loose bbox"}                   "false"]
+      [:entry {:key "Expose primary keys"}          "false"]
+      [:entry {:key "preparedStatements"}           "false"]
+      [:entry {:key "Max open prepared statements"} "50"]]])])
 
 (defn delete-postgis-data-store
   [config-params {:keys [Workspace Store URI]}]
@@ -179,15 +179,15 @@
   (println "create-postgis-feature-type" (str Workspace ":" Store ":" Layer))
   ["POST"
    (str "/workspaces/" Workspace "/datastores/" Store "/featuretypes")
-   (xml [:featureType
-         [:name Layer]
-         [:nativeName Layer]
-         [:title Description]
-         [:abstract Description]
-         [:enabled "true"]
-         [:maxFeatures "0"]
-         [:numDecimals "0"]
-         ])])
+   (xml
+    [:featureType
+     [:name Layer]
+     [:nativeName Layer]
+     [:title Description]
+     [:abstract Description]
+     [:enabled "true"]
+     [:maxFeatures "0"]
+     [:numDecimals "0"]])])
 
 (defn delete-postgis-feature-type
   [config-params {:keys [Workspace Store Layer]}]
@@ -201,18 +201,18 @@
   (println "create-shapefile-data-store" (str Workspace ":" Store))
   ["POST"
    (str "/workspaces/" Workspace "/datastores")
-   (xml [:dataStore
-         [:name Store]
-         [:description Description]
-         [:type "Shapefile"]
-         [:enabled "true"]
-         [:connectionParameters
-          [:entry {:key "memory mapped buffer"} "true"]
-          [:entry {:key "create spatial index"} "true"]
-          [:entry {:key "charset"}              "ISO-8859-1"]
-          [:entry {:key "url"}                  URI]
-          [:entry {:key "namespace"}            (str namespace-prefix Workspace)]
-          ]])])
+   (xml
+    [:dataStore
+     [:name Store]
+     [:description Description]
+     [:type "Shapefile"]
+     [:enabled "true"]
+     [:connectionParameters
+      [:entry {:key "memory mapped buffer"} "true"]
+      [:entry {:key "create spatial index"} "true"]
+      [:entry {:key "charset"}              "ISO-8859-1"]
+      [:entry {:key "url"}                  URI]
+      [:entry {:key "namespace"}            (str namespace-prefix Workspace)]]])])
 
 (defn delete-shapefile-data-store
   [config-params {:keys [Workspace Store]}]
@@ -226,15 +226,15 @@
   (println "create-shapefile-feature-type" (str Workspace ":" Store ":" Layer))
   ["POST"
    (str "/workspaces/" Workspace "/datastores/" Store "/featuretypes")
-   (xml [:featureType
-         [:name Layer]
-         [:nativeName Store]
-         [:title Description]
-         [:abstract Description]
-         [:enabled "true"]
-         [:maxFeatures "0"]
-         [:numDecimals "0"]
-         ])])
+   (xml
+    [:featureType
+     [:name Layer]
+     [:nativeName Store]
+     [:title Description]
+     [:abstract Description]
+     [:enabled "true"]
+     [:maxFeatures "0"]
+     [:numDecimals "0"]])])
 
 (defn create-shapefile-feature-type-via-put
   [config-params {:keys [Workspace Store URI]}]
@@ -255,14 +255,15 @@
   (println "create-coverage-store" (str Workspace ":" Store))
   ["POST"
    (str "/workspaces/" Workspace "/coveragestores")
-   (xml [:coverageStore
-         [:name Store]
-         [:description Description]
-         [:type "GeoTIFF"]
-         [:enabled "true"]
-         [:workspace
-          [:name Workspace]]
-         [:url URI]])])
+   (xml
+    [:coverageStore
+     [:name Store]
+     [:description Description]
+     [:type "GeoTIFF"]
+     [:enabled "true"]
+     [:workspace
+      [:name Workspace]]
+     [:url URI]])])
 
 (defn delete-coverage-store
   [config-params {:keys [Workspace Store]}]
@@ -355,71 +356,71 @@
   (let [gdal-info (extract-georeferences geoserver-data-dir URI)]
     ["POST"
      (str "/workspaces/" Workspace "/coveragestores/" Store "/coverages")
-     (xml [:coverage
-           [:name Layer]
-           [:title Description]
-           [:description Description]
-           [:abstract Description]
-           [:enabled "true"]
-           [:keywords
-            [:string "WCS"]
-            [:string "GeoTIFF"]
-            [:string (extract-filename URI)]]
-           [:nativeCRS (:nativeCRS gdal-info)]
-           [:srs DeclaredSRS]
-           [:nativeBoundingBox
-            [:minx (:native-min-x gdal-info)]
-            [:maxx (:native-max-x gdal-info)]
-            [:miny (:native-min-y gdal-info)]
-            [:maxy (:native-max-y gdal-info)]
-            (if (and NativeSRS (not= NativeSRS "UNKNOWN"))
-              [:crs NativeSRS])
-            ]
-           [:latLonBoundingBox
-            [:minx (:latlon-min-x gdal-info)]
-            [:maxx (:latlon-max-x gdal-info)]
-            [:miny (:latlon-min-y gdal-info)]
-            [:maxy (:latlon-max-y gdal-info)]
-            [:crs "EPSG:4326"]]
-           [:projectionPolicy "REPROJECT_TO_DECLARED"]
-           [:metadata
-            [:entry {:key "cachingEnabled"} "false"]
-            [:entry {:key "dirName"} (str Store "_" (extract-filename URI))]]
-           [:nativeFormat "GeoTIFF"]
-           [:grid {:dimension "2"}
-            [:range
-             [:low "0 0"]
-             [:high (:cols-rows gdal-info)]]
-            [:transform
-             [:scaleX (:pixel-width  gdal-info)]
-             [:scaleY (:pixel-height gdal-info)]
-             [:shearX (:shear-x gdal-info)]
-             [:shearY (:shear-y gdal-info)]
-             [:translateX (:x-origin gdal-info)]
-             [:translateY (:y-origin gdal-info)]]
-            [:crs DeclaredSRS]]
-           [:supportedFormats
-            [:string "GIF"]
-            [:string "PNG"]
-            [:string "JPEG"]
-            [:string "TIFF"]
-            [:string "GEOTIFF"]]
-           [:interpolationMethods
-            [:string "bilinear"]
-            [:string "bicubic"]]
-           [:dimensions
-            [:coverageDimension
-             [:name (.toUpperCase (str (:color-interp gdal-info) "_INDEX"))]
-             [:description "GridSampleDimension[-Infinity,Infinity]"]]]
-           [:requestSRS
-            [:string "EPSG:4326"]
-            (if (not= DeclaredSRS "EPSG:4326")
-              [:string DeclaredSRS])]
-           [:responseSRS
-            [:string "EPSG:4326"]
-            (if (not= DeclaredSRS "EPSG:4326")
-              [:string DeclaredSRS])]
-           ])]))
+     (xml
+      [:coverage
+       [:name Layer]
+       [:title Description]
+       [:description Description]
+       [:abstract Description]
+       [:enabled "true"]
+       [:keywords
+        [:string "WCS"]
+        [:string "GeoTIFF"]
+        [:string (extract-filename URI)]]
+       [:nativeCRS (:nativeCRS gdal-info)]
+       [:srs DeclaredSRS]
+       [:nativeBoundingBox
+        [:minx (:native-min-x gdal-info)]
+        [:maxx (:native-max-x gdal-info)]
+        [:miny (:native-min-y gdal-info)]
+        [:maxy (:native-max-y gdal-info)]
+        (if (and NativeSRS (not= NativeSRS "UNKNOWN"))
+          [:crs NativeSRS])
+        ]
+       [:latLonBoundingBox
+        [:minx (:latlon-min-x gdal-info)]
+        [:maxx (:latlon-max-x gdal-info)]
+        [:miny (:latlon-min-y gdal-info)]
+        [:maxy (:latlon-max-y gdal-info)]
+        [:crs "EPSG:4326"]]
+       [:projectionPolicy "REPROJECT_TO_DECLARED"]
+       [:metadata
+        [:entry {:key "cachingEnabled"} "false"]
+        [:entry {:key "dirName"} (str Store "_" (extract-filename URI))]]
+       [:nativeFormat "GeoTIFF"]
+       [:grid {:dimension "2"}
+        [:range
+         [:low "0 0"]
+         [:high (:cols-rows gdal-info)]]
+        [:transform
+         [:scaleX (:pixel-width  gdal-info)]
+         [:scaleY (:pixel-height gdal-info)]
+         [:shearX (:shear-x gdal-info)]
+         [:shearY (:shear-y gdal-info)]
+         [:translateX (:x-origin gdal-info)]
+         [:translateY (:y-origin gdal-info)]]
+        [:crs DeclaredSRS]]
+       [:supportedFormats
+        [:string "GIF"]
+        [:string "PNG"]
+        [:string "JPEG"]
+        [:string "TIFF"]
+        [:string "GEOTIFF"]]
+       [:interpolationMethods
+        [:string "bilinear"]
+        [:string "bicubic"]]
+       [:dimensions
+        [:coverageDimension
+         [:name (.toUpperCase (str (:color-interp gdal-info) "_INDEX"))]
+         [:description "GridSampleDimension[-Infinity,Infinity]"]]]
+       [:requestSRS
+        [:string "EPSG:4326"]
+        (if (not= DeclaredSRS "EPSG:4326")
+          [:string DeclaredSRS])]
+       [:responseSRS
+        [:string "EPSG:4326"]
+        (if (not= DeclaredSRS "EPSG:4326")
+          [:string DeclaredSRS])]])]))
 
 (defn delete-coverage
   [config-params {:keys [Workspace Store Layer]}]
