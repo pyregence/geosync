@@ -1,7 +1,8 @@
 {:paths   ["src" "resources"]
- :deps    {org.clojure/clojure         {:mvn/version "1.10.1"}
-           org.clojure/clojure-contrib {:mvn/version "1.2.0"} ; FIXME: replace this
-           dk.ative/docjure            {:mvn/version "1.13.0"}}
+ :deps    {org.clojure/clojure   {:mvn/version "1.10.1"}
+           org.clojure/tools.cli {:mvn/version "1.0.194"}
+           hiccup/hiccup         {:mvn/version "2.0.0-alpha2"}
+           clj-http/clj-http     {:mvn/version "3.10.1"}}
  :aliases {:run        {:main-opts ["-m" "geosync.core"]}
            :check-deps {:extra-deps {olical/depot {:mvn/version "1.8.4"}}
                         :main-opts ["-m" "depot.outdated.main"]}}}

@@ -24,27 +24,29 @@
 ;;;   instance.
 
 (ns geosync.core
-  (:require [clojure.set                  :refer [map-invert]]
-            [clojure.java.io              :refer [reader file]]
-            [clojure.java.shell           :refer [with-sh-dir sh]]
-            [clojure.contrib.prxml        :refer [prxml]]
-            [clojure.contrib.base64       :refer [encode-str]]
-            [clojure.contrib.http.agent   :refer [http-agent error? status message string]]
-            [clojure.contrib.command-line :refer [with-command-line]]
-            [dk.ative.docjure.spreadsheet :refer [load-workbook select-sheet select-columns]])
-  (:import (java.io InputStream OutputStream)))
+  (:require [clojure.edn        :as edn]
+            [clojure.java.io    :as io]
+            [clojure.java.shell :refer [with-sh-dir sh]]
+            [clojure.tools.cli  :refer [parse-opts]]
+            [hiccup2.core       :refer [html]]
+            [clj-http.client    :as client])
+  (:import java.util.Base64))
 
-(def *rt* (java.lang.Runtime/getRuntime))
+(def base64-encoder (Base64/getUrlEncoder))
+
+(defn encode-str [s]
+  (.encodeToString base64-encoder (.getBytes s)))
+
+(defmacro xml [& args]
+  `(str (html {:mode :xml} ~@args)))
 
 (defn make-rest-request
   [{:keys [geoserver-rest-uri geoserver-rest-http-headers]}
    [http-method uri-suffix http-body]]
-  (let [agnt (http-agent (str geoserver-rest-uri uri-suffix)
-                         :method  http-method
-                         :headers (geoserver-rest-http-headers http-method)
-                         :body    http-body)]
-    (await agnt)
-    agnt))
+  (client/request {:url     (str geoserver-rest-uri uri-suffix)
+                   :method  http-method
+                   :headers (geoserver-rest-http-headers http-method)
+                   :body    http-body}))
 
 (defn remove-prefix
   "If string begins with a + or -, returns the string without this
@@ -58,9 +60,10 @@
   (println "create-workspace-and-namespace" Workspace)
   ["POST"
    "/namespaces"
-   (with-out-str (prxml [:namespace
-                         [:prefix Workspace]
-                         [:uri (str namespace-prefix Workspace)]]))])
+   (xml
+    [:namespace
+     [:prefix Workspace]
+     [:uri (str namespace-prefix Workspace)]])])
 
 (defn delete-workspace-and-namespace
   [config-params {:keys [Workspace]}]
@@ -73,7 +76,7 @@
   [uri]
   (second (re-find #"^postgis:(.*)$" uri)))
 
-(def *current-postgis-database* (atom nil))
+(def current-postgis-database (atom nil))
 
 (defn create-postgis-database
   [{:keys [postgis-user]} {:keys [URI]}]
@@ -104,40 +107,40 @@
 (defn create-postgis-data-store
   [{:keys [namespace-prefix postgis-user]} {:keys [Workspace Store Description URI]}]
   (println "create-postgis-data-store" (str Workspace ":" Store))
-  (reset! *current-postgis-database* (extract-dbname URI))
+  (reset! current-postgis-database (extract-dbname URI))
   ["POST"
    (str "/workspaces/" Workspace "/datastores")
-   (with-out-str (prxml [:dataStore
-                         [:name Store]
-                         [:description Description]
-                         [:type "PostGIS"]
-                         [:enabled "true"]
-                         [:connectionParameters
-                          [:entry {:key "host"}                         "localhost"]
-                          [:entry {:key "port"}                         "5432"]
-                          [:entry {:key "dbtype"}                       "postgis"]
-                          [:entry {:key "database"}                     (extract-dbname URI)]
-                          [:entry {:key "user"}                         postgis-user]
+   (xml [:dataStore
+         [:name Store]
+         [:description Description]
+         [:type "PostGIS"]
+         [:enabled "true"]
+         [:connectionParameters
+          [:entry {:key "host"}                         "localhost"]
+          [:entry {:key "port"}                         "5432"]
+          [:entry {:key "dbtype"}                       "postgis"]
+          [:entry {:key "database"}                     (extract-dbname URI)]
+          [:entry {:key "user"}                         postgis-user]
 
-                          [:entry {:key "namespace"}                    (str namespace-prefix Workspace)]
-                          [:entry {:key "schema"}                       "public"]
+          [:entry {:key "namespace"}                    (str namespace-prefix Workspace)]
+          [:entry {:key "schema"}                       "public"]
 
-                          [:entry {:key "min connections"}              "1"]
-                          [:entry {:key "max connections"}              "10"]
-                          [:entry {:key "validate connections"}         "true"]
-                          [:entry {:key "Connection timeout"}           "20"]
+          [:entry {:key "min connections"}              "1"]
+          [:entry {:key "max connections"}              "10"]
+          [:entry {:key "validate connections"}         "true"]
+          [:entry {:key "Connection timeout"}           "20"]
 
-                          [:entry {:key "fetch size"}                   "1000"]
-                          [:entry {:key "Loose bbox"}                   "false"]
-                          [:entry {:key "Expose primary keys"}          "false"]
-                          [:entry {:key "preparedStatements"}           "false"]
-                          [:entry {:key "Max open prepared statements"} "50"]
-                          ]]))])
+          [:entry {:key "fetch size"}                   "1000"]
+          [:entry {:key "Loose bbox"}                   "false"]
+          [:entry {:key "Expose primary keys"}          "false"]
+          [:entry {:key "preparedStatements"}           "false"]
+          [:entry {:key "Max open prepared statements"} "50"]
+          ]])])
 
 (defn delete-postgis-data-store
   [config-params {:keys [Workspace Store URI]}]
   (println "delete-postgis-data-store" (str Workspace ":" Store))
-  (reset! *current-postgis-database* (extract-dbname URI))
+  (reset! current-postgis-database (extract-dbname URI))
   ["DELETE"
    (str "/workspaces/" Workspace "/datastores/" Store)
    nil])
@@ -158,57 +161,16 @@
                      (remove-epsg-prefix DeclaredSRS)
                      (extract-postgis-path URI)
                      Layer
-                     (deref *current-postgis-database*)
+                     (deref current-postgis-database)
                      postgis-user)]
       (if-not (zero? (:exit result))
         (println (:err result))))))
-
-;; (defn pipe
-;;   "Pipes p1's stdout to p2's stdin."
-;;   [p1 p2]
-;;   (with-open [p1-stdout (.getInputStream  p1)
-;;               p2-stdin  (.getOutputStream p2)]
-;;     (println "Streams opened...")
-;;     (let [b (byte-array 524288)]        ; 512KB
-;;     ;; (let [b (byte-array 10485760)]        ; 10MB
-;;       (println "Buffer created...")
-;;       (loop [num-bytes-read (.read p1-stdout b 0 (count b))]
-;;         (println "Read" num-bytes-read)
-;;         (if (pos? num-bytes-read)
-;;           (do (.write p2-stdin b 0 num-bytes-read)
-;;               (println "Wrote" num-bytes-read)
-;;               (recur (.read p1-stdout b 0 (count b)))))))))
-
-;; ;; Note: I can't use clojure.java.shell/sh here, because the shp2pgsql
-;; ;;       process blocks if it overflows its output buffer.
-;; ;; FIXME: Find a way to remove the hard-coded database name.
-;; (defn add-shapefile-to-postgis-db
-;;   [{:keys [geoserver-data-dir postgis-user]} {:keys [Layer URI DeclaredSRS]}]
-;;   (println "add-shapefile-to-postgis-db" Layer URI (str "(" DeclaredSRS ")"))
-;;   (let [p1 (.exec *rt*
-;;                   (into-array ["shp2pgsql" "-d" "-I" "-s" (remove-epsg-prefix DeclaredSRS) (extract-postgis-path URI) Layer])
-;;                   nil
-;;                   (file geoserver-data-dir))
-;;         p2 (.exec *rt* (into-array ["psql" "-d" "aries" "-U" postgis-user]))]
-;;     (println "Processes created...")
-;;     (pipe p1 p2)
-;;     (println "Pipe complete...")
-;;     (.waitFor p1)
-;;     (println "Process 1 exited...")
-;;     (if-not (zero? (.exitValue p1))
-;;       (with-open [p1-stderr (reader (.getErrorStream p1))]
-;;         (doseq [line (line-seq p1-stderr)] (println line))))
-;;     (.waitFor p2)
-;;     (println "Process 2 exited...")
-;;     (if-not (zero? (.exitValue p2))
-;;       (with-open [p2-stderr (reader (.getErrorStream p2))]
-;;         (doseq [line (line-seq p2-stderr)] (println line))))))
 
 ;; FIXME: Find a way to remove the hard-coded database name.
 (defn remove-shapefile-from-postgis-db
   [{:keys [postgis-user]} {:keys [Layer]}]
   (println "remove-shapefile-from-postgis-db" Layer)
-  (let [result (sh "psql" "-d" (deref *current-postgis-database*) "-U" postgis-user :in (str "DROP TABLE " Layer ";"))]
+  (let [result (sh "psql" "-d" (deref current-postgis-database) "-U" postgis-user :in (str "DROP TABLE " Layer ";"))]
     (if-not (zero? (:exit result))
       (println (:err result)))))
 
@@ -217,15 +179,15 @@
   (println "create-postgis-feature-type" (str Workspace ":" Store ":" Layer))
   ["POST"
    (str "/workspaces/" Workspace "/datastores/" Store "/featuretypes")
-   (with-out-str (prxml [:featureType
-                         [:name Layer]
-                         [:nativeName Layer]
-                         [:title Description]
-                         [:abstract Description]
-                         [:enabled "true"]
-                         [:maxFeatures "0"]
-                         [:numDecimals "0"]
-                         ]))])
+   (xml [:featureType
+         [:name Layer]
+         [:nativeName Layer]
+         [:title Description]
+         [:abstract Description]
+         [:enabled "true"]
+         [:maxFeatures "0"]
+         [:numDecimals "0"]
+         ])])
 
 (defn delete-postgis-feature-type
   [config-params {:keys [Workspace Store Layer]}]
@@ -239,18 +201,18 @@
   (println "create-shapefile-data-store" (str Workspace ":" Store))
   ["POST"
    (str "/workspaces/" Workspace "/datastores")
-   (with-out-str (prxml [:dataStore
-                         [:name Store]
-                         [:description Description]
-                         [:type "Shapefile"]
-                         [:enabled "true"]
-                         [:connectionParameters
-                          [:entry {:key "memory mapped buffer"} "true"]
-                          [:entry {:key "create spatial index"} "true"]
-                          [:entry {:key "charset"}              "ISO-8859-1"]
-                          [:entry {:key "url"}                  URI]
-                          [:entry {:key "namespace"}            (str namespace-prefix Workspace)]
-                          ]]))])
+   (xml [:dataStore
+         [:name Store]
+         [:description Description]
+         [:type "Shapefile"]
+         [:enabled "true"]
+         [:connectionParameters
+          [:entry {:key "memory mapped buffer"} "true"]
+          [:entry {:key "create spatial index"} "true"]
+          [:entry {:key "charset"}              "ISO-8859-1"]
+          [:entry {:key "url"}                  URI]
+          [:entry {:key "namespace"}            (str namespace-prefix Workspace)]
+          ]])])
 
 (defn delete-shapefile-data-store
   [config-params {:keys [Workspace Store]}]
@@ -264,15 +226,15 @@
   (println "create-shapefile-feature-type" (str Workspace ":" Store ":" Layer))
   ["POST"
    (str "/workspaces/" Workspace "/datastores/" Store "/featuretypes")
-   (with-out-str (prxml [:featureType
-                         [:name Layer]
-                         [:nativeName Store]
-                         [:title Description]
-                         [:abstract Description]
-                         [:enabled "true"]
-                         [:maxFeatures "0"]
-                         [:numDecimals "0"]
-                         ]))])
+   (xml [:featureType
+         [:name Layer]
+         [:nativeName Store]
+         [:title Description]
+         [:abstract Description]
+         [:enabled "true"]
+         [:maxFeatures "0"]
+         [:numDecimals "0"]
+         ])])
 
 (defn create-shapefile-feature-type-via-put
   [config-params {:keys [Workspace Store URI]}]
@@ -293,14 +255,14 @@
   (println "create-coverage-store" (str Workspace ":" Store))
   ["POST"
    (str "/workspaces/" Workspace "/coveragestores")
-   (with-out-str (prxml [:coverageStore
-                         [:name Store]
-                         [:description Description]
-                         [:type "GeoTIFF"]
-                         [:enabled "true"]
-                         [:workspace
-                          [:name Workspace]]
-                         [:url URI]]))])
+   (xml [:coverageStore
+         [:name Store]
+         [:description Description]
+         [:type "GeoTIFF"]
+         [:enabled "true"]
+         [:workspace
+          [:name Workspace]]
+         [:url URI]])])
 
 (defn delete-coverage-store
   [config-params {:keys [Workspace Store]}]
@@ -393,71 +355,71 @@
   (let [gdal-info (extract-georeferences geoserver-data-dir URI)]
     ["POST"
      (str "/workspaces/" Workspace "/coveragestores/" Store "/coverages")
-     (with-out-str (prxml [:coverage
-                           [:name Layer]
-                           [:title Description]
-                           [:description Description]
-                           [:abstract Description]
-                           [:enabled "true"]
-                           [:keywords
-                            [:string "WCS"]
-                            [:string "GeoTIFF"]
-                            [:string (extract-filename URI)]]
-                           [:nativeCRS (:nativeCRS gdal-info)]
-                           [:srs DeclaredSRS]
-                           [:nativeBoundingBox
-                            [:minx (:native-min-x gdal-info)]
-                            [:maxx (:native-max-x gdal-info)]
-                            [:miny (:native-min-y gdal-info)]
-                            [:maxy (:native-max-y gdal-info)]
-                            (if (and NativeSRS (not= NativeSRS "UNKNOWN"))
-                              [:crs NativeSRS])
-                            ]
-                           [:latLonBoundingBox
-                            [:minx (:latlon-min-x gdal-info)]
-                            [:maxx (:latlon-max-x gdal-info)]
-                            [:miny (:latlon-min-y gdal-info)]
-                            [:maxy (:latlon-max-y gdal-info)]
-                            [:crs "EPSG:4326"]]
-                           [:projectionPolicy "REPROJECT_TO_DECLARED"]
-                           [:metadata
-                            [:entry {:key "cachingEnabled"} "false"]
-                            [:entry {:key "dirName"} (str Store "_" (extract-filename URI))]]
-                           [:nativeFormat "GeoTIFF"]
-                           [:grid {:dimension "2"}
-                            [:range
-                             [:low "0 0"]
-                             [:high (:cols-rows gdal-info)]]
-                            [:transform
-                             [:scaleX (:pixel-width  gdal-info)]
-                             [:scaleY (:pixel-height gdal-info)]
-                             [:shearX (:shear-x gdal-info)]
-                             [:shearY (:shear-y gdal-info)]
-                             [:translateX (:x-origin gdal-info)]
-                             [:translateY (:y-origin gdal-info)]]
-                            [:crs DeclaredSRS]]
-                           [:supportedFormats
-                            [:string "GIF"]
-                            [:string "PNG"]
-                            [:string "JPEG"]
-                            [:string "TIFF"]
-                            [:string "GEOTIFF"]]
-                           [:interpolationMethods
-                            [:string "bilinear"]
-                            [:string "bicubic"]]
-                           [:dimensions
-                            [:coverageDimension
-                             [:name (.toUpperCase (str (:color-interp gdal-info) "_INDEX"))]
-                             [:description "GridSampleDimension[-Infinity,Infinity]"]]]
-                           [:requestSRS
-                            [:string "EPSG:4326"]
-                            (if (not= DeclaredSRS "EPSG:4326")
-                              [:string DeclaredSRS])]
-                           [:responseSRS
-                            [:string "EPSG:4326"]
-                            (if (not= DeclaredSRS "EPSG:4326")
-                              [:string DeclaredSRS])]
-                           ]))]))
+     (xml [:coverage
+           [:name Layer]
+           [:title Description]
+           [:description Description]
+           [:abstract Description]
+           [:enabled "true"]
+           [:keywords
+            [:string "WCS"]
+            [:string "GeoTIFF"]
+            [:string (extract-filename URI)]]
+           [:nativeCRS (:nativeCRS gdal-info)]
+           [:srs DeclaredSRS]
+           [:nativeBoundingBox
+            [:minx (:native-min-x gdal-info)]
+            [:maxx (:native-max-x gdal-info)]
+            [:miny (:native-min-y gdal-info)]
+            [:maxy (:native-max-y gdal-info)]
+            (if (and NativeSRS (not= NativeSRS "UNKNOWN"))
+              [:crs NativeSRS])
+            ]
+           [:latLonBoundingBox
+            [:minx (:latlon-min-x gdal-info)]
+            [:maxx (:latlon-max-x gdal-info)]
+            [:miny (:latlon-min-y gdal-info)]
+            [:maxy (:latlon-max-y gdal-info)]
+            [:crs "EPSG:4326"]]
+           [:projectionPolicy "REPROJECT_TO_DECLARED"]
+           [:metadata
+            [:entry {:key "cachingEnabled"} "false"]
+            [:entry {:key "dirName"} (str Store "_" (extract-filename URI))]]
+           [:nativeFormat "GeoTIFF"]
+           [:grid {:dimension "2"}
+            [:range
+             [:low "0 0"]
+             [:high (:cols-rows gdal-info)]]
+            [:transform
+             [:scaleX (:pixel-width  gdal-info)]
+             [:scaleY (:pixel-height gdal-info)]
+             [:shearX (:shear-x gdal-info)]
+             [:shearY (:shear-y gdal-info)]
+             [:translateX (:x-origin gdal-info)]
+             [:translateY (:y-origin gdal-info)]]
+            [:crs DeclaredSRS]]
+           [:supportedFormats
+            [:string "GIF"]
+            [:string "PNG"]
+            [:string "JPEG"]
+            [:string "TIFF"]
+            [:string "GEOTIFF"]]
+           [:interpolationMethods
+            [:string "bilinear"]
+            [:string "bicubic"]]
+           [:dimensions
+            [:coverageDimension
+             [:name (.toUpperCase (str (:color-interp gdal-info) "_INDEX"))]
+             [:description "GridSampleDimension[-Infinity,Infinity]"]]]
+           [:requestSRS
+            [:string "EPSG:4326"]
+            (if (not= DeclaredSRS "EPSG:4326")
+              [:string DeclaredSRS])]
+           [:responseSRS
+            [:string "EPSG:4326"]
+            (if (not= DeclaredSRS "EPSG:4326")
+              [:string DeclaredSRS])]
+           ])]))
 
 (defn delete-coverage
   [config-params {:keys [Workspace Store Layer]}]
@@ -531,93 +493,20 @@
         [(create-workspace-and-namespace config-params row)])
       (throw (Exception. "Rows without URIs must declare new workspaces: " row)))))
 
-(defn rows->xml
+(defn paths->xml
   "Generates a sequence of REST request specifications as triplets of
-   [http-method uri-suffix http-body].  Each spreadsheet-row may
-   contribute one or more of these to the final sequence."
-  [config-params spreadsheet-rows]
-  (remove nil?
-          (apply concat
-                 (map (partial translate-row config-params) spreadsheet-rows))))
+  [http-method uri-suffix http-body]. Each file path may contribute
+  one or more of these to the final sequence."
+  [config-params file-paths]
+  (->> file-paths
+       (mapcat (partial translate-row config-params))
+       (remove nil?)))
 
-(defn extract-plus-rows
-  "Selects all the spreadsheet-rows, whose :Workspace field begins
-   with a + and returns them with the + prefix removed."
-  [spreadsheet-rows]
-  (map #(update-in % [:Workspace] remove-prefix)
-       (filter #(.startsWith (:Workspace %) "+") spreadsheet-rows)))
-
-(defn extract-minus-rows
-  "Selects all the spreadsheet-rows, whose :Workspace field begins
-   with a -, removes the - prefix from this value, and adds the
-   key-value pair {:Delete? true} to each row's map."
-  [spreadsheet-rows]
-  (map (comp #(assoc % :Delete? true)
-             #(update-in % [:Workspace] remove-prefix))
-       (filter #(.startsWith (:Workspace %) "-") spreadsheet-rows)))
-
-(defn select-active-rows
-  "Selects all the spreadsheet-rows, whose :Workspace field begins
-   with either a + or -.  Any rows found will have the + or - prefix
-   removed from their :Workspace values.  Rows with a - prefix will
-   also have the key-value pair {:Delete? true} added to their row
-   maps.  Rows with a - prefix will be sorted before those with the +
-   prefix in the returned sequence.  If no + or - rows exist, returns
-   all the spreadsheet-rows."
-  [spreadsheet-rows]
-  (let [plus-rows  (extract-plus-rows  spreadsheet-rows)
-        minus-rows (extract-minus-rows spreadsheet-rows)]
-    (if (and (empty? plus-rows) (empty? minus-rows))
-      spreadsheet-rows
-      (concat minus-rows plus-rows))))
-
-(defn complete-row
-  "Given two maps (previous-row and current-row), returns the
-   current-row map with any empty :Workspace, :Store, and :URI fields
-   filled in with the corresponding values from the previous-row map.
-   Any :Workspace fields beginning with a + or - will not propagate
-   this prefix symbol to its following row.  :Store and :URI field
-   values will not propagate to a row which declares a
-   new :Workspace."
-  [{prev-workspace-raw :Workspace prev-store :Store prev-uri :URI}
-   {curr-workspace-raw :Workspace curr-store :Store curr-uri :URI :as curr-row}]
-  (let [prev-workspace      (remove-prefix prev-workspace-raw)
-        curr-new-workspace? (if curr-workspace-raw (not (.isEmpty (remove-prefix curr-workspace-raw))))]
-    (assoc curr-row
-      :Workspace (if curr-workspace-raw
-                   (if curr-new-workspace?
-                     curr-workspace-raw
-                     (str curr-workspace-raw prev-workspace))
-                   prev-workspace)
-      :Store     (or curr-store (if-not curr-new-workspace? prev-store))
-      :URI       (or curr-uri   (if-not curr-new-workspace? prev-uri)))))
-
-(defn complete-rows
-  "Fills in empty Workspace, Store, and URI fields in each map in
-   spreadsheet-rows by propagating forward the values from earlier
-   maps to those which come immediately after them.  Never overwrites
-   a field which already has a value."
-  [spreadsheet-rows]
-  (rest (reductions complete-row {:Workspace ""} spreadsheet-rows)))
-
-(defn remove-comment-rows
-  "Removes any maps from the spreadsheet-rows vector, whose :Workspace
-   field begins with a #."
-  [spreadsheet-rows]
-  (remove (fn [{workspace :Workspace}] (and workspace (.startsWith workspace "#")))
-          spreadsheet-rows))
-
-(defn load-column-data
-  "Reads the columns in column-spec from sheet-name in
-   spreadsheet-filename.  Returns a vector of maps (one per row in the
-   spreadsheet), whose fields correspond to the columns read from the
-   spreadsheet.  Discards the first row in the sheet, assuming it only
-   contains the column headers."
-  [spreadsheet-filename sheet-name column-spec]
-  (->> (load-workbook spreadsheet-filename)
-       (select-sheet sheet-name)
-       (select-columns (map-invert column-spec))
-       next))
+(defn load-file-paths [data-dir]
+  (->> (io/file data-dir)
+       (file-seq)
+       (filter #(.isFile %))
+       (map #(.getPath %))))
 
 (defn update-geoserver
   "Loads the row data in from the spreadsheet according to
@@ -631,24 +520,22 @@
    sent off as a REST request, and the number of successful and failed
    requests is printed to STDOUT along with the error messages for any
    failed requests."
-  [{:keys [spreadsheet-filename spreadsheet-sheetname column-spec] :as config-params}]
-  (let [http-agents   (->> (load-column-data spreadsheet-filename spreadsheet-sheetname column-spec)
-                           remove-comment-rows
-                           complete-rows
-                           select-active-rows
-                           (rows->xml config-params)
-                           (map (partial make-rest-request config-params)))
-        failed-agents (filter error? http-agents)]
+  [{:keys [data-dir] :as config-params}]
+  (let [http-responses   (->> (load-file-paths data-dir)
+                              (paths->xml config-params)
+                              (map (partial make-rest-request config-params))) ;; FIXME: use client/with-connection-pool for speed
+        failed-responses (filter #(not= 200 (:status %)) http-responses)]
     (println "\nFinished updating Geoserver.\nSuccessful requests:"
-             (- (count http-agents) (count failed-agents))
+             (- (count http-responses) (count failed-responses))
              "\nFailed requests:"
-             (count failed-agents)
+             (count failed-responses)
              "\n\nErrors:")
-    (if (empty? failed-agents)
+    (if (empty? failed-responses)
       (println "None")
-      (doseq [agent-info (map (juxt status message string) failed-agents)]
-        (println agent-info)))))
+      (doseq [[status reason] (map (juxt :status :reason-phrase) failed-responses)]
+        (println status reason)))))
 
+;; FIXME: Use clojure.spec to validate the map
 (defn read-config-params
   "Opens config-file-path as a java.io.PushbackReader and calls the
    Clojure Reader on it once in order to load the first object in the
@@ -657,66 +544,54 @@
    config-file-path is nil, returns {}."
   [config-file-path]
   (if config-file-path
-    (let [file-params (with-open [config-file (java.io.PushbackReader. (reader config-file-path))]
-                        (read config-file))]
+    (let [file-params (edn/read-string (slurp config-file-path))]
       (if (and (map? file-params)
                (every? keyword? (keys file-params)))
         file-params
         (throw (Exception. (str "The config-file must contain a clojure map whose keys are keywords: " config-file-path)))))
     {}))
 
+(def cli-options
+  [["-i" "--config-file EDN"         "Path to a clojure file containing a map of configuration parameters."]
+   ["-d" "--data-dir PATH"           "Path to the directory containing your GIS files."]
+   ["-n" "--namespace-prefix NS"     "URI prefix for constructing namespaces from workspace names."]
+   ["-g" "--geoserver-rest-uri URI"  "URI of your Geoserver's REST extensions."]
+   ["-u" "--geoserver-username USER" "Geoserver admin username."]
+   ["-p" "--geoserver-password PASS" "Geoserver admin password."]
+   ["-D" "--geoserver-data-dir PATH" "Path to your Geoserver's data_dir."]
+   ["-U" "--postgis-user USER"       "Username for postgis database access."]])
+
 (defn -main
-  "AOT-compiled application entry point.
-   Call it with the name of a Clojure file containing the
-   config-params map.  The params will be read into a hash-map and
-   passed on to the update-geoserver function.  So that we only have
-   to calculate it once, the geoserver-auth-code is generated here
-   from the :geoserver-username and :geoserver-password fields in the
-   passed-in map and added to the in-memory hash-map under
-   the :geoserver-rest-http-headers entry."
+  "Call this with the name of a Clojure file containing the
+  config-params map. The params will be read into a hash-map and
+  passed on to the update-geoserver function. So that we only have to
+  calculate it once, the geoserver-auth-code is generated here from
+  the :geoserver-username and :geoserver-password fields in the
+  passed-in map and added to the in-memory hash-map under
+  the :geoserver-rest-http-headers entry."
   [& args]
-  (if (empty? args)
-    (-main "-h")
-    (with-command-line args
-      (str "geosync: Update a running Geoserver instance from an XLS spreadsheet.\n"
-           "Copyright 2010-2012 Gary W. Johnson (gjohnson@sig-gis.com)\n")
-      [[config-file           i "Path to a clojure file containing a map of configuration parameters."]
-       [spreadsheet-filename  f "Path to the XLS spreadsheet."]
-       [spreadsheet-sheetname s "Sheet name to use from the spreadsheet."]
-       [column-spec           c "Map of required spreadsheet fields to their column letters."]
-       [namespace-prefix      n "URI prefix for constructing namespaces from workspace names."]
-       [geoserver-rest-uri    g "URI of your Geoserver's REST extensions."]
-       [geoserver-username    u "Geoserver admin username."]
-       [geoserver-password    p "Geoserver admin password."]
-       [geoserver-data-dir    d "Path to your Geoserver's data_dir."]
-       [postgis-user          U "Username for postgis database access."]]
-      (let [config-file-params  (read-config-params config-file)
-            command-line-params (into {} (remove (comp nil? val)
-                                                 {:spreadsheet-filename  spreadsheet-filename
-                                                  :spreadsheet-sheetname spreadsheet-sheetname
-                                                  :column-spec           column-spec
-                                                  :namespace-prefix      namespace-prefix
-                                                  :geoserver-rest-uri    geoserver-rest-uri
-                                                  :geoserver-username    geoserver-username
-                                                  :geoserver-password    geoserver-password
-                                                  :geoserver-data-dir    geoserver-data-dir
-                                                  :postgis-user          postgis-user}))
+  (println (str "geosync: Update a running Geoserver instance from an XLS spreadsheet.\n"
+                "Copyright 2010-2012 Gary W. Johnson (gjohnson@sig-gis.com)"))
+  (let [{:keys [options arguments summary errors]} (parse-opts args cli-options)]
+    (if (seq errors)
+      (println errors)
+      (let [config-file-params  (read-config-params (:config-file options))
+            command-line-params (into {} (remove (comp nil? val)) (dissoc options :config-file))
             config-params       (merge config-file-params command-line-params)
             geoserver-auth-code (str "Basic " (encode-str (str (:geoserver-username config-params)
                                                                ":"
                                                                (:geoserver-password config-params))))]
         (update-geoserver
          (assoc config-params
-           :geoserver-rest-http-headers {"POST"   {"Accepts"       "application/xml"
-                                                   "Content-type"  "application/xml"
-                                                   "Authorization" geoserver-auth-code}
-                                         "PUT"    {"Accepts"       "*/*"
-                                                   "Content-type"  "text/plain"
-                                                   "Authorization" geoserver-auth-code}
-                                         "DELETE" {"Accepts"       "*/*"
-                                                   "Content-type"  "*/*"
-                                                   "Authorization" geoserver-auth-code}
-                                         })))))
+                :geoserver-rest-http-headers {"POST"   {"Accepts"       "application/xml"
+                                                        "Content-type"  "application/xml"
+                                                        "Authorization" geoserver-auth-code}
+                                              "PUT"    {"Accepts"       "*/*"
+                                                        "Content-type"  "text/plain"
+                                                        "Authorization" geoserver-auth-code}
+                                              "DELETE" {"Accepts"       "*/*"
+                                                        "Content-type"  "*/*"
+                                                        "Authorization" geoserver-auth-code}})))))
   ;; Exit cleanly.
   (shutdown-agents)
   (flush)
