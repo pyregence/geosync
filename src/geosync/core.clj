@@ -630,14 +630,14 @@
                                                                (:geoserver-password config-params))))]
         (update-geoserver
          (assoc config-params
-                :geoserver-rest-http-headers {"POST"   {"Accepts"       "application/xml"
-                                                        "Content-type"  "application/xml"
+                :geoserver-rest-http-headers {"POST"   {"Accept"        "text/xml"
+                                                        "Content-Type"  "text/xml"
                                                         "Authorization" geoserver-auth-code}
-                                              "PUT"    {"Accepts"       "*/*"
-                                                        "Content-type"  "text/plain"
+                                              "PUT"    {"Accept"        "*/*"
+                                                        "Content-Type"  "text/plain"
                                                         "Authorization" geoserver-auth-code}
-                                              "DELETE" {"Accepts"       "*/*"
-                                                        "Content-type"  "*/*"
+                                              "DELETE" {"Accept"        "*/*"
+                                                        "Content-Type"  "*/*"
                                                         "Authorization" geoserver-auth-code}})))))
   ;; Exit cleanly.
   (shutdown-agents)
