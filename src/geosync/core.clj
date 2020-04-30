@@ -1,4 +1,4 @@
-;;; Copyright 2010-2012 Gary W. Johnson (gjohnson@sig-gis.com)
+;;; Copyright 2020 Gary W. Johnson (gjohnson@sig-gis.com)
 ;;;
 ;;; This file is part of geosync.
 ;;;
@@ -17,11 +17,10 @@
 ;;;
 ;;; Description:
 ;;;
-;;;   geosync is a simple command-line script which converts a
-;;;   properly formatted XLS file (see README), describing Workspaces,
-;;;   Data/Coverage Stores, and Layers into the Geoserver REST
-;;;   commands to create those objects in a running Geoserver
-;;;   instance.
+;;;   geosync is a simple command-line application that traverses a
+;;;   directory of raster and vector GIS files (e.g., GeoTIFFs,
+;;;   Shapefiles) and generates the necessary REST commands to add
+;;;   layers for each file to a running GeoServer instance.
 
 (ns geosync.core
   (:require [clojure.edn        :as edn]
@@ -43,87 +42,160 @@
 (defn make-rest-request
   [{:keys [geoserver-rest-uri geoserver-rest-http-headers]}
    [http-method uri-suffix http-body]]
-  (client/request {:url     (str geoserver-rest-uri uri-suffix)
-                   :method  http-method
-                   :headers (geoserver-rest-http-headers http-method)
-                   :body    http-body}))
+  (try
+    (client/request {:url     (str geoserver-rest-uri uri-suffix)
+                     :method  http-method
+                     :headers (geoserver-rest-http-headers http-method)
+                     :body    http-body})
+    (catch Exception e (println "REST Exception:" http-method uri-suffix "->" (.getMessage e)))))
 
-(defn remove-prefix
-  "If string begins with a + or -, returns the string without this
-   initial symbol."
-  [string]
-  (or (second (re-matches #"^[\+\-](.*)" string))
-      string))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; GeoServer REST API
+;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn create-workspace-and-namespace
-  [{:keys [namespace-prefix]} {:keys [Workspace]}]
-  (println "create-workspace-and-namespace" Workspace)
+;; Workspaces
+
+(defn get-workspaces []
+  ["GET"
+   "/workspaces"
+   nil])
+
+(defn get-workspace [workspace]
+  ["GET"
+   (str "/workspaces/" workspace)
+   nil])
+
+(defn create-workspace [workspace]
+  ["POST"
+   "/workspaces"
+   (xml
+    [:workspace
+     [:name workspace]])])
+
+(defn update-workspace [workspace]
+  ["PUT"
+   (str "/workspaces/" workspace)
+   (xml
+    [:workspace
+     [:name workspace]])])
+
+(defn delete-workspace [workspace]
+  ["DELETE"
+   (str "/workspaces/" workspace)
+   nil])
+
+;; Namespaces (these have the same name as their workspaces)
+
+(defn get-namespaces []
+  ["GET"
+   "/namespaces"
+   nil])
+
+(defn get-namespace [workspace]
+  ["GET"
+   (str "/namespaces/" workspace)
+   nil])
+
+(defn create-namespace [uri-prefix workspace]
   ["POST"
    "/namespaces"
    (xml
     [:namespace
-     [:prefix Workspace]
-     [:uri (str namespace-prefix Workspace)]])])
+     [:prefix workspace]
+     [:uri (str uri-prefix workspace)]])])
 
-(defn delete-workspace-and-namespace
-  [config-params {:keys [Workspace]}]
-  (println "delete-workspace-and-namespace" Workspace)
+(defn update-namespace [uri-prefix workspace]
+  ["PUT"
+   (str "/namespaces/" workspace)
+   (xml
+    [:namespace
+     [:prefix workspace]
+     [:uri (str uri-prefix workspace)]])])
+
+(defn delete-namespace [workspace]
   ["DELETE"
-   (str "/workspaces/" Workspace)
+   (str "/namespaces/" workspace)
    nil])
 
-(defn extract-dbname
-  [uri]
-  (second (re-find #"^postgis:(.*)$" uri)))
+;; Data Stores (Vector)
+;; FIXME: Only Shapefile stores are currently supported. See https://docs.geoserver.org/latest/en/api/#1.0.0/datastores.yaml for more types.
 
-(def current-postgis-database (atom nil))
+(defn get-data-stores [workspace]
+  ["GET"
+   (str "/workspaces/" workspace "/datastores")
+   nil])
 
-(defn create-postgis-database
-  [{:keys [postgis-user]} {:keys [URI]}]
-  (println "create-postgis-database" URI)
-  (let [dbname (extract-dbname URI)
-        dblist (sh "psql" "-A" "-l" "-U" postgis-user)]
-    (if-not (zero? (:exit dblist))
-      (println (:err dblist))
-      (if (re-find (re-pattern (str #"\n" dbname)) (:out dblist))
-        (println "Database" dbname "already exists.")
-        (let [result (sh "createdb" "-U" postgis-user dbname "-T" "template_spatial")]
-          (if-not (zero? (:exit result))
-            (println (:err result))))))))
+(defn get-data-store [workspace store]
+  ["GET"
+   (str "/workspaces/" workspace "/datastores/" store)
+   nil])
 
-(defn drop-postgis-database
-  [{:keys [postgis-user]} {:keys [URI]}]
-  (println "drop-postgis-database" URI)
-  (let [dbname (extract-dbname URI)
-        dblist (sh "psql" "-A" "-l" "-U" postgis-user)]
-    (if-not (zero? (:exit dblist))
-      (println (:err dblist))
-      (if (re-find (re-pattern (str #"\n" dbname)) (:out dblist))
-        (let [result (sh "dropdb" "-U" postgis-user dbname)]
-          (if-not (zero? (:exit result))
-            (println (:err result))))
-        (println "Database" dbname "does not exist.")))))
-
-(defn create-postgis-data-store
-  [{:keys [namespace-prefix postgis-user]} {:keys [Workspace Store Description URI]}]
-  (println "create-postgis-data-store" (str Workspace ":" Store))
-  (reset! current-postgis-database (extract-dbname URI))
+;; NOTE: file-url should look like file:/path/to/nyc.shp
+(defn create-data-store [workspace store file-url]
   ["POST"
-   (str "/workspaces/" Workspace "/datastores")
+   (str "/workspaces/" workspace "/datastores")
    (xml
     [:dataStore
-     [:name Store]
-     [:description Description]
+     [:name store]
+     [:enabled true]
+     [:connectionParameters
+      [:url file-url]]])])
+
+;; NOTE: file-url should look like file:/path/to/nyc.shp
+(defn update-data-store [workspace store file-url enabled?]
+  ["PUT"
+   (str "/workspaces/" workspace "/datastores/" store)
+   (xml
+    [:dataStore
+     [:name store]
+     [:enabled enabled?]
+     [:connectionParameters
+      [:url file-url]]])])
+
+(defn delete-data-store [workspace store]
+  ["DELETE"
+   (str "/workspaces/" workspace "/datastores/" store)
+   nil])
+
+;; RESUME HERE
+
+(defn create-shapefile-store [uri-prefix workspace store description uri]
+  ["POST"
+   (str "/workspaces/" workspace "/datastores")
+   (xml
+    [:dataStore
+     [:name store]
+     [:description description]
+     [:type "Shapefile"]
+     [:enabled "true"]
+     [:connectionParameters
+      [:entry {:key "memory mapped buffer"} "true"]
+      [:entry {:key "create spatial index"} "true"]
+      [:entry {:key "charset"}              "ISO-8859-1"]
+      [:entry {:key "url"}                  uri]
+      [:entry {:key "namespace"}            (str uri-prefix workspace)]]])])
+
+(defn create-postgis-data-store
+  [namespace-prefix postgis-user workspace store description db-name]
+  (println "create-postgis-data-store" (str workspace ":" store))
+  ["POST"
+   (str "/workspaces/" workspace "/datastores")
+   (xml
+    [:dataStore
+     [:name store]
+     [:description description]
      [:type "PostGIS"]
      [:enabled "true"]
      [:connectionParameters
       [:entry {:key "host"}                         "localhost"]
       [:entry {:key "port"}                         "5432"]
       [:entry {:key "dbtype"}                       "postgis"]
-      [:entry {:key "database"}                     (extract-dbname URI)]
+      [:entry {:key "database"}                     db-name]
       [:entry {:key "user"}                         postgis-user]
 
-      [:entry {:key "namespace"}                    (str namespace-prefix Workspace)]
+      [:entry {:key "namespace"}                    (str namespace-prefix workspace)]
       [:entry {:key "schema"}                       "public"]
 
       [:entry {:key "min connections"}              "1"]
@@ -138,11 +210,10 @@
       [:entry {:key "Max open prepared statements"} "50"]]])])
 
 (defn delete-postgis-data-store
-  [config-params {:keys [Workspace Store URI]}]
-  (println "delete-postgis-data-store" (str Workspace ":" Store))
-  (reset! current-postgis-database (extract-dbname URI))
+  [workspace store]
+  (println "delete-postgis-data-store" (str workspace ":" store))
   ["DELETE"
-   (str "/workspaces/" Workspace "/datastores/" Store)
+   (str "/workspaces/" workspace "/datastores/" store)
    nil])
 
 (defn remove-epsg-prefix
@@ -194,31 +265,6 @@
   (println "delete-postgis-feature-type" (str Workspace ":" Store ":" Layer))
   ["DELETE"
    (str "/workspaces/" Workspace "/datastores/" Store "/featuretypes/" Layer)
-   nil])
-
-(defn create-shapefile-data-store
-  [{:keys [namespace-prefix]} {:keys [Workspace Store Description URI]}]
-  (println "create-shapefile-data-store" (str Workspace ":" Store))
-  ["POST"
-   (str "/workspaces/" Workspace "/datastores")
-   (xml
-    [:dataStore
-     [:name Store]
-     [:description Description]
-     [:type "Shapefile"]
-     [:enabled "true"]
-     [:connectionParameters
-      [:entry {:key "memory mapped buffer"} "true"]
-      [:entry {:key "create spatial index"} "true"]
-      [:entry {:key "charset"}              "ISO-8859-1"]
-      [:entry {:key "url"}                  URI]
-      [:entry {:key "namespace"}            (str namespace-prefix Workspace)]]])])
-
-(defn delete-shapefile-data-store
-  [config-params {:keys [Workspace Store]}]
-  (println "delete-shapefile-data-store" (str Workspace ":" Store))
-  ["DELETE"
-   (str "/workspaces/" Workspace "/datastores/" Store)
    nil])
 
 (defn create-shapefile-feature-type
@@ -490,8 +536,8 @@
              (nil? Store)
              (nil? Layer))
       (if Delete?
-        [(delete-workspace-and-namespace config-params row)]
-        [(create-workspace-and-namespace config-params row)])
+        [(delete-workspace config-params row)]
+        [(create-workspace config-params row)])
       (throw (Exception. "Rows without URIs must declare new workspaces: " row)))))
 
 (defn paths->xml
