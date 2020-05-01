@@ -55,6 +55,16 @@
                      :body    http-body})
     (catch Exception e (println "REST Exception:" http-method uri-suffix "->" (.getMessage e)))))
 
+;; FIXME: Update this for the pyregence application
+(defn extract-filename
+  [uri]
+  (second (re-find #"^file:.*/([^/]*).tif$" uri)))
+
+;; FIXME: Update this for the pyregence application
+(defn extract-path
+  [uri]
+  (second (re-find #"^file:/raid/geodata/(.*)$" uri)))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 ;; GeoServer REST API
@@ -126,10 +136,6 @@
    nil])
 
 ;; Data Stores (Vector)
-;;
-;; FIXME: Only Shapefile stores are currently supported. See
-;;        https://docs.geoserver.org/latest/en/api/#1.0.0/datastores.yaml
-;;        for more types.
 
 (defn get-data-stores [workspace]
   ["GET"
@@ -141,6 +147,9 @@
    (str "/workspaces/" workspace "/datastores/" store)
    nil])
 
+;; FIXME: Only Shapefile stores are currently supported. See
+;;        https://docs.geoserver.org/latest/en/api/#1.0.0/datastores.yaml
+;;        for more types.
 ;; NOTE: file-url should look like file:/path/to/nyc.shp
 (defn create-data-store [workspace store file-url]
   ["POST"
@@ -152,6 +161,9 @@
      [:connectionParameters
       [:url file-url]]])])
 
+;; FIXME: Only Shapefile stores are currently supported. See
+;;        https://docs.geoserver.org/latest/en/api/#1.0.0/datastores.yaml
+;;        for more types.
 ;; NOTE: file-url should look like file:/path/to/nyc.shp
 (defn update-data-store [workspace store file-url enabled?]
   ["PUT"
@@ -205,212 +217,74 @@
    (str "/workspaces/" workspace "/coveragestores/" store)
    nil])
 
+;; Feature Types (Vector)
 
+(defn get-feature-types
+  ([workspace]
+   ["GET"
+    (str "/workspaces/" workspace "/featuretypes")
+    nil])
+  ([workspace store]
+   ["GET"
+    (str "/workspaces/" workspace "/datastores/" store "/featuretypes")
+    nil]))
 
+(defn get-feature-type
+  ([workspace feature-type]
+   ["GET"
+    (str "/workspaces/" workspace "/featuretypes/" feature-type)
+    nil])
+  ([workspace store feature-type]
+   ["GET"
+    (str "/workspaces/" workspace "/datastores/" store "/featuretypes/" feature-type)
+    nil]))
 
-
-
-
-
-
-
-
-
-
-
-;; Unfiled Legacy Code
-
-(defn create-shapefile-store [uri-prefix workspace store description uri]
-  ["POST"
-   (str "/workspaces/" workspace "/datastores")
-   (xml
-    [:dataStore
-     [:name store]
-     [:description description]
-     [:type "Shapefile"]
-     [:enabled "true"]
-     [:connectionParameters
-      [:entry {:key "memory mapped buffer"} "true"]
-      [:entry {:key "create spatial index"} "true"]
-      [:entry {:key "charset"}              "ISO-8859-1"]
-      [:entry {:key "url"}                  uri]
-      [:entry {:key "namespace"}            (str uri-prefix workspace)]]])])
-
-(defn create-postgis-data-store
-  [namespace-prefix postgis-user workspace store description db-name]
-  (println "create-postgis-data-store" (str workspace ":" store))
-  ["POST"
-   (str "/workspaces/" workspace "/datastores")
-   (xml
-    [:dataStore
-     [:name store]
-     [:description description]
-     [:type "PostGIS"]
-     [:enabled "true"]
-     [:connectionParameters
-      [:entry {:key "host"}                         "localhost"]
-      [:entry {:key "port"}                         "5432"]
-      [:entry {:key "dbtype"}                       "postgis"]
-      [:entry {:key "database"}                     db-name]
-      [:entry {:key "user"}                         postgis-user]
-
-      [:entry {:key "namespace"}                    (str namespace-prefix workspace)]
-      [:entry {:key "schema"}                       "public"]
-
-      [:entry {:key "min connections"}              "1"]
-      [:entry {:key "max connections"}              "10"]
-      [:entry {:key "validate connections"}         "true"]
-      [:entry {:key "Connection timeout"}           "20"]
-
-      [:entry {:key "fetch size"}                   "1000"]
-      [:entry {:key "Loose bbox"}                   "false"]
-      [:entry {:key "Expose primary keys"}          "false"]
-      [:entry {:key "preparedStatements"}           "false"]
-      [:entry {:key "Max open prepared statements"} "50"]]])])
-
-(defn delete-postgis-data-store
-  [workspace store]
-  (println "delete-postgis-data-store" (str workspace ":" store))
-  ["DELETE"
-   (str "/workspaces/" workspace "/datastores/" store)
-   nil])
-
-(defn remove-epsg-prefix
-  [string]
-  (second (re-find #"^EPSG:(.*)$" string)))
-
-(defn extract-postgis-path
-  [uri]
-  (second (re-find #"^postgis:/raid/geodata/(.*).shp$" uri)))
-
-(defn create-postgis-feature-type
-  [config-params {:keys [Workspace Store Layer Description]}]
-  (println "create-postgis-feature-type" (str Workspace ":" Store ":" Layer))
-  ["POST"
-   (str "/workspaces/" Workspace "/datastores/" Store "/featuretypes")
-   (xml
-    [:featureType
-     [:name Layer]
-     [:nativeName Layer]
-     [:title Description]
-     [:abstract Description]
-     [:enabled "true"]
-     [:maxFeatures "0"]
-     [:numDecimals "0"]])])
-
-(defn delete-postgis-feature-type
-  [config-params {:keys [Workspace Store Layer]}]
-  (println "delete-postgis-feature-type" (str Workspace ":" Store ":" Layer))
-  ["DELETE"
-   (str "/workspaces/" Workspace "/datastores/" Store "/featuretypes/" Layer)
-   nil])
-
-(defn create-shapefile-feature-type
-  [config-params {:keys [Workspace Store Layer Description]}]
-  (println "create-shapefile-feature-type" (str Workspace ":" Store ":" Layer))
-  ["POST"
-   (str "/workspaces/" Workspace "/datastores/" Store "/featuretypes")
-   (xml
-    [:featureType
-     [:name Layer]
-     [:nativeName Store]
-     [:title Description]
-     [:abstract Description]
-     [:enabled "true"]
-     [:maxFeatures "0"]
-     [:numDecimals "0"]])])
-
-(defn create-shapefile-feature-type-via-put
-  [config-params {:keys [Workspace Store URI]}]
-  (println "create-shapefile-feature-type-via-put" (str Workspace ":" Store))
+;; FIXME: Only Shapefile feature types are currently supported. See
+;;        https://docs.geoserver.org/latest/en/api/#1.0.0/featuretypes.yaml
+;;        for more types.
+(defn create-feature-type-via-put [workspace store file-url]
   ["PUT"
-   (str "/workspaces/" Workspace "/datastores/" Store "/external.shp?configure=first")
-   URI])
+   (str "/workspaces/" workspace "/datastores/" store "/external.shp")
+   file-url])
 
-(defn delete-shapefile-feature-type
-  [config-params {:keys [Workspace Store Layer]}]
-  (println "delete-shapefile-feature-type" (str Workspace ":" Store ":" Layer))
+(defn create-feature-type [workspace store feature-type title abstract keywords crs srs max-features num-decimals]
+  ["POST"
+   (str "/workspaces/" workspace "/datastores/" store "/featuretypes")
+   (xml
+    [:FeatureTypeInfo
+     [:name feature-type]
+     [:nativeName feature-type]
+     [:title title]
+     [:abstract abstract]
+     [:keywords
+      (map (fn [k] [:string k]) keywords)]
+     [:nativeCRS crs]
+     [:srs srs]
+     [:maxFeatures max-features]
+     [:numDecimals num-decimals]])])
+
+(defn update-feature-type [workspace store feature-type title abstract keywords crs srs max-features num-decimals]
+  ["PUT"
+   (str "/workspaces/" workspace "/datastores/" store "/featuretypes/" feature-type)
+   (xml
+    [:FeatureTypeInfo
+     [:name feature-type]
+     [:nativeName feature-type]
+     [:title title]
+     [:abstract abstract]
+     [:keywords
+      (map (fn [k] [:string k]) keywords)]
+     [:nativeCRS crs]
+     [:srs srs]
+     [:maxFeatures max-features]
+     [:numDecimals num-decimals]])])
+
+(defn delete-feature-type [workspace store feature-type]
   ["DELETE"
-   (str "/workspaces/" Workspace "/datastores/" Store "/featuretypes/" Layer)
+   (str "/workspaces/" workspace "/datastores/" store "/featuretypes/" feature-type)
    nil])
 
-(defn extract-filename
-  [uri]
-  (second (re-find #"^file:.*/([^/]*).tif$" uri)))
-
-(defn extract-path
-  [uri]
-  (second (re-find #"^file:/raid/geodata/(.*)$" uri)))
-
-(defn run-gdal-info
-  [geoserver-data-dir uri]
-  (let [result (with-sh-dir geoserver-data-dir
-                 (:out (sh "gdalinfo" (extract-path uri))))]
-    (if (.isEmpty result)
-      (throw (Exception. (str "gdalinfo failed for file: "
-                              geoserver-data-dir
-                              (if-not (.endsWith geoserver-data-dir "/") "/")
-                              (extract-path uri))))
-      result)))
-
-(defn dms->dd
-  [dms]
-  (let [[d m s dir] (map read-string (rest (re-find #"^([ \d]+)d([ \d]+)'([ \.0123456789]+)\"(\w)$" dms)))
-        unsigned-dd (+ d (/ m 60.0) (/ s 3600.0))]
-    (if (#{'S 'W} dir)
-      (- unsigned-dd)
-      unsigned-dd)))
-
-(defn radians->degrees
-  [rads]
-  (/ (* rads 180.0) Math/PI))
-
-(defn extract-georeferences
-  [geoserver-data-dir uri]
-  (let [gdal-info (run-gdal-info geoserver-data-dir uri)
-        cols-rows-regex    #"(?s)Size is (\d+), (\d+)"
-        pixel-size-regex   #"(?s)Pixel Size = \(([\-\.0123456789]+),([\-\.0123456789]+)\)"
-        origin-regex       #"(?s)Origin = \(([\-\.0123456789]+),([\-\.0123456789]+)\)"
-
-        color-interp-regex #"(?s)ColorInterp=(\w+)"
-        native-crs-regex   #"(?s)Coordinate System is:\s*\n(.+)Origin"
-
-        upper-left-regex   #"(?s)Upper Left\s+\(\s*([\-\.0123456789]+),\s*([\-\.0123456789]+)\)\s+\(\s*([^,]+),\s*([^\)]+)\)"
-        lower-left-regex   #"(?s)Lower Left\s+\(\s*([\-\.0123456789]+),\s*([\-\.0123456789]+)\)\s+\(\s*([^,]+),\s*([^\)]+)\)"
-        upper-right-regex  #"(?s)Upper Right\s+\(\s*([\-\.0123456789]+),\s*([\-\.0123456789]+)\)\s+\(\s*([^,]+),\s*([^\)]+)\)"
-        lower-right-regex  #"(?s)Lower Right\s+\(\s*([\-\.0123456789]+),\s*([\-\.0123456789]+)\)\s+\(\s*([^,]+),\s*([^\)]+)\)"
-
-        [cols rows]                (rest (re-find cols-rows-regex  gdal-info))
-        [pixel-width pixel-height] (rest (re-find pixel-size-regex gdal-info))
-        [x-origin y-origin]        (rest (re-find origin-regex     gdal-info))
-
-        [ul-native-x ul-native-y ul-latlon-x ul-latlon-y] (rest (re-find upper-left-regex gdal-info))
-        [ll-native-x ll-native-y ll-latlon-x ll-latlon-y] (rest (re-find lower-left-regex gdal-info))
-        [ur-native-x ur-native-y ur-latlon-x ur-latlon-y] (rest (re-find upper-right-regex gdal-info))
-        [lr-native-x lr-native-y lr-latlon-x lr-latlon-y] (rest (re-find lower-right-regex gdal-info))
-
-        [ul-native-x ul-native-y] (map read-string [ul-native-x ul-native-y])
-        [ll-native-x ll-native-y] (map read-string [ll-native-x ll-native-y])
-        [ur-native-x ur-native-y] (map read-string [ur-native-x ur-native-y])
-        [lr-native-x lr-native-y] (map read-string [lr-native-x lr-native-y])]
-
-    {:cols-rows    (str cols " " rows)
-     :pixel-width  pixel-width
-     :pixel-height pixel-height
-     :x-origin     x-origin
-     :y-origin     y-origin
-     :color-interp (second (re-find color-interp-regex gdal-info))
-     :nativeCRS    (second (re-find native-crs-regex gdal-info))
-     :native-min-x (str (min ul-native-x ll-native-x))
-     :native-max-x (str (max ur-native-x lr-native-x))
-     :native-min-y (str (min ll-native-y lr-native-y))
-     :native-max-y (str (max ul-native-y ur-native-y))
-     :latlon-min-x (str (apply min (map dms->dd [ul-latlon-x ll-latlon-x])))
-     :latlon-max-x (str (apply max (map dms->dd [ur-latlon-x lr-latlon-x])))
-     :latlon-min-y (str (apply min (map dms->dd [ll-latlon-y lr-latlon-y])))
-     :latlon-max-y (str (apply max (map dms->dd [ul-latlon-y ur-latlon-y])))
-     :shear-x      (str (radians->degrees (Math/asin (/ (- ll-native-x ul-native-x) (- ul-native-y ll-native-y)))))
-     :shear-y      (str (radians->degrees (Math/asin (/ (- ur-native-y ul-native-y) (- ur-native-x ul-native-x)))))}))
+;; Coverages (Raster)
 
 (defn create-coverage
   [{:keys [geoserver-data-dir]} {:keys [Workspace Store Layer Description URI NativeSRS DeclaredSRS]}]
@@ -491,12 +365,102 @@
    (str "/workspaces/" Workspace "/coveragestores/" Store "/coverages/" Layer)
    nil])
 
+;; Layers
+
 (defn delete-layer
   [config-params {:keys [Workspace Store Layer]}]
   (println "delete-layer" (str Workspace ":" Store ":" Layer))
   ["DELETE"
    (str "/layers/" Layer)
    nil])
+
+;; Layer Groups
+
+;; Styles
+
+
+
+
+
+
+
+
+
+
+;; Unfiled Legacy Code
+
+
+(defn run-gdal-info
+  [geoserver-data-dir uri]
+  (let [result (with-sh-dir geoserver-data-dir
+                 (:out (sh "gdalinfo" (extract-path uri))))]
+    (if (.isEmpty result)
+      (throw (Exception. (str "gdalinfo failed for file: "
+                              geoserver-data-dir
+                              (if-not (.endsWith geoserver-data-dir "/") "/")
+                              (extract-path uri))))
+      result)))
+
+(defn dms->dd
+  [dms]
+  (let [[d m s dir] (map read-string (rest (re-find #"^([ \d]+)d([ \d]+)'([ \.0123456789]+)\"(\w)$" dms)))
+        unsigned-dd (+ d (/ m 60.0) (/ s 3600.0))]
+    (if (#{'S 'W} dir)
+      (- unsigned-dd)
+      unsigned-dd)))
+
+(defn radians->degrees
+  [rads]
+  (/ (* rads 180.0) Math/PI))
+
+(defn extract-georeferences
+  [geoserver-data-dir uri]
+  (let [gdal-info (run-gdal-info geoserver-data-dir uri)
+        cols-rows-regex    #"(?s)Size is (\d+), (\d+)"
+        pixel-size-regex   #"(?s)Pixel Size = \(([\-\.0123456789]+),([\-\.0123456789]+)\)"
+        origin-regex       #"(?s)Origin = \(([\-\.0123456789]+),([\-\.0123456789]+)\)"
+
+        color-interp-regex #"(?s)ColorInterp=(\w+)"
+        native-crs-regex   #"(?s)Coordinate System is:\s*\n(.+)Origin"
+
+        upper-left-regex   #"(?s)Upper Left\s+\(\s*([\-\.0123456789]+),\s*([\-\.0123456789]+)\)\s+\(\s*([^,]+),\s*([^\)]+)\)"
+        lower-left-regex   #"(?s)Lower Left\s+\(\s*([\-\.0123456789]+),\s*([\-\.0123456789]+)\)\s+\(\s*([^,]+),\s*([^\)]+)\)"
+        upper-right-regex  #"(?s)Upper Right\s+\(\s*([\-\.0123456789]+),\s*([\-\.0123456789]+)\)\s+\(\s*([^,]+),\s*([^\)]+)\)"
+        lower-right-regex  #"(?s)Lower Right\s+\(\s*([\-\.0123456789]+),\s*([\-\.0123456789]+)\)\s+\(\s*([^,]+),\s*([^\)]+)\)"
+
+        [cols rows]                (rest (re-find cols-rows-regex  gdal-info))
+        [pixel-width pixel-height] (rest (re-find pixel-size-regex gdal-info))
+        [x-origin y-origin]        (rest (re-find origin-regex     gdal-info))
+
+        [ul-native-x ul-native-y ul-latlon-x ul-latlon-y] (rest (re-find upper-left-regex gdal-info))
+        [ll-native-x ll-native-y ll-latlon-x ll-latlon-y] (rest (re-find lower-left-regex gdal-info))
+        [ur-native-x ur-native-y ur-latlon-x ur-latlon-y] (rest (re-find upper-right-regex gdal-info))
+        [lr-native-x lr-native-y lr-latlon-x lr-latlon-y] (rest (re-find lower-right-regex gdal-info))
+
+        [ul-native-x ul-native-y] (map read-string [ul-native-x ul-native-y])
+        [ll-native-x ll-native-y] (map read-string [ll-native-x ll-native-y])
+        [ur-native-x ur-native-y] (map read-string [ur-native-x ur-native-y])
+        [lr-native-x lr-native-y] (map read-string [lr-native-x lr-native-y])]
+
+    {:cols-rows    (str cols " " rows)
+     :pixel-width  pixel-width
+     :pixel-height pixel-height
+     :x-origin     x-origin
+     :y-origin     y-origin
+     :color-interp (second (re-find color-interp-regex gdal-info))
+     :nativeCRS    (second (re-find native-crs-regex gdal-info))
+     :native-min-x (str (min ul-native-x ll-native-x))
+     :native-max-x (str (max ur-native-x lr-native-x))
+     :native-min-y (str (min ll-native-y lr-native-y))
+     :native-max-y (str (max ul-native-y ur-native-y))
+     :latlon-min-x (str (apply min (map dms->dd [ul-latlon-x ll-latlon-x])))
+     :latlon-max-x (str (apply max (map dms->dd [ur-latlon-x lr-latlon-x])))
+     :latlon-min-y (str (apply min (map dms->dd [ll-latlon-y lr-latlon-y])))
+     :latlon-max-y (str (apply max (map dms->dd [ul-latlon-y ur-latlon-y])))
+     :shear-x      (str (radians->degrees (Math/asin (/ (- ll-native-x ul-native-x) (- ul-native-y ll-native-y)))))
+     :shear-y      (str (radians->degrees (Math/asin (/ (- ur-native-y ul-native-y) (- ur-native-x ul-native-x)))))}))
+
+
 
 (defn get-store-type
   "Returns a string describing the class of data or coverage store
