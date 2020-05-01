@@ -31,6 +31,12 @@
             [clj-http.client    :as client])
   (:import java.util.Base64))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; Utility Functions
+;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (def base64-encoder (Base64/getUrlEncoder))
 
 (defn encode-str [s]
@@ -120,7 +126,10 @@
    nil])
 
 ;; Data Stores (Vector)
-;; FIXME: Only Shapefile stores are currently supported. See https://docs.geoserver.org/latest/en/api/#1.0.0/datastores.yaml for more types.
+;;
+;; FIXME: Only Shapefile stores are currently supported. See
+;;        https://docs.geoserver.org/latest/en/api/#1.0.0/datastores.yaml
+;;        for more types.
 
 (defn get-data-stores [workspace]
   ["GET"
@@ -159,7 +168,57 @@
    (str "/workspaces/" workspace "/datastores/" store)
    nil])
 
-;; RESUME HERE
+;; Coverage Stores (Raster)
+
+(defn get-coverage-stores [workspace]
+  ["GET"
+   (str "/workspaces/" workspace "/coveragestores")
+   nil])
+
+(defn get-coverage-store [workspace store]
+  ["GET"
+   (str "/workspaces/" workspace "/coveragestores/" store)
+   nil])
+
+;; NOTE: file-url should look like file:/path/to/nyc.tiff
+(defn create-coverage-store [workspace store file-url]
+  ["POST"
+   (str "/workspaces/" workspace "/coveragestores")
+   (xml
+    [:coverageStore
+     [:name store]
+     [:enabled true]
+     [:url file-url]])])
+
+;; NOTE: file-url should look like file:/path/to/nyc.tiff
+(defn update-coverage-store [workspace store file-url enabled?]
+  ["PUT"
+   (str "/workspaces/" workspace "/coveragestores/" store)
+   (xml
+    [:coverageStore
+     [:name store]
+     [:enabled enabled?]
+     [:url file-url]])])
+
+(defn delete-coverage-store [workspace store]
+  ["DELETE"
+   (str "/workspaces/" workspace "/coveragestores/" store)
+   nil])
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+;; Unfiled Legacy Code
 
 (defn create-shapefile-store [uri-prefix workspace store description uri]
   ["POST"
@@ -294,28 +353,6 @@
   (println "delete-shapefile-feature-type" (str Workspace ":" Store ":" Layer))
   ["DELETE"
    (str "/workspaces/" Workspace "/datastores/" Store "/featuretypes/" Layer)
-   nil])
-
-(defn create-coverage-store
-  [config-params {:keys [Workspace Store Description URI]}]
-  (println "create-coverage-store" (str Workspace ":" Store))
-  ["POST"
-   (str "/workspaces/" Workspace "/coveragestores")
-   (xml
-    [:coverageStore
-     [:name Store]
-     [:description Description]
-     [:type "GeoTIFF"]
-     [:enabled "true"]
-     [:workspace
-      [:name Workspace]]
-     [:url URI]])])
-
-(defn delete-coverage-store
-  [config-params {:keys [Workspace Store]}]
-  (println "delete-coverage-store" (str Workspace ":" Store))
-  ["DELETE"
-   (str "/workspaces/" Workspace "/coveragestores/" Store)
    nil])
 
 (defn extract-filename
