@@ -690,6 +690,68 @@
 
 ;; Styles (http://docs.geoserver.org/latest/en/api/#1.0.0/styles.yaml)
 
+(defn get-styles
+  ([]
+   ["GET"
+    "/styles"
+    nil])
+  ([workspace]
+   ["GET"
+    (str "/workspaces/" workspace "/styles")
+    nil]))
+
+(defn get-style
+  ([style]
+   ["GET"
+    (str "/styles/" style)
+    nil])
+  ([workspace style]
+   ["GET"
+    (str "/workspaces/" workspace "/styles/" style)
+    nil]))
+
+(defn create-style
+  ([style file-url]
+   ["POST"
+    "/styles"
+    (xml
+     [:style
+      [:name style]
+      [:filename file-url]])])
+  ([workspace style file-url]
+   ["POST"
+    (str "/workspaces/" workspace "/styles")
+    (xml
+     [:style
+      [:name style]
+      [:filename file-url]])]))
+
+(defn update-style
+  ([style new-style file-url]
+   ["PUT"
+    (str "/styles/" style)
+    (xml
+     [:style
+      [:name new-style]
+      [:filename file-url]])])
+  ([workspace style new-style file-url]
+   ["PUT"
+    (str "/workspaces/" workspace "/styles/" style)
+    (xml
+     [:style
+      [:name new-style]
+      [:filename file-url]])]))
+
+(defn delete-style
+  ([style]
+   ["DELETE"
+    (str "/styles/" style)
+    nil])
+  ([workspace style]
+   ["DELETE"
+    (str "/workspaces/" workspace "/styles/" style)
+    nil]))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 ;; Directory Traversal
