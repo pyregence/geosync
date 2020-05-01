@@ -590,6 +590,104 @@
 
 ;; Layer Groups (http://docs.geoserver.org/latest/en/api/#1.0.0/layergroups.yaml)
 
+(defn get-layer-groups
+  ([]
+   ["GET"
+    "/layergroups"
+    nil])
+  ([workspace]
+   ["GET"
+    (str "/workspaces/" workspace "/layergroups")
+    nil]))
+
+(defn get-layer-group
+  ([layer-group]
+   ["GET"
+    (str "/layergroups/" layer-group)
+    nil])
+  ([workspace layer-group]
+   ["GET"
+    (str "/workspaces/" workspace "/layergroups/" layer-group)
+    nil]))
+
+(defn create-layer-group
+  ([layer-group mode title abstract description keywords layers styles]
+   ["POST"
+    "/layergroups"
+    (xml
+     [:layerGroup
+      [:name layer-group]
+      [:mode mode]
+      [:title title]
+      [:abstract abstract]
+      [:description description]
+      [:keywords
+       (map (fn [k] [:string k]) keywords)]
+      [:publishables
+       (map (fn [l] [:published [:name l]]) layers)]
+      [:styles
+       (map (fn [s] [:style [:name s]]) styles)]])])
+  ([workspace layer-group mode title abstract description keywords layers styles]
+   ["POST"
+    (str "/workspaces/" workspace "/layergroups")
+    (xml
+     [:layerGroup
+      [:name layer-group]
+      [:mode mode]
+      [:title title]
+      [:abstract abstract]
+      [:description description]
+      [:keywords
+       (map (fn [k] [:string k]) keywords)]
+      [:publishables
+       (map (fn [l] [:published [:name l]]) layers)]
+      [:styles
+       (map (fn [s] [:style [:name s]]) styles)]])]))
+
+(defn update-layer-group
+  ([layer-group new-layer-group mode title abstract description keywords layers styles]
+   ["PUT"
+    (str "/layergroups/" layer-group)
+    (xml
+     [:layerGroup
+      [:name new-layer-group]
+      [:mode mode]
+      [:title title]
+      [:abstract abstract]
+      [:description description]
+      [:keywords
+       (map (fn [k] [:string k]) keywords)]
+      [:publishables
+       (map (fn [l] [:published [:name l]]) layers)]
+      [:styles
+       (map (fn [s] [:style [:name s]]) styles)]])])
+  ([workspace layer-group new-layer-group mode title abstract description keywords layers styles]
+   ["PUT"
+    (str "/workspaces/" workspace "/layergroups/" layer-group)
+    (xml
+     [:layerGroup
+      [:name new-layer-group]
+      [:mode mode]
+      [:title title]
+      [:abstract abstract]
+      [:description description]
+      [:keywords
+       (map (fn [k] [:string k]) keywords)]
+      [:publishables
+       (map (fn [l] [:published [:name l]]) layers)]
+      [:styles
+       (map (fn [s] [:style [:name s]]) styles)]])]))
+
+(defn delete-layer-group
+  ([layer-group]
+   ["DELETE"
+    (str "/layergroups/" layer-group)
+    nil])
+  ([workspace layer-group]
+   ["DELETE"
+    (str "/workspaces/" workspace "/layergroups/" layer-group)
+    nil]))
+
 ;; Styles (http://docs.geoserver.org/latest/en/api/#1.0.0/styles.yaml)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
