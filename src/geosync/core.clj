@@ -517,90 +517,80 @@
    (str "/workspaces/" workspace "/coveragestores/" store "/coverages/" coverage)
    nil])
 
-;; Layers
+;; Layers (https://docs.geoserver.org/latest/en/api/#1.0.0/layers.yaml)
+
+(defn get-layers
+  ([]
+   ["GET"
+    "/layers"
+    nil])
+  ([workspace]
+   ["GET"
+    (str "/workspaces/" workspace "/layers")
+    nil]))
+
+(defn get-layer
+  ([layer]
+   ["GET"
+    (str "/layers/" layer)
+    nil])
+  ([workspace layer]
+   ["GET"
+    (str "/workspaces/" workspace "/layers/" layer)
+    nil]))
+
+;; NOTE: This is not part of the REST API. Use create-coverage or create-feature-type instead.
+(defn create-layer [])
+
+(defn update-layer
+  ([layer path layer-type default-style styles resource-type resource-name opaque?]
+   ["PUT"
+    (str "/layers/" layer)
+    (xml
+     [:layer
+      [:path path]
+      [:type layer-type]
+      [:defaultStyle
+       [:name default-style]]
+      [:styles
+       (map (fn [s] [:style [:name s]]) styles)]
+      [:resource {:class resource-type}
+       [:name resource-name]]
+      [:opaque opaque?]])])
+  ([workspace layer path layer-type default-style styles resource-type resource-name opaque?]
+   ["PUT"
+    (str "/workspaces/" workspace "/layers/" layer)
+    (xml
+     [:layer
+      [:path path]
+      [:type layer-type]
+      [:defaultStyle
+       [:name default-style]]
+      [:styles
+       (map (fn [s] [:style [:name s]]) styles)]
+      [:resource {:class resource-type}
+       [:name resource-name]]
+      [:opaque opaque?]])]))
 
 (defn delete-layer
-  [config-params {:keys [Workspace Store Layer]}]
-  (println "delete-layer" (str Workspace ":" Store ":" Layer))
-  ["DELETE"
-   (str "/layers/" Layer)
-   nil])
+  ([layer]
+   ["DELETE"
+    (str "/layers/" layer)
+    nil])
+  ([workspace layer]
+   ["DELETE"
+    (str "/workspaces/" workspace "/layers/" layer)
+    nil]))
 
-;; Layer Groups
+;; Layer Groups (http://docs.geoserver.org/latest/en/api/#1.0.0/layergroups.yaml)
 
-;; Styles
+;; Styles (http://docs.geoserver.org/latest/en/api/#1.0.0/styles.yaml)
 
-
-
-
-
-
-
-
-
-
-;; Unfiled Legacy Code
-
-
-
-
-(defn get-store-type
-  "Returns a string describing the class of data or coverage store
-   implied by the structure of the passed-in URI."
-  [URI]
-  (condp re-matches URI
-    #"^file:.*\.tif$"    "GeoTIFF"
-    #"^file:.*\.shp$"    "Shapefile"
-    #"^postgis:.*\.shp$" "PostGIS-converted Shapefile"
-    #"^postgis:.*$"      "PostGIS Database"
-    :otherwise           (throw (Exception. (str "Unrecognized URI: " URI)))))
-
-#_(defn translate-row
-  "Returns a vector of one or more REST request specifications as
-   triplets of [http-method uri-suffix http-body] depending on the
-   contents of the passed-in row."
-  [config-params {:keys [Workspace Store Layer URI Delete?] :as row}]
-  (if URI
-    (let [store-type (get-store-type URI)]
-      (cond Layer
-            (condp = store-type
-              "GeoTIFF"
-              (if Delete?
-                ((juxt delete-layer delete-coverage delete-coverage-store) config-params row)
-                ((juxt create-coverage-store create-coverage) config-params row))
-
-              "Shapefile"
-              (if Delete?
-                ((juxt delete-layer delete-shapefile-feature-type delete-shapefile-data-store) config-params row)
-                ((juxt create-shapefile-data-store create-shapefile-feature-type) config-params row))
-
-              "PostGIS-converted Shapefile"
-              (if Delete?
-                ((juxt delete-layer delete-postgis-feature-type remove-shapefile-from-postgis-db) config-params row)
-                ((juxt add-shapefile-to-postgis-db create-postgis-feature-type) config-params row))
-
-              "PostGIS Database"
-              (if Delete?
-                ((juxt delete-layer delete-postgis-feature-type) config-params row)
-                [(create-postgis-feature-type config-params row)]))
-
-            Store
-            (if (= store-type "PostGIS Database")
-              (if Delete?
-                ((juxt delete-postgis-data-store drop-postgis-database) config-params row)
-                ((juxt create-postgis-database create-postgis-data-store) config-params row))
-              (throw (Exception. (str "Cannot declare file-based store without layer on same row: " Workspace ":" Store " (" URI ")"))))
-
-            :otherwise (throw (Exception. (str "A row with a defined URI must also declare either a new Store or Layer: "
-                                               Workspace " (" URI ")")))))
-
-    (if (and Workspace
-             (nil? Store)
-             (nil? Layer))
-      (if Delete?
-        [(delete-workspace config-params row)]
-        [(create-workspace config-params row)])
-      (throw (Exception. "Rows without URIs must declare new workspaces: " row)))))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; Directory Traversal
+;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn paths->xml
   "Generates a sequence of REST request specifications as triplets of
@@ -643,6 +633,12 @@
       (println "None")
       (doseq [[status reason] (map (juxt :status :reason-phrase) failed-responses)]
         (println status reason)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; User Interface
+;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; FIXME: Use clojure.spec to validate the map
 (defn read-config-params
@@ -705,3 +701,67 @@
   (shutdown-agents)
   (flush)
   (System/exit 0))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; Unfiled Legacy Code
+;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn get-store-type
+  "Returns a string describing the class of data or coverage store
+   implied by the structure of the passed-in URI."
+  [URI]
+  (condp re-matches URI
+    #"^file:.*\.tif$"    "GeoTIFF"
+    #"^file:.*\.shp$"    "Shapefile"
+    #"^postgis:.*\.shp$" "PostGIS-converted Shapefile"
+    #"^postgis:.*$"      "PostGIS Database"
+    :otherwise           (throw (Exception. (str "Unrecognized URI: " URI)))))
+
+#_(defn translate-row
+  "Returns a vector of one or more REST request specifications as
+   triplets of [http-method uri-suffix http-body] depending on the
+   contents of the passed-in row."
+  [config-params {:keys [Workspace Store Layer URI Delete?] :as row}]
+  (if URI
+    (let [store-type (get-store-type URI)]
+      (cond Layer
+            (condp = store-type
+              "GeoTIFF"
+              (if Delete?
+                ((juxt delete-layer delete-coverage delete-coverage-store) config-params row)
+                ((juxt create-coverage-store create-coverage) config-params row))
+
+              "Shapefile"
+              (if Delete?
+                ((juxt delete-layer delete-shapefile-feature-type delete-shapefile-data-store) config-params row)
+                ((juxt create-shapefile-data-store create-shapefile-feature-type) config-params row))
+
+              "PostGIS-converted Shapefile"
+              (if Delete?
+                ((juxt delete-layer delete-postgis-feature-type remove-shapefile-from-postgis-db) config-params row)
+                ((juxt add-shapefile-to-postgis-db create-postgis-feature-type) config-params row))
+
+              "PostGIS Database"
+              (if Delete?
+                ((juxt delete-layer delete-postgis-feature-type) config-params row)
+                [(create-postgis-feature-type config-params row)]))
+
+            Store
+            (if (= store-type "PostGIS Database")
+              (if Delete?
+                ((juxt delete-postgis-data-store drop-postgis-database) config-params row)
+                ((juxt create-postgis-database create-postgis-data-store) config-params row))
+              (throw (Exception. (str "Cannot declare file-based store without layer on same row: " Workspace ":" Store " (" URI ")"))))
+
+            :otherwise (throw (Exception. (str "A row with a defined URI must also declare either a new Store or Layer: "
+                                               Workspace " (" URI ")")))))
+
+    (if (and Workspace
+             (nil? Store)
+             (nil? Layer))
+      (if Delete?
+        [(delete-workspace config-params row)]
+        [(create-workspace config-params row)])
+      (throw (Exception. "Rows without URIs must declare new workspaces: " row)))))
