@@ -283,27 +283,6 @@
   [uri]
   (second (re-find #"^postgis:/raid/geodata/(.*).shp$" uri)))
 
-(defn add-shapefile-to-postgis-db
-  [{:keys [geoserver-data-dir postgis-user]} {:keys [Layer URI DeclaredSRS]}]
-  (println "add-shapefile-to-postgis-db" Layer URI (str "(" DeclaredSRS ")"))
-  (with-sh-dir geoserver-data-dir
-    (let [result (sh "shp2db"
-                     (remove-epsg-prefix DeclaredSRS)
-                     (extract-postgis-path URI)
-                     Layer
-                     (deref current-postgis-database)
-                     postgis-user)]
-      (if-not (zero? (:exit result))
-        (println (:err result))))))
-
-;; FIXME: Find a way to remove the hard-coded database name.
-(defn remove-shapefile-from-postgis-db
-  [{:keys [postgis-user]} {:keys [Layer]}]
-  (println "remove-shapefile-from-postgis-db" Layer)
-  (let [result (sh "psql" "-d" (deref current-postgis-database) "-U" postgis-user :in (str "DROP TABLE " Layer ";"))]
-    (if-not (zero? (:exit result))
-      (println (:err result)))))
-
 (defn create-postgis-feature-type
   [config-params {:keys [Workspace Store Layer Description]}]
   (println "create-postgis-feature-type" (str Workspace ":" Store ":" Layer))
@@ -530,7 +509,7 @@
     #"^postgis:.*$"      "PostGIS Database"
     :otherwise           (throw (Exception. (str "Unrecognized URI: " URI)))))
 
-(defn translate-row
+#_(defn translate-row
   "Returns a vector of one or more REST request specifications as
    triplets of [http-method uri-suffix http-body] depending on the
    contents of the passed-in row."
