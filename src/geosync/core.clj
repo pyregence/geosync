@@ -163,7 +163,7 @@
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; Workspaces
+;; Workspaces (http://docs.geoserver.org/latest/en/api/#1.0.0/workspaces.yaml)
 
 (defn get-workspaces []
   ["GET"
@@ -194,7 +194,7 @@
    (str "/workspaces/" workspace)
    nil])
 
-;; Namespaces (these have the same name as their workspaces)
+;; Namespaces (http://docs.geoserver.org/latest/en/api/#1.0.0/namespaces.yaml)
 
 (defn get-namespaces []
   ["GET"
@@ -227,7 +227,7 @@
    (str "/namespaces/" workspace)
    nil])
 
-;; Data Stores (Vector)
+;; Data Stores (Vector) (http://docs.geoserver.org/latest/en/api/#1.0.0/datastores.yaml)
 
 (defn get-data-stores [workspace]
   ["GET"
@@ -239,9 +239,7 @@
    (str "/workspaces/" workspace "/datastores/" store)
    nil])
 
-;; FIXME: Only Shapefile stores are currently supported. See
-;;        https://docs.geoserver.org/latest/en/api/#1.0.0/datastores.yaml
-;;        for more types.
+;; FIXME: Only Shapefile stores are currently supported.
 ;; NOTE: file-url should look like file:/path/to/nyc.shp
 (defn create-data-store [workspace store file-url]
   ["POST"
@@ -253,9 +251,7 @@
      [:connectionParameters
       [:url file-url]]])])
 
-;; FIXME: Only Shapefile stores are currently supported. See
-;;        https://docs.geoserver.org/latest/en/api/#1.0.0/datastores.yaml
-;;        for more types.
+;; FIXME: Only Shapefile stores are currently supported.
 ;; NOTE: file-url should look like file:/path/to/nyc.shp
 (defn update-data-store [workspace store file-url enabled?]
   ["PUT"
@@ -272,7 +268,7 @@
    (str "/workspaces/" workspace "/datastores/" store)
    nil])
 
-;; Coverage Stores (Raster)
+;; Coverage Stores (Raster) (http://docs.geoserver.org/latest/en/api/#1.0.0/coveragestores.yaml)
 
 (defn get-coverage-stores [workspace]
   ["GET"
@@ -309,7 +305,7 @@
    (str "/workspaces/" workspace "/coveragestores/" store)
    nil])
 
-;; Feature Types (Vector)
+;; Feature Types (Vector) (http://docs.geoserver.org/latest/en/api/#1.0.0/featuretypes.yaml)
 
 (defn get-feature-types
   ([workspace]
@@ -331,9 +327,7 @@
     (str "/workspaces/" workspace "/datastores/" store "/featuretypes/" feature-type)
     nil]))
 
-;; FIXME: Only Shapefile feature types are currently supported. See
-;;        https://docs.geoserver.org/latest/en/api/#1.0.0/featuretypes.yaml
-;;        for more types.
+;; FIXME: Only Shapefile feature types are currently supported.
 (defn create-feature-type-via-put [workspace store file-url]
   ["PUT"
    (str "/workspaces/" workspace "/datastores/" store "/external.shp")
@@ -378,7 +372,7 @@
    (str "/workspaces/" workspace "/datastores/" store "/featuretypes/" feature-type)
    nil])
 
-;; Coverages (Raster)
+;; Coverages (Raster) (http://docs.geoserver.org/latest/en/api/#1.0.0/coverages.yaml)
 
 (defn get-coverages
   ([workspace]
