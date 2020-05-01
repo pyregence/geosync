@@ -182,12 +182,12 @@
     [:workspace
      [:name workspace]])])
 
-(defn update-workspace [workspace]
+(defn update-workspace [workspace new-workspace]
   ["PUT"
    (str "/workspaces/" workspace)
    (xml
     [:workspace
-     [:name workspace]])])
+     [:name new-workspace]])])
 
 (defn delete-workspace [workspace]
   ["DELETE"
@@ -214,13 +214,13 @@
      [:prefix workspace]
      [:uri (str uri-prefix workspace)]])])
 
-(defn update-namespace [uri-prefix workspace]
+(defn update-namespace [uri-prefix workspace new-workspace]
   ["PUT"
    (str "/namespaces/" workspace)
    (xml
     [:namespace
-     [:prefix workspace]
-     [:uri (str uri-prefix workspace)]])])
+     [:prefix new-workspace]
+     [:uri (str uri-prefix new-workspace)]])])
 
 (defn delete-namespace [workspace]
   ["DELETE"
@@ -253,12 +253,12 @@
 
 ;; FIXME: Only Shapefile stores are currently supported.
 ;; NOTE: file-url should look like file:/path/to/nyc.shp
-(defn update-data-store [workspace store file-url enabled?]
+(defn update-data-store [workspace store new-store file-url enabled?]
   ["PUT"
    (str "/workspaces/" workspace "/datastores/" store)
    (xml
     [:dataStore
-     [:name store]
+     [:name new-store]
      [:enabled enabled?]
      [:connectionParameters
       [:url file-url]]])])
@@ -291,12 +291,12 @@
      [:url file-url]])])
 
 ;; NOTE: file-url should look like file:/path/to/nyc.tiff
-(defn update-coverage-store [workspace store file-url enabled?]
+(defn update-coverage-store [workspace store new-store file-url enabled?]
   ["PUT"
    (str "/workspaces/" workspace "/coveragestores/" store)
    (xml
     [:coverageStore
-     [:name store]
+     [:name new-store]
      [:enabled enabled?]
      [:url file-url]])])
 
@@ -351,11 +351,13 @@
      [:numDecimals num-decimals]
      [:enabled true]])])
 
-(defn update-feature-type [workspace store feature-type title abstract description keywords crs srs max-features num-decimals enabled?]
+(defn update-feature-type [workspace store feature-type new-feature-type title abstract description keywords crs srs max-features num-decimals enabled?]
   ["PUT"
    (str "/workspaces/" workspace "/datastores/" store "/featuretypes/" feature-type)
    (xml
     [:featureType
+     [:name new-feature-type]
+     [:nativeName new-feature-type]
      [:title title]
      [:abstract abstract]
      [:description description]
@@ -460,12 +462,14 @@
           [:string proj-code])]
        [:enabled true]])]))
 
-(defn update-coverage [workspace store coverage title abstract description keywords proj-code interpolation-method file-url enabled?]
+(defn update-coverage [workspace store coverage new-coverage title abstract description keywords proj-code interpolation-method file-url enabled?]
   (let [gdal-info (extract-georeferences file-url)]
     ["PUT"
      (str "/workspaces/" workspace "/coveragestores/" store "/coverages/" coverage)
      (xml
       [:coverage
+       [:name new-coverage]
+       [:nativeName new-coverage]
        [:title title]
        [:abstract abstract]
        [:description description]
@@ -543,11 +547,12 @@
 (defn create-layer [])
 
 (defn update-layer
-  ([layer path layer-type default-style styles resource-type resource-name opaque?]
+  ([layer new-layer path layer-type default-style styles resource-type resource-name opaque?]
    ["PUT"
     (str "/layers/" layer)
     (xml
      [:layer
+      [:name new-layer]
       [:path path]
       [:type layer-type]
       [:defaultStyle
@@ -557,11 +562,12 @@
       [:resource {:class resource-type}
        [:name resource-name]]
       [:opaque opaque?]])])
-  ([workspace layer path layer-type default-style styles resource-type resource-name opaque?]
+  ([workspace layer new-layer path layer-type default-style styles resource-type resource-name opaque?]
    ["PUT"
     (str "/workspaces/" workspace "/layers/" layer)
     (xml
      [:layer
+      [:name new-layer]
       [:path path]
       [:type layer-type]
       [:defaultStyle
