@@ -26,6 +26,7 @@
   (:require [clojure.edn       :as edn]
             [clojure.java.io   :as io]
             [clojure.string    :as str]
+            [clojure.data.json :as json]
             [clojure.tools.cli :refer [parse-opts]]
             [clj-http.client   :as client]
             [geosync.rest-api  :as rest])
@@ -37,89 +38,109 @@
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;; FIXME: Use an SSL keystore and remove insecure? param
 (defn make-rest-request [{:keys [geoserver-rest-uri geoserver-auth-code]} [http-method uri-suffix http-body]]
   (try
-    (client/request {:url     (str geoserver-rest-uri uri-suffix)
-                     :method  http-method
-                     :headers {"Content-Type"  "text/xml"
-                               "Accept"        "text/xml"
-                               "Authorization" geoserver-auth-code}
-                     :body    http-body})
-    (catch Exception e (println "REST Exception:" http-method uri-suffix "->" (.getMessage e)))))
+    (client/request {:url       (str geoserver-rest-uri uri-suffix)
+                     :method    http-method
+                     :insecure? true
+                     :headers   {"Content-Type"  "text/xml"
+                                 "Accept"        "application/json"
+                                 "Authorization" geoserver-auth-code}
+                     :body      http-body})
+    (catch Exception e
+      (do (println "REST Exception:" http-method uri-suffix "->" (ex-message e))
+          (ex-data e)))))
 
 (defn get-store-type
   "Returns a string describing the class of data or coverage store
   implied by the structure of the passed-in file-path."
   [file-path]
   (condp re-matches file-path
-    #"^.*\.tiff?$" "GeoTIFF"
-    #"^.*\.shp$"   "Shapefile"
+    #"^.*\.tiff?$" :geotiff
+    #"^.*\.shp$"   :shapefile
     nil))
 
-;; FIXME: Link in geosync.rest-api
+(defn file-path->layer-name [file-path]
+  (as-> file-path %
+    (subs % 0 (str/last-index-of % \.))
+    (str/replace % #"[^0-9a-zA-Z/\-]" "-")
+    (str/replace % #"-+" "-")
+    (str/replace % "/" "_")))
+
 (defn file-path->rest-specs
-  "Returns a vector of one or more REST request specifications as
+  "Returns a sequence of one or more REST request specifications as
   triplets of [http-method uri-suffix http-body] depending on the
-  structure of the passed-in file-path."
-  [config-params file-path]
-  (let [store-type (get-store-type file-path)]
-    nil
-    #_(cond Layer
-          (condp = store-type
-            "GeoTIFF"
-            (if Delete?
-              ((juxt delete-layer delete-coverage delete-coverage-store) config-params row)
-              ((juxt create-coverage-store create-coverage) config-params row))
+  structure of the passed-in file-path or nil if the file type is
+  unsupported."
+  [{:keys [data-dir geoserver-workspace interpolation-method]} existing-layers file-path]
+  (when-let [store-type (get-store-type file-path)]
+    (let [layer-name (file-path->layer-name file-path)
+          file-url   (str "file:" data-dir (if (str/ends-with? data-dir "/") "" "/") file-path)]
+      (when-not (contains? existing-layers layer-name)
+        (case store-type
+          :geotiff
+          [(rest/create-coverage-store geoserver-workspace layer-name file-url)
+           (rest/create-coverage geoserver-workspace layer-name layer-name "" "" "" [] interpolation-method file-url)]
 
-            "Shapefile"
-            (if Delete?
-              ((juxt delete-layer delete-shapefile-feature-type delete-shapefile-data-store) config-params row)
-              ((juxt create-shapefile-data-store create-shapefile-feature-type) config-params row))
+          :shapefile
+          [(rest/create-data-store geoserver-workspace layer-name file-url)
+           (rest/create-feature-type-via-put geoserver-workspace layer-name file-url)] ; FIXME: Does this work?
 
-            "PostGIS-converted Shapefile"
-            (if Delete?
-              ((juxt delete-layer delete-postgis-feature-type remove-shapefile-from-postgis-db) config-params row)
-              ((juxt add-shapefile-to-postgis-db create-postgis-feature-type) config-params row))
+          (throw (ex-info "Unsupported store type detected." {:file-path file-path :store-type store-type})))))))
 
-            "PostGIS Database"
-            (if Delete?
-              ((juxt delete-layer delete-postgis-feature-type) config-params row)
-              [(create-postgis-feature-type config-params row)]))
+(defn get-existing-layers [config-params]
+  (as-> (rest/get-layers) %
+    (make-rest-request config-params %)
+    (:body %)
+    (json/read-str % :key-fn keyword)
+    (:layers %)
+    (:layer %)
+    (map :name %)
+    (set)))
 
-          Store
-          (if (= store-type "PostGIS Database")
-            (if Delete?
-              ((juxt delete-postgis-data-store drop-postgis-database) config-params row)
-              ((juxt create-postgis-database create-postgis-data-store) config-params row))
-            (throw (Exception. (str "Cannot declare file-based store without layer on same row: " Workspace ":" Store " (" URI ")"))))
-
-          :otherwise (throw (Exception. (str "A row with a defined URI must also declare either a new Store or Layer: "
-                                             Workspace " (" URI ")"))))))
+(defn workspace-exists? [config-params geoserver-workspace]
+  (as-> geoserver-workspace %
+    (rest/get-workspace %)
+    (make-rest-request config-params %)
+    (:status %)
+    (not= 404 %)))
 
 (defn file-paths->rest-specs
   "Generates a sequence of REST request specifications as triplets of
   [http-method uri-suffix http-body]. Each file path may contribute
   one or more of these to the final sequence."
-  [config-params file-paths]
-  (->> file-paths
-       (keep (partial file-path->rest-specs config-params))
-       (apply concat)))
+  [{:keys [geoserver-workspace] :as config-params} file-paths]
+  (let [existing-layers (get-existing-layers config-params)]
+    (let [rest-specs (->> file-paths
+                          (keep (partial file-path->rest-specs config-params existing-layers))
+                          (apply concat))]
+      (if (workspace-exists? config-params geoserver-workspace)
+        rest-specs
+        (cons (rest/create-workspace geoserver-workspace) rest-specs)))))
 
 (defn load-file-paths [data-dir]
-  (->> (io/file data-dir)
-       (file-seq)
-       (filter #(.isFile %))
-       (map #(.getPath %))))
+  (let [data-dir (if (str/ends-with? data-dir "/")
+                   data-dir
+                   (str data-dir "/"))]
+    (->> (io/file data-dir)
+         (file-seq)
+         (filter #(.isFile %))
+         (map #(-> (.getPath %)
+                   (str/replace-first data-dir ""))))))
+
+;; FIXME: Include a more complete set of success codes
+(def success-code? #{200})
 
 (defn update-geoserver! [{:keys [data-dir] :as config-params}]
-  (let [http-responses       (->> (load-file-paths data-dir)
-                                  (file-paths->rest-specs config-params)
-                                  (mapv (partial make-rest-request config-params))) ; FIXME: use client/with-connection-pool for speed
-        successful-responses (remove nil? http-responses)]
+  (let [http-response-codes (->> (load-file-paths data-dir)
+                                 (file-paths->rest-specs config-params)
+                                 (map (comp :status (partial make-rest-request config-params))) ; FIXME: use client/with-connection-pool for speed
+                                 (doall))]
     (println "\nFinished updating GeoServer.\nSuccessful requests:"
-             (count successful-responses)
+             (count (filter success-code? http-response-codes))
              "\nFailed requests:"
-             (- (count http-responses) (count successful-responses)))))
+             (count (remove success-code? http-response-codes)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -144,11 +165,13 @@
     {}))
 
 (def cli-options
-  [["-c" "--config-file EDN"         "Path to an EDN file containing a map of configuration parameters"]
-   ["-d" "--data-dir DIR"            "Path to the directory containing your GIS files"]
-   ["-g" "--geoserver-rest-uri URI"  "URI of your GeoServer's REST extensions"]
-   ["-u" "--geoserver-username USER" "GeoServer admin username"]
-   ["-p" "--geoserver-password PASS" "GeoServer admin password"]])
+  [["-c" "--config-file EDN"             "Path to an EDN file containing a map of configuration parameters"]
+   ["-d" "--data-dir DIR"                "Path to the directory containing your GIS files"]
+   ["-g" "--geoserver-rest-uri URI"      "URI of your GeoServer's REST extensions"]
+   ["-u" "--geoserver-username USER"     "GeoServer admin username"]
+   ["-p" "--geoserver-password PASS"     "GeoServer admin password"]
+   ["-w" "--geoserver-workspace WS"      "Workspace name to receive the new GeoServer layers"]
+   ["-i" "--interpolation-method METHOD" "One of \"nearest neighbor\", \"bilinear\", \"bicubic\""]])
 
 (defn -main
   "Call this with the name of an EDN file containing the config-params
@@ -162,10 +185,10 @@
   (println (str "geosync: Load a nested directory tree of GeoTIFFs and Shapefiles into a running GeoServer instance.\n"
                 "Copyright 2020 Gary W. Johnson (gjohnson@sig-gis.com)\n"))
   (let [{:keys [options arguments summary errors]} (parse-opts args cli-options)]
-    ;; {:options     The options map, keyed by :id, mapped to the parsed value
-    ;;  :arguments   A vector of unprocessed arguments
-    ;;  :summary     A string containing a minimal options summary
-    ;;  :errors      A possible vector of error message strings generated during parsing; nil when no errors exist
+    ;; {:options   The options map, keyed by :id, mapped to the parsed value
+    ;;  :arguments A vector of unprocessed arguments
+    ;;  :summary   A string containing a minimal options summary
+    ;;  :errors    A possible vector of error message strings generated during parsing; nil when no errors exist
     (if (or (seq errors) (empty? options))
       ;; FIXME: Use clojure.spec to validate the options map
       (do
