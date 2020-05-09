@@ -21,7 +21,9 @@
 ;;; rest of the application.
 
 (ns geosync.utils
-  (:require [clojure.java.shell :refer [with-sh-dir sh]]
+  (:require [clojure.edn        :as edn]
+            [clojure.string     :as str]
+            [clojure.java.shell :refer [with-sh-dir sh]]
             [hiccup2.core       :refer [html]]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -39,26 +41,9 @@
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; FIXME: Make sure these functions are application generic.
-
-(defn extract-path
-  [uri]
-  (second (re-find #"^file:/raid/geodata/(.*)$" uri)))
-
-(defn run-gdal-info
-  [geoserver-data-dir uri]
-  (let [result (with-sh-dir geoserver-data-dir
-                 (:out (sh "gdalinfo" (extract-path uri))))]
-    (if (.isEmpty result)
-      (throw (Exception. (str "gdalinfo failed for file: "
-                              geoserver-data-dir
-                              (if-not (.endsWith geoserver-data-dir "/") "/")
-                              (extract-path uri))))
-      result)))
-
 (defn dms->dd
   [dms]
-  (let [[d m s dir] (map read-string (rest (re-find #"^([ \d]+)d([ \d]+)'([ \.0123456789]+)\"(\w)$" dms)))
+  (let [[d m s dir] (map edn/read-string (rest (re-find #"^([ \d]+)d([ \d]+)'([ \.0123456789]+)\"(\w)$" dms)))
         unsigned-dd (+ d (/ m 60.0) (/ s 3600.0))]
     (if (#{'S 'W} dir)
       (- unsigned-dd)
@@ -68,15 +53,25 @@
   [rads]
   (/ (* rads 180.0) Math/PI))
 
+(defn run-gdal-info
+  [data-dir file-path]
+  (try
+    (let [result (with-sh-dir data-dir (sh "gdalinfo" file-path))]
+      (if (str/blank? (:out result))
+        (throw (ex-info "gdalinfo failed" {:data-dir data-dir :file-path file-path :error (:err result)}))
+        (:out result)))
+    (catch Exception e
+      (throw (ex-info "gdalinfo failed" {:data-dir data-dir :file-path file-path :error (.getMessage e)})))))
+
 (defn extract-georeferences
-  [geoserver-data-dir uri]
-  (let [gdal-info (run-gdal-info geoserver-data-dir uri)
+  [data-dir file-path]
+  (let [gdal-info (run-gdal-info data-dir file-path)
         cols-rows-regex    #"(?s)Size is (\d+), (\d+)"
         pixel-size-regex   #"(?s)Pixel Size = \(([\-\.0123456789]+),([\-\.0123456789]+)\)"
         origin-regex       #"(?s)Origin = \(([\-\.0123456789]+),([\-\.0123456789]+)\)"
 
         color-interp-regex #"(?s)ColorInterp=(\w+)"
-        native-crs-regex   #"(?s)Coordinate System is:\s*\n(.+)Origin"
+        native-crs-regex   #"(?s)Coordinate System is:\s*\n(.+?)\n[A-Z]"
 
         upper-left-regex   #"(?s)Upper Left\s+\(\s*([\-\.0123456789]+),\s*([\-\.0123456789]+)\)\s+\(\s*([^,]+),\s*([^\)]+)\)"
         lower-left-regex   #"(?s)Lower Left\s+\(\s*([\-\.0123456789]+),\s*([\-\.0123456789]+)\)\s+\(\s*([^,]+),\s*([^\)]+)\)"
@@ -92,10 +87,10 @@
         [ur-native-x ur-native-y ur-latlon-x ur-latlon-y] (rest (re-find upper-right-regex gdal-info))
         [lr-native-x lr-native-y lr-latlon-x lr-latlon-y] (rest (re-find lower-right-regex gdal-info))
 
-        [ul-native-x ul-native-y] (map read-string [ul-native-x ul-native-y])
-        [ll-native-x ll-native-y] (map read-string [ll-native-x ll-native-y])
-        [ur-native-x ur-native-y] (map read-string [ur-native-x ur-native-y])
-        [lr-native-x lr-native-y] (map read-string [lr-native-x lr-native-y])]
+        [ul-native-x ul-native-y] (map edn/read-string [ul-native-x ul-native-y])
+        [ll-native-x ll-native-y] (map edn/read-string [ll-native-x ll-native-y])
+        [ur-native-x ur-native-y] (map edn/read-string [ur-native-x ur-native-y])
+        [lr-native-x lr-native-y] (map edn/read-string [lr-native-x lr-native-y])]
 
     {:cols-rows    (str cols " " rows)
      :pixel-width  pixel-width
