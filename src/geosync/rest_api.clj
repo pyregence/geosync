@@ -293,14 +293,19 @@
     (str "/workspaces/" workspace "/coveragestores/" store "/coverages/" coverage)
     nil]))
 
+;; FIXME: Throws 500 Server Error
+;; - ((:proj-code gdal-info) should be EPSG:3310)
 (defn create-coverage [workspace store coverage title abstract description keywords interpolation-method file-url]
   (let [gdal-info (extract-georeferences file-url)]
     ["POST"
      (str "/workspaces/" workspace "/coveragestores/" store "/coverages")
      (xml
       [:coverage
+       [:store
+        [:name (str workspace ":" store)]]
        [:name coverage]
        [:nativeName coverage]
+       [:nativeCoverageName coverage]
        [:title title]
        [:abstract abstract]
        [:description description]
@@ -365,8 +370,11 @@
      (str "/workspaces/" workspace "/coveragestores/" store "/coverages/" coverage)
      (xml
       [:coverage
+       [:store
+        [:name (str workspace ":" store)]]
        [:name new-coverage]
        [:nativeName new-coverage]
+       [:nativeCoverageName new-coverage]
        [:title title]
        [:abstract abstract]
        [:description description]
