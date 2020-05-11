@@ -119,7 +119,10 @@
    (str "/workspaces/" workspace "/datastores")
    (xml
     [:dataStore
+     [:workspace
+      [:name workspace]]
      [:name store]
+     [:type "Shapefile"]
      [:enabled true]
      [:connectionParameters
       [:url file-url]]])])
@@ -131,7 +134,10 @@
    (str "/workspaces/" workspace "/datastores/" store)
    (xml
     [:dataStore
+     [:workspace
+      [:name workspace]]
      [:name new-store]
+     [:type "Shapefile"]
      [:enabled enabled?]
      [:connectionParameters
       [:url file-url]]])])
@@ -163,7 +169,10 @@
    (str "/workspaces/" workspace "/coveragestores")
    (xml
     [:coverageStore
+     [:workspace
+      [:name workspace]]
      [:name store]
+     [:type "GeoTIFF"]
      [:enabled true]
      [:url file-url]])])
 
@@ -173,7 +182,10 @@
    (str "/workspaces/" workspace "/coveragestores/" store)
    (xml
     [:coverageStore
+     [:workspace
+      [:name workspace]]
      [:name new-store]
+     [:type "GeoTIFF"]
      [:enabled enabled?]
      [:url file-url]])])
 
