@@ -1,5 +1,5 @@
 To communicate with Geoserver, we must send it REST commands using
-HTTP.  These are documented below.
+HTTP. These are documented below.
 
 * REST commands
 |----------------------------------------------------+--------+------------------------------------------------+---------------------------------------------|
@@ -100,7 +100,7 @@ HTTP.  These are documented below.
     <atom:link xmlns:atom="http://www.w3.org/2005/Atom" rel="alternate" href="http://ecoinformatics.uvm.edu/geoserver/rest/workspaces/puget/featuretypes.xml" type="application/xml"/> 
   </featureTypes> 
 </namespace>
-* Data Store formats
+* Data store formats
 ** Shapefile
 <dataStore> 
   <name>lakes</name> 
@@ -154,7 +154,7 @@ HTTP.  These are documented below.
     <atom:link xmlns:atom="http://www.w3.org/2005/Atom" rel="alternate" href="http://ecoinformatics.uvm.edu/geoserver/rest/workspaces/puget/datastores/aries/featuretypes.xml" type="application/xml"/> 
   </featureTypes> 
 </dataStore>
-* Feature Type format
+* Feature type formats
 ** Shapefile
 <featureType> 
   <name>lakes</name> 
@@ -373,7 +373,7 @@ HTTP.  These are documented below.
     <string>EPSG:4326</string> 
   </responseSRS> 
 </coverage>
-* Style format (must be expressed in SLD, not XML)
+* Style formats (must be expressed in SLD, not XML)
 ** XML
 <style> 
   <name>line</name>
@@ -527,7 +527,7 @@ HTTP.  These are documented below.
     </sld:UserStyle>
   </sld:NamedLayer>
 </sld:StyledLayerDescriptor>
-* Layer format
+* Layer formats
 ** Shapefile
 <layer> 
   <name>lakes</name> 
@@ -630,165 +630,3 @@ HTTP.  These are documented below.
     <entry key="rawStyleList"></entry> 
   </metadata> 
 </layerGroup>
-
-* Translation procedure
-  Read each line from CSV file
-  If Workspace, remember it, else use last
-  If Store, remember it, else use last
-  If Layer,
-    If URI (we have a file-based data source), parse URI for type info: Shapefile or GeoTIFF,
-      If Type = Shapefile, create new Data Store, Feature Type, and Layer,
-      Else if Type = GeoTIFF, create Coverage Store, Coverage, and Layer,
-      Else ERROR
-    Else (we have a postgis data source), create new Feature Type and Layer,
-  Else if Store, create new Store and remember URI,
-  Else if Workspace, create new Workspace and Namespace,
-  Else ERROR
-
-  Creating a Workspace:
-    Name = <Workspace>
-
-    NOTE: If this is the first workspace, make it the default.
-
-  Creating a Namespace:
-    Prefix = <Workspace>
-    URI    = http://www.integratedmodelling.org/geo/ns/<Workspace>
-
-    NOTE: If this is the first namespace, make it the default.
-
-  Creating a Data Store:
-    Type = Parse <URI> [file: + .shp = Shapefile, postgis: = PostGIS]
-
-    If Shapefile,
-
-    Name = <Store>
-    Description = <Description>
-    Type = Shapefile
-    Enabled? = true
-    Workspace = <Workspace>
-    Memory Mapped Buffer? = true
-    Create Spatial Index? = true
-    Charset = ISO-8859-1
-    URL = <URI>
-    Namespace = http://www.integratedmodelling.org/geo/ns/<Workspace>
-
-    If PostGIS,
-
-    Name = <Store>
-    Description = <Description>
-    Type = PostGIS
-    Enabled? = true
-    Workspace = <Workspace>
-    DB Type = postgis
-    User = postgres
-    Host = localhost
-    Port = 5432
-    Validate Connections? = true
-    Connection Timeout = 20
-    Max Connections = 10
-    Min Connections = 1
-    Database = Parse <URI> [postgis:<Database>]
-    Namespace = http://www.integratedmodelling.org/geo/ns/<Workspace>
-    Schema = public
-    Loose BBox? = false
-    Expose Primary Keys? = false
-    Fetch Size = 1000
-    Max Open Prepared Statements = 50
-    PreparedStatements? = false
-
-  Creating a Coverage Store:
-    Type = Parse <URI> [file: + .tif = GeoTIFF]
-
-    Name = <Store>
-    Description = <Description>
-    Type = GeoTIFF
-    Enabled? = true
-    Workspace = <Workspace>
-    URL = <URI>
-
-  Creating a Feature Type:
-    Do this if you are creating a Layer and the current Store <URI> contains [file: + .shp = Shapefile, postgis: = PostGIS]
-    Alternately, do this is you are creating a Layer and <Default Style> is "point", "line", or "polygon".
-
-    Name = <Layer>
-    Native Name = <Layer>
-    Namespace = http://www.integratedmodelling.org/geo/ns/<Workspace>
-    Title = <Description>
-    Abstract = <Description>
-    Native CRS = Get WKT projection from ogrinfo
-    SRS = <Native SRS>
-    Native Min X = <Native Min X>
-    Native Max X = <Native Max X>
-    Native Min Y = <Native Min Y>
-    Native Max Y = <Native Max Y>
-    Native CRS = <Declared SRS>
-    Lat/Lon Min X = <Lat/Lon Min X>
-    Lat/Lon Max X = <Lat/Lon Max X>
-    Lat/Lon Min Y = <Lat/Lon Min Y>
-    Lat/Lon Max Y = <Lat/Lon Max Y>
-    Lat/Lon CRS = EPSG:4326
-    Projection Policy = If <Native SRS> != <Declared SRS>, use FORCE_DECLARED, else use KEEP_NATIVE
-    Enabled? = true
-    Data Store = <Store>
-    Max Features = 0
-    Num Decimals = 0
-
-  Creating a Coverage:
-    Do this if you are creating a Layer and the current Store <URI> contains [file: + .tif = GeoTIFF]
-    Alternately, do this is you are creating a Layer and <Default Style> is "raster".
-    Let Filename = Parse <URI> [file:/coverages/cstore/<Filename>.tif]
-
-    Name = <Layer>
-    Namespace = <Workspace>
-    Title = <Description>
-    Description = <Description>
-    Abstract = <Description>
-    Keywords = WCS, GeoTIFF, <Filename>
-    Native CRS = Get WKT projection from ogrinfo
-    SRS = <Native SRS>
-    Native Min X = <Native Min X>
-    Native Max X = <Native Max X>
-    Native Min Y = <Native Min Y>
-    Native Max Y = <Native Max Y>
-    Native CRS = <Declared SRS>
-    Lat/Lon Min X = <Lat/Lon Min X>
-    Lat/Lon Max X = <Lat/Lon Max X>
-    Lat/Lon Min Y = <Lat/Lon Min Y>
-    Lat/Lon Max Y = <Lat/Lon Max Y>
-    Lat/Lon CRS = EPSG:4326
-    Projection Policy = If <Native SRS> != <Declared SRS>, use FORCE_DECLARED, else use KEEP_NATIVE
-    Enabled? = true
-    Dir Name = <Store>_<Filename>
-    Coverage Store = <Store>
-    Native Format = GeoTIFF
-    Grid Dimension = <Grid Dimension>
-    Low X = <Low X>
-    Low Y = <Low Y>
-    High X = <High X>
-    High Y = <High Y>
-    Scale X = <Scale X>
-    Scale Y = <Scale Y>
-    Shear X = <Shear X>
-    Shear Y = <Shear Y>
-    Translate X = <Translate X>
-    Translate Y = <Translate Y>
-    Grid CRS = <Grid CRS>
-    Default Interpolation Method = <Default Interpolation Method>
-    Request SRS = <Declared SRS>, EPSG:4326 (if <Declared SRS> != EPSG:4326)
-    Response SRS = <Declared SRS>, EPSG:4326 (if <Declared SRS> != EPSG:4326)
-
-  Creating a Layer:
-    Name = <Layer>
-    Type = If <Default Style> is point, line, or polygon, use VECTOR. If <Default Style> is raster, use RASTER.
-    Default Style = <Default Style>
-    Resource Class = If <Default Style> is point, line, or polygon, use "feature type". If <Default Style> is raster, use "coverage".
-    Resource Name = <Layer>
-    Enabled? = true
-
-* Trouble Layers
-
-global:dem90m (raster)
-global:hydrosheds (raster)
-global:slope90m (raster)
-global:bathymetry_global (raster)
-All 6 of the RUSLE *factor.tif layers
