@@ -97,8 +97,12 @@
     (:layers %)
     (:layer %)
     (map :name %)
-    (set)))
+    (set %)))
 
+;; FIXME: Include a more complete set of success codes from client/request
+(def success-code? #{200})
+
+;; FIXME: Use (success-code? %) instead of (not= 404 %) for generality
 (defn workspace-exists? [config-params geoserver-workspace]
   (as-> geoserver-workspace %
     (rest/get-workspace %)
@@ -128,9 +132,6 @@
          (filter #(.isFile %))
          (map #(-> (.getPath %)
                    (str/replace-first data-dir ""))))))
-
-;; FIXME: Include a more complete set of success codes
-(def success-code? #{200})
 
 (defn update-geoserver! [{:keys [data-dir] :as config-params}]
   (let [http-response-codes (->> (load-file-paths data-dir)
