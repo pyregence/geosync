@@ -89,8 +89,8 @@
 
           (throw (ex-info "Unsupported store type detected." {:file-path file-path :store-type store-type})))))))
 
-(defn get-existing-layers [config-params]
-  (as-> (rest/get-layers) %
+(defn get-existing-layers [{:keys [geoserver-workspace] :as config-params}]
+  (as-> (rest/get-layers geoserver-workspace) %
     (make-rest-request config-params %)
     (:body %)
     (json/read-str % :key-fn keyword)
@@ -103,7 +103,7 @@
 (def success-code? #{200})
 
 ;; FIXME: Use (success-code? %) instead of (not= 404 %) for generality
-(defn workspace-exists? [config-params geoserver-workspace]
+(defn workspace-exists? [{:keys [geoserver-workspace] :as config-params}]
   (as-> geoserver-workspace %
     (rest/get-workspace %)
     (make-rest-request config-params %)
@@ -119,7 +119,7 @@
     (let [rest-specs (->> file-paths
                           (keep (partial file-path->rest-specs config-params existing-layers))
                           (apply concat))]
-      (if (workspace-exists? config-params geoserver-workspace)
+      (if (workspace-exists? config-params)
         rest-specs
         (cons (rest/create-workspace geoserver-workspace) rest-specs)))))
 
