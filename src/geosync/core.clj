@@ -76,7 +76,7 @@
   [{:keys [data-dir geoserver-workspace interpolation-method]} existing-layers file-path]
   (when-let [store-type (get-store-type file-path)]
     (let [layer-name (file-path->layer-name file-path)
-          file-url   (str "file:" data-dir (if (str/ends-with? data-dir "/") "" "/") file-path)]
+          file-url   (str "file://" data-dir (if (str/ends-with? data-dir "/") "" "/") file-path)]
       (when-not (contains? existing-layers layer-name)
         (case store-type
           :geotiff
