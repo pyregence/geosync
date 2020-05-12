@@ -113,7 +113,7 @@
    nil])
 
 ;; NOTE: Only Shapefile stores are currently supported.
-;; NOTE: file-url should look like file:/path/to/nyc.shp
+;; NOTE: file-url should look like file:///path/to/nyc.shp
 (defn create-data-store [workspace store file-url]
   ["POST"
    (str "/workspaces/" workspace "/datastores")
@@ -128,15 +128,15 @@
       [:url file-url]]])])
 
 ;; NOTE: Only Shapefile stores are currently supported.
-;; NOTE: file-url should look like file:/path/to/nyc.shp
-(defn update-data-store [workspace store new-store file-url enabled?]
+;; NOTE: file-url should look like file:///path/to/nyc.shp
+(defn update-data-store [workspace store file-url enabled?]
   ["PUT"
    (str "/workspaces/" workspace "/datastores/" store)
    (xml
     [:dataStore
      [:workspace
       [:name workspace]]
-     [:name new-store]
+     [:name store]
      [:type "Shapefile"]
      [:enabled enabled?]
      [:connectionParameters
@@ -163,7 +163,7 @@
    (str "/workspaces/" workspace "/coveragestores/" store)
    nil])
 
-;; NOTE: file-url should look like file:/path/to/nyc.tiff
+;; NOTE: file-url should look like file:///path/to/nyc.tiff
 (defn create-coverage-store [workspace store file-url]
   ["POST"
    (str "/workspaces/" workspace "/coveragestores")
@@ -176,15 +176,15 @@
      [:enabled true]
      [:url file-url]])])
 
-;; NOTE: file-url should look like file:/path/to/nyc.tiff
-(defn update-coverage-store [workspace store new-store file-url enabled?]
+;; NOTE: file-url should look like file:///path/to/nyc.tiff
+(defn update-coverage-store [workspace store file-url enabled?]
   ["PUT"
    (str "/workspaces/" workspace "/coveragestores/" store)
    (xml
     [:coverageStore
      [:workspace
       [:name workspace]]
-     [:name new-store]
+     [:name store]
      [:type "GeoTIFF"]
      [:enabled enabled?]
      [:url file-url]])])
@@ -220,12 +220,6 @@
     (str "/workspaces/" workspace "/datastores/" store "/featuretypes/" feature-type)
     nil]))
 
-;; NOTE: Only Shapefile feature types are currently supported.
-(defn create-feature-type-via-put [workspace store file-url]
-  ["PUT"
-   (str "/workspaces/" workspace "/datastores/" store "/external.shp")
-   file-url])
-
 (defn create-feature-type [workspace store feature-type title abstract description keywords crs srs max-features num-decimals]
   ["POST"
    (str "/workspaces/" workspace "/datastores/" store "/featuretypes")
@@ -243,6 +237,12 @@
      [:maxFeatures max-features]
      [:numDecimals num-decimals]
      [:enabled true]])])
+
+;; NOTE: Only Shapefile feature types are currently supported.
+(defn create-feature-type-via-put [workspace store file-url]
+  ["PUT"
+   (str "/workspaces/" workspace "/datastores/" store "/external.shp")
+   file-url])
 
 (defn update-feature-type [workspace store feature-type new-feature-type title abstract description keywords crs srs max-features num-decimals enabled?]
   ["PUT"
