@@ -71,7 +71,7 @@
       (throw (ex-info "gdalsrsinfo failed" {:data-dir data-dir :file-path file-path :error (.getMessage e)})))))
 
 (defn extract-path [file-url]
-  (rest (re-find #"^file:(.+)/([^/]+)$" file-url)))
+  (rest (re-find #"^file://(.+)/([^/]+)$" file-url)))
 
 (defn extract-georeferences [file-url]
   (let [[data-dir file-path] (extract-path file-url)
