@@ -1,0 +1,42 @@
+;;; Copyright 2020 Gary W. Johnson (gjohnson@sig-gis.com)
+;;;
+;;; This file is part of geosync.
+;;;
+;;; geosync is free software: you can redistribute it and/or modify
+;;; it under the terms of the GNU General Public License as published
+;;; by the Free Software Foundation, either version 3 of the License,
+;;; or (at your option) any later version.
+;;;
+;;; geosync is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;;; General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU General Public License
+;;; along with geosync.  If not, see <http://www.gnu.org/licenses/>.
+
+{:data-dir            "/data"
+ :geoserver-rest-uri  "http://localhost:8080/geoserver/rest"
+ :geoserver-username  "admin"
+ :geoserver-password  "geoserver"
+ :geoserver-workspace "demo"
+ :styles              [{:layer-pattern #"fire-area"           :style "fire-area"}
+                       {:layer-pattern #"fire-volume"         :style "fire-volume"}
+                       {:layer-pattern #"times-burned"        :style "times-burned"}
+                       {:layer-pattern #"impacted-structures" :style "impacted-structures"}]
+ :layer-groups        [{:name "elmfire_landfire_fire-area"            :layer-pattern #"elmfire_landfire_fire-area"            :style "fire-area"}
+                       {:name "elmfire_landfire_fire-volume"          :layer-pattern #"elmfire_landfire_fire-volume"          :style "fire-volume"}
+                       {:name "elmfire_landfire_times-burned"         :layer-pattern #"elmfire_landfire_times-burned"         :style "times-burned"}
+                       {:name "elmfire_landfire_impacted-structures"  :layer-pattern #"elmfire_landfire_impacted-structures"  :style "impacted-structures"}
+                       {:name "elmfire_salo_fire-area"                :layer-pattern #"elmfire_salo_fire-area"                :style "fire-area"}
+                       {:name "elmfire_salo_fire-volume"              :layer-pattern #"elmfire_salo_fire-volume"              :style "fire-volume"}
+                       {:name "elmfire_salo_times-burned"             :layer-pattern #"elmfire_salo_times-burned"             :style "times-burned"}
+                       {:name "elmfire_salo_impacted-structures"      :layer-pattern #"elmfire_salo_impacted-structures"      :style "impacted-structures"}
+                       {:name "gridfire_landfire_fire-area"           :layer-pattern #"gridfire_landfire_fire-area"           :style "fire-area"}
+                       {:name "gridfire_landfire_fire-volume"         :layer-pattern #"gridfire_landfire_fire-volume"         :style "fire-volume"}
+                       {:name "gridfire_landfire_times-burned"        :layer-pattern #"gridfire_landfire_times-burned"        :style "times-burned"}
+                       {:name "gridfire_landfire_impacted-structures" :layer-pattern #"gridfire_landfire_impacted-structures" :style "impacted-structures"}
+                       {:name "gridfire_salo_fire-area"               :layer-pattern #"gridfire_salo_fire-area"               :style "fire-area"}
+                       {:name "gridfire_salo_fire-volume"             :layer-pattern #"gridfire_salo_fire-volume"             :style "fire-volume"}
+                       {:name "gridfire_salo_times-burned"            :layer-pattern #"gridfire_salo_times-burned"            :style "times-burned"}
+                       {:name "gridfire_salo_impacted-structures"     :layer-pattern #"gridfire_salo_impacted-structures"     :style "impacted-structures"}]}
