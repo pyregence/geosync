@@ -295,8 +295,9 @@
 
 ;; FIXME: Throws 500 Server Error
 ;; - ((:proj-code gdal-info) should be EPSG:3310)
-(defn create-coverage [workspace store coverage title abstract description keywords interpolation-method file-url]
-  (let [gdal-info (extract-georeferences file-url)]
+(defn create-coverage [workspace store coverage title abstract description keywords proj-code interpolation-method file-url]
+  (let [gdal-info (extract-georeferences file-url)
+        proj-code (or proj-code (:proj-code gdal-info))]
     ["POST"
      (str "/workspaces/" workspace "/coveragestores/" store "/coverages")
      (xml
@@ -312,9 +313,9 @@
        [:keywords
         (map (fn [k] [:string k]) keywords)]
        [:nativeCRS (:native-crs gdal-info)]
-       [:srs (:proj-code gdal-info)]
+       [:srs proj-code]
        [:nativeBoundingBox
-        [:crs (:proj-code gdal-info)]
+        [:crs proj-code]
         [:minx (:native-min-x gdal-info)]
         [:maxx (:native-max-x gdal-info)]
         [:miny (:native-min-y gdal-info)]
@@ -328,7 +329,7 @@
        [:projectionPolicy "REPROJECT_TO_DECLARED"]
        [:nativeFormat "GEOTIFF"]
        [:grid {:dimension "2"}
-        [:crs (:proj-code gdal-info)]
+        [:crs proj-code]
         [:range
          [:low "0 0"]
          [:high (:cols-rows gdal-info)]]
@@ -356,16 +357,17 @@
          [:description "GridSampleDimension[-Infinity,Infinity]"]]]
        [:requestSRS
         [:string "EPSG:4326"]
-        (if (not= (:proj-code gdal-info) "EPSG:4326")
-          [:string (:proj-code gdal-info)])]
+        (if (not= proj-code "EPSG:4326")
+          [:string proj-code])]
        [:responseSRS
         [:string "EPSG:4326"]
-        (if (not= (:proj-code gdal-info) "EPSG:4326")
-          [:string (:proj-code gdal-info)])]
+        (if (not= proj-code "EPSG:4326")
+          [:string proj-code])]
        [:enabled true]])]))
 
-(defn update-coverage [workspace store coverage new-coverage title abstract description keywords interpolation-method file-url enabled?]
-  (let [gdal-info (extract-georeferences file-url)]
+(defn update-coverage [workspace store coverage new-coverage title abstract description keywords proj-code interpolation-method file-url enabled?]
+  (let [gdal-info (extract-georeferences file-url)
+        proj-code (or proj-code (:proj-code gdal-info))]
     ["PUT"
      (str "/workspaces/" workspace "/coveragestores/" store "/coverages/" coverage)
      (xml
@@ -381,9 +383,9 @@
        [:keywords
         (map (fn [k] [:string k]) keywords)]
        [:nativeCRS (:native-crs gdal-info)]
-       [:srs (:proj-code gdal-info)]
+       [:srs proj-code]
        [:nativeBoundingBox
-        [:crs (:proj-code gdal-info)]
+        [:crs proj-code]
         [:minx (:native-min-x gdal-info)]
         [:maxx (:native-max-x gdal-info)]
         [:miny (:native-min-y gdal-info)]
@@ -395,7 +397,7 @@
         [:miny (:latlon-min-y gdal-info)]
         [:maxy (:latlon-max-y gdal-info)]]
        [:grid {:dimension "2"}
-        [:crs (:proj-code gdal-info)]
+        [:crs proj-code]
         [:range
          [:low "0 0"]
          [:high (:cols-rows gdal-info)]]
@@ -413,12 +415,12 @@
          [:description "GridSampleDimension[-Infinity,Infinity]"]]]
        [:requestSRS
         [:string "EPSG:4326"]
-        (if (not= (:proj-code gdal-info) "EPSG:4326")
-          [:string (:proj-code gdal-info)])]
+        (if (not= proj-code "EPSG:4326")
+          [:string proj-code])]
        [:responseSRS
         [:string "EPSG:4326"]
-        (if (not= (:proj-code gdal-info) "EPSG:4326")
-          [:string (:proj-code gdal-info)])]
+        (if (not= proj-code "EPSG:4326")
+          [:string proj-code])]
        [:enabled enabled?]])]))
 
 (defn delete-coverage [workspace store coverage]

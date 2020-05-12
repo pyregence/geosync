@@ -73,7 +73,7 @@
   triplets of [http-method uri-suffix http-body] depending on the
   structure of the passed-in file-path or nil if the file type is
   unsupported."
-  [{:keys [data-dir geoserver-workspace interpolation-method]} existing-layers file-path]
+  [{:keys [data-dir geoserver-workspace projection-code interpolation-method]} existing-layers file-path]
   (when-let [store-type (get-store-type file-path)]
     (let [layer-name (file-path->layer-name file-path)
           file-url   (str "file://" data-dir (if (str/ends-with? data-dir "/") "" "/") file-path)]
@@ -81,7 +81,7 @@
         (case store-type
           :geotiff
           [(rest/create-coverage-store geoserver-workspace layer-name file-url)
-           (rest/create-coverage geoserver-workspace layer-name layer-name layer-name "" "" [] interpolation-method file-url)]
+           (rest/create-coverage geoserver-workspace layer-name layer-name layer-name "" "" [] projection-code interpolation-method file-url)]
 
           :shapefile
           [(rest/create-data-store geoserver-workspace layer-name file-url)
@@ -172,6 +172,7 @@
    ["-u" "--geoserver-username USER"     "GeoServer admin username"]
    ["-p" "--geoserver-password PASS"     "GeoServer admin password"]
    ["-w" "--geoserver-workspace WS"      "Workspace name to receive the new GeoServer layers"]
+   ["-P" "--projection-code PROJ"        "Name of projection to use for raster layers (e.g., \"EPSG:4326\")"]
    ["-i" "--interpolation-method METHOD" "One of \"nearest neighbor\", \"bilinear\", \"bicubic\""]])
 
 (defn -main
