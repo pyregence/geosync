@@ -56,36 +56,42 @@
       (do (println (format "%4s %s%n  -> %s" http-method uri-suffix (select-keys (ex-data e) [:status :reason-phrase :body])))
           (ex-data e)))))
 
-(defn get-store-type
-  "Returns a string describing the class of data or coverage store
-  implied by the structure of the passed-in file-path."
-  [file-path]
-  (condp re-matches file-path
-    #"^.*\.tiff?$" :geotiff
-    #"^.*\.shp$"   :shapefile
-    nil))
-
-(defn file-path->layer-name [file-path]
-  (as-> file-path %
-    (subs % 0 (str/last-index-of % \.))
-    (str/replace % #"[^0-9a-zA-Z/\-_]" "-")
-    (str/replace % #"-+" "-")
-    (str/replace % "/" "_")))
-
-(defn file-path->rest-specs
+(defn file-spec->rest-specs
   "Returns a sequence of one or more REST request specifications as
   triplets of [http-method uri-suffix http-body] depending on the
-  structure of the passed-in file-path or nil if the file type is
+  structure of the passed-in file-spec or nil if the store-type is
   unsupported."
-  [{:keys [data-dir geoserver-workspace]} existing-layers file-path]
-  (when-let [store-type (get-store-type file-path)]
-    (let [layer-name (file-path->layer-name file-path)
-          file-url   (str "file://" data-dir (if (str/ends-with? data-dir "/") "" "/") file-path)]
-      (when-not (contains? existing-layers layer-name)
-        (case store-type
-          :geotiff   [(rest/create-coverage-via-put     geoserver-workspace layer-name file-url)]
-          :shapefile [(rest/create-feature-type-via-put geoserver-workspace layer-name file-url)]
-          (throw (ex-info "Unsupported store type detected." {:file-path file-path :store-type store-type})))))))
+  [{:keys [data-dir geoserver-workspace]} existing-stores {:keys [store-type store-name file-url]}]
+  (when store-type
+    (when-not (contains? existing-stores store-name)
+      (case store-type
+        :geotiff   [(rest/create-coverage-via-put     geoserver-workspace store-name file-url)]
+        :shapefile [(rest/create-feature-type-via-put geoserver-workspace store-name file-url)]
+        (throw (ex-info "Unsupported store type detected." {:store-type store-type :file-url file-url}))))))
+
+(defn get-existing-coverage-stores [{:keys [geoserver-workspace] :as config-params}]
+  (as-> (rest/get-coverage-stores geoserver-workspace) %
+    (make-rest-request config-params %)
+    (:body %)
+    (json/read-str % :key-fn keyword)
+    (:coverageStores %)
+    (:coverageStore %)
+    (map :name %)
+    (set %)))
+
+(defn get-existing-data-stores [{:keys [geoserver-workspace] :as config-params}]
+  (as-> (rest/get-data-stores geoserver-workspace) %
+    (make-rest-request config-params %)
+    (:body %)
+    (json/read-str % :key-fn keyword)
+    (:dataStores %)
+    (:dataStore %)
+    (map :name %)
+    (set %)))
+
+(defn get-existing-stores [config-params]
+  (into (get-existing-coverage-stores config-params)
+        (get-existing-data-stores     config-params)))
 
 (defn get-existing-layers [{:keys [geoserver-workspace] :as config-params}]
   (as-> (rest/get-layers geoserver-workspace) %
@@ -103,18 +109,40 @@
     (:status %)
     (success-code? %)))
 
-(defn file-paths->rest-specs
+(defn file-specs->rest-specs
   "Generates a sequence of REST request specifications as triplets of
   [http-method uri-suffix http-body]. Each file path may contribute
   one or more of these to the final sequence."
-  [{:keys [geoserver-workspace] :as config-params} file-paths]
-  (let [existing-layers (get-existing-layers config-params)]
-    (let [rest-specs (->> file-paths
-                          (keep (partial file-path->rest-specs config-params existing-layers))
+  [{:keys [geoserver-workspace] :as config-params} file-specs]
+  (let [existing-stores (get-existing-stores config-params)]
+    (let [rest-specs (->> file-specs
+                          (keep (partial file-spec->rest-specs config-params existing-stores))
                           (apply concat))]
       (if (workspace-exists? config-params)
         rest-specs
         (cons (rest/create-workspace geoserver-workspace) rest-specs)))))
+
+(defn get-store-type
+  "Returns a string describing the class of data or coverage store
+  implied by the structure of the passed-in file-path."
+  [file-path]
+  (condp re-matches file-path
+    #"^.*\.tiff?$" :geotiff
+    #"^.*\.shp$"   :shapefile
+    nil))
+
+(defn file-path->store-name [file-path]
+  (as-> file-path %
+    (subs % 0 (str/last-index-of % \.))
+    (str/replace % #"[^0-9a-zA-Z/\-_]" "-")
+    (str/replace % #"-+" "-")
+    (str/replace % "/" "_")))
+
+(defn file-paths->file-specs [data-dir file-paths]
+  (map #(array-map :store-type (get-store-type %)
+                   :store-name (file-path->store-name %)
+                   :file-url   (str "file://" data-dir (if (str/ends-with? data-dir "/") "" "/") %))
+       file-paths))
 
 (defn load-file-paths [data-dir]
   (let [data-dir (if (str/ends-with? data-dir "/")
@@ -126,9 +154,11 @@
          (map #(-> (.getPath %)
                    (str/replace-first data-dir ""))))))
 
+;; FIXME: (rest/create-layer-group layer-group "SINGLE" layer-group "" "" [] layer-names layer-styles)
 (defn update-geoserver! [{:keys [data-dir] :as config-params}]
   (let [http-response-codes (->> (load-file-paths data-dir)
-                                 (file-paths->rest-specs config-params)
+                                 (file-paths->file-specs data-dir)
+                                 (file-specs->rest-specs config-params)
                                  (map (comp :status (partial make-rest-request config-params))) ; FIXME: use client/with-connection-pool for speed
                                  (doall))]
     (println "\nFinished updating GeoServer.\nSuccessful requests:"
