@@ -104,8 +104,7 @@
     (set %)))
 
 (defn workspace-exists? [{:keys [geoserver-workspace] :as config-params}]
-  (as-> geoserver-workspace %
-    (rest/get-workspace %)
+  (as-> (rest/get-workspace geoserver-workspace) %
     (make-rest-request config-params %)
     (:status %)
     (success-code? %)))
@@ -154,16 +153,27 @@
 (defn encode-str [s]
   (.encodeToString base64-encoder (.getBytes s)))
 
+;; FIXME: Use clojure.spec to validate the config-params map
 (defn read-config-params [config-file-path]
   (if config-file-path
     (let [config-params (edn/read-string (slurp config-file-path))]
-      ;; FIXME: Use clojure.spec to validate the config-params map
       (if (and (map? config-params)
                (every? keyword? (keys config-params)))
         config-params
         (throw (ex-info "The config-file must contain an EDN map whose keys are keywords."
                         {"--config-file" config-file-path}))))
     {}))
+
+;; FIXME: Use clojure.spec to validate the config-params map
+(defn process-options [options]
+  (let [config-file-params  (read-config-params (:config-file options))
+        command-line-params (into {} (remove (comp str/blank? val) (dissoc options :config-file)))
+        config-params       (merge config-file-params command-line-params)]
+    (assoc config-params
+           :geoserver-auth-code
+           (str "Basic " (encode-str (str (:geoserver-username config-params)
+                                          ":"
+                                          (:geoserver-password config-params)))))))
 
 (def cli-options
   [["-c" "--config-file EDN"             "Path to an EDN file containing a map of configuration parameters"]
@@ -192,22 +202,12 @@
     ;;  :summary   A string containing a minimal options summary
     ;;  :errors    A possible vector of error message strings generated during parsing; nil when no errors exist
     (if (or (seq errors) (empty? options))
-      ;; FIXME: Use clojure.spec to validate the options map
       (do
         (when (seq errors)
           (run! println errors)
           (newline))
         (println (str "Usage:\n" summary)))
-      (let [config-file-params  (read-config-params (:config-file options))
-            command-line-params (into {} (remove (comp str/blank? val) (dissoc options :config-file)))
-            config-params       (merge config-file-params command-line-params)]
-        ;; FIXME: Use clojure.spec to validate the config-params map
-        (update-geoserver!
-         (assoc config-params
-                :geoserver-auth-code
-                (str "Basic " (encode-str (str (:geoserver-username config-params)
-                                               ":"
-                                               (:geoserver-password config-params)))))))))
+      (update-geoserver! (process-options options))))
   ;; Exit cleanly
   (shutdown-agents)
   (flush)
