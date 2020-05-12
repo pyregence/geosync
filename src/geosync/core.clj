@@ -85,7 +85,9 @@
         (case store-type
           :geotiff
           [(rest/create-coverage-store geoserver-workspace layer-name file-url)
-           (rest/create-coverage geoserver-workspace layer-name layer-name layer-name "" "" [] projection-code interpolation-method file-url)]
+           (rest/create-coverage-via-put geoserver-workspace layer-name file-url)
+           ;;(rest/create-coverage geoserver-workspace layer-name layer-name layer-name "" "" [] projection-code interpolation-method file-url)
+           ]
 
           :shapefile
           [(rest/create-data-store geoserver-workspace layer-name file-url)

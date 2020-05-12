@@ -293,8 +293,18 @@
     (str "/workspaces/" workspace "/coveragestores/" store "/coverages/" coverage)
     nil]))
 
-;; FIXME: Throws 500 Server Error
-;; - ((:proj-code gdal-info) should be EPSG:3310)
+;; FIXME: GeoSync coverages load incorrectly:
+;; - Dimensions tab throws errors (the coverageName "foo" is not supported)
+;; - Missing keywords: {coverage}, WCS, GeoTIFF
+;; - SRS handling should be: Reproject native to declared
+;; - Rescale Pixels should be true
+;; - Suggested tile size should be 512,512
+;; - Data type should be Unsigned 16 bits
+;; - Request SRS list and Response SRS list should not include EPSG:4326
+;; - Native Format should be "GeoTIFF"
+;; - Move GEOTIFF to top of Selected Formats list
+;; - Default Style should be "fire-area"
+;; - Grid subset bounds should be set statically(?)
 (defn create-coverage [workspace store coverage title abstract description keywords proj-code interpolation-method file-url]
   (let [gdal-info (extract-georeferences file-url)
         proj-code (or proj-code (:proj-code gdal-info))]
@@ -364,6 +374,12 @@
         (if (not= proj-code "EPSG:4326")
           [:string proj-code])]
        [:enabled true]])]))
+
+;; NOTE: Only GeoTIFF coverages are currently supported.
+(defn create-coverage-via-put [workspace store file-url]
+  ["PUT"
+   (str "/workspaces/" workspace "/coveragestores/" store "/external.geotiff")
+   file-url])
 
 (defn update-coverage [workspace store coverage new-coverage title abstract description keywords proj-code interpolation-method file-url enabled?]
   (let [gdal-info (extract-georeferences file-url)
