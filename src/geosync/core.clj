@@ -68,7 +68,7 @@
 (defn file-path->layer-name [file-path]
   (as-> file-path %
     (subs % 0 (str/last-index-of % \.))
-    (str/replace % #"[^0-9a-zA-Z/\-]" "-")
+    (str/replace % #"[^0-9a-zA-Z/\-_]" "-")
     (str/replace % #"-+" "-")
     (str/replace % "/" "_")))
 
@@ -84,14 +84,15 @@
       (when-not (contains? existing-layers layer-name)
         (case store-type
           :geotiff
-          [(rest/create-coverage-store geoserver-workspace layer-name file-url)
-           (rest/create-coverage-via-put geoserver-workspace layer-name file-url)
-           ;;(rest/create-coverage geoserver-workspace layer-name layer-name layer-name "" "" [] projection-code interpolation-method file-url)
+          [(rest/create-coverage-via-put geoserver-workspace layer-name file-url)
+           ;; (rest/create-coverage-store geoserver-workspace layer-name file-url)
+           ;; (rest/create-coverage geoserver-workspace layer-name layer-name layer-name "" "" [] projection-code interpolation-method file-url)
            ]
 
           :shapefile
-          [(rest/create-data-store geoserver-workspace layer-name file-url)
-           (rest/create-feature-type-via-put geoserver-workspace layer-name file-url)] ; FIXME: Does this work?
+          [(rest/create-feature-type-via-put geoserver-workspace layer-name file-url)
+           ;; (rest/create-data-store geoserver-workspace layer-name file-url)
+           ]
 
           (throw (ex-info "Unsupported store type detected." {:file-path file-path :store-type store-type})))))))
 
