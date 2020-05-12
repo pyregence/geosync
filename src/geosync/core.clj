@@ -77,23 +77,14 @@
   triplets of [http-method uri-suffix http-body] depending on the
   structure of the passed-in file-path or nil if the file type is
   unsupported."
-  [{:keys [data-dir geoserver-workspace projection-code interpolation-method]} existing-layers file-path]
+  [{:keys [data-dir geoserver-workspace]} existing-layers file-path]
   (when-let [store-type (get-store-type file-path)]
     (let [layer-name (file-path->layer-name file-path)
           file-url   (str "file://" data-dir (if (str/ends-with? data-dir "/") "" "/") file-path)]
       (when-not (contains? existing-layers layer-name)
         (case store-type
-          :geotiff
-          [(rest/create-coverage-via-put geoserver-workspace layer-name file-url)
-           ;; (rest/create-coverage-store geoserver-workspace layer-name file-url)
-           ;; (rest/create-coverage geoserver-workspace layer-name layer-name layer-name "" "" [] projection-code interpolation-method file-url)
-           ]
-
-          :shapefile
-          [(rest/create-feature-type-via-put geoserver-workspace layer-name file-url)
-           ;; (rest/create-data-store geoserver-workspace layer-name file-url)
-           ]
-
+          :geotiff   [(rest/create-coverage-via-put     geoserver-workspace layer-name file-url)]
+          :shapefile [(rest/create-feature-type-via-put geoserver-workspace layer-name file-url)]
           (throw (ex-info "Unsupported store type detected." {:file-path file-path :store-type store-type})))))))
 
 (defn get-existing-layers [{:keys [geoserver-workspace] :as config-params}]
@@ -179,14 +170,12 @@
                                           (:geoserver-password config-params)))))))
 
 (def cli-options
-  [["-c" "--config-file EDN"             "Path to an EDN file containing a map of configuration parameters"]
-   ["-d" "--data-dir DIR"                "Path to the directory containing your GIS files"]
-   ["-g" "--geoserver-rest-uri URI"      "URI of your GeoServer's REST extensions"]
-   ["-u" "--geoserver-username USER"     "GeoServer admin username"]
-   ["-p" "--geoserver-password PASS"     "GeoServer admin password"]
-   ["-w" "--geoserver-workspace WS"      "Workspace name to receive the new GeoServer layers"]
-   ["-P" "--projection-code PROJ"        "Name of projection to use for raster layers (e.g., \"EPSG:4326\")"]
-   ["-i" "--interpolation-method METHOD" "One of \"nearest neighbor\", \"bilinear\", \"bicubic\""]])
+  [["-c" "--config-file EDN"         "Path to an EDN file containing a map of configuration parameters"]
+   ["-d" "--data-dir DIR"            "Path to the directory containing your GIS files"]
+   ["-g" "--geoserver-rest-uri URI"  "URI of your GeoServer's REST extensions"]
+   ["-u" "--geoserver-username USER" "GeoServer admin username"]
+   ["-p" "--geoserver-password PASS" "GeoServer admin password"]
+   ["-w" "--geoserver-workspace WS"  "Workspace name to receive the new GeoServer layers"]])
 
 (defn -main
   "Call this with the name of an EDN file containing the config-params
