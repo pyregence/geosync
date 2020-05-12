@@ -238,6 +238,7 @@
      [:numDecimals num-decimals]
      [:enabled true]])])
 
+;; FIXME: need to fix feature-type-name and set style and layergroup
 ;; NOTE: Only Shapefile feature types are currently supported.
 (defn create-feature-type-via-put [workspace store file-url]
   ["PUT"
@@ -375,10 +376,11 @@
           [:string proj-code])]
        [:enabled true]])]))
 
+;; FIXME: need to fix coverage-name and set style and layergroup
 ;; NOTE: Only GeoTIFF coverages are currently supported.
 (defn create-coverage-via-put [workspace store file-url]
   ["PUT"
-   (str "/workspaces/" workspace "/coveragestores/" store "/external.geotiff")
+   (str "/workspaces/" workspace "/coveragestores/" store "/external.geotiff?coverageName=" store)
    file-url])
 
 (defn update-coverage [workspace store coverage new-coverage title abstract description keywords proj-code interpolation-method file-url enabled?]
