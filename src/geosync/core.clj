@@ -38,18 +38,22 @@
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(def success-code? #{200 201 202 203 204 205 206 207 300 301 302 303 307})
+
 ;; FIXME: Use an SSL keystore and remove insecure? param
 (defn make-rest-request [{:keys [geoserver-rest-uri geoserver-auth-code]} [http-method uri-suffix http-body]]
   (try
-    (client/request {:url       (str geoserver-rest-uri uri-suffix)
-                     :method    http-method
-                     :insecure? true
-                     :headers   {"Content-Type"  "text/xml"
-                                 "Accept"        "application/json"
-                                 "Authorization" geoserver-auth-code}
-                     :body      http-body})
+    (let [response (client/request {:url       (str geoserver-rest-uri uri-suffix)
+                                    :method    http-method
+                                    :insecure? true
+                                    :headers   {"Content-Type"  "text/xml"
+                                                "Accept"        "application/json"
+                                                "Authorization" geoserver-auth-code}
+                                    :body      http-body})]
+      (println (format "%4s %s%n  -> %s" http-method uri-suffix (select-keys response [:status :reason-phrase])))
+      response)
     (catch Exception e
-      (do (println "REST Exception:" http-method uri-suffix "->" (ex-message e))
+      (do (println (format "%4s %s%n  -> %s" http-method uri-suffix (select-keys (ex-data e) [:status :reason-phrase :body])))
           (ex-data e)))))
 
 (defn get-store-type
@@ -99,16 +103,12 @@
     (map :name %)
     (set %)))
 
-;; FIXME: Include a more complete set of success codes from client/request
-(def success-code? #{200})
-
-;; FIXME: Use (success-code? %) instead of (not= 404 %) for generality
 (defn workspace-exists? [{:keys [geoserver-workspace] :as config-params}]
   (as-> geoserver-workspace %
     (rest/get-workspace %)
     (make-rest-request config-params %)
     (:status %)
-    (not= 404 %)))
+    (success-code? %)))
 
 (defn file-paths->rest-specs
   "Generates a sequence of REST request specifications as triplets of
