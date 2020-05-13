@@ -543,8 +543,15 @@
     (str "/workspaces/" workspace "/layergroups/" layer-group)
     nil]))
 
+;; FIXME: Missing bounds
+;; [:bounds
+;;  [:crs "ESPG:XXXX"]
+;;  [:minx]
+;;  [:maxx]
+;;  [:miny]
+;;  [:maxy]]
 (defn create-layer-group
-  ([layer-group mode title abstract description keywords layers styles]
+  ([layer-group mode title abstract keywords layers styles]
    ["POST"
     "/layergroups"
     (xml
@@ -552,15 +559,14 @@
       [:name layer-group]
       [:mode mode]
       [:title title]
-      [:abstract abstract]
-      [:description description]
+      [:abstractTxt abstract]
       [:keywords
        (map (fn [k] [:string k]) keywords)]
       [:publishables
        (map (fn [l] [:published [:name l]]) layers)]
       [:styles
        (map (fn [s] [:style [:name s]]) styles)]])])
-  ([workspace layer-group mode title abstract description keywords layers styles]
+  ([workspace layer-group mode title abstract keywords layers styles]
    ["POST"
     (str "/workspaces/" workspace "/layergroups")
     (xml
@@ -570,8 +576,7 @@
       [:name layer-group]
       [:mode mode]
       [:title title]
-      [:abstract abstract]
-      [:description description]
+      [:abstractTxt abstract]
       [:keywords
        (map (fn [k] [:string k]) keywords)]
       [:publishables

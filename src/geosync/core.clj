@@ -69,13 +69,37 @@
         :shapefile [(rest/create-feature-type-via-put geoserver-workspace store-name file-url)]
         (throw (ex-info "Unsupported store type detected." {:store-type store-type :file-url file-url}))))))
 
+;; FIXME: Exclude existing-layer-groups
 (defn file-specs->layer-group-specs [{:keys [geoserver-workspace layer-groups]} file-specs]
   (keep (fn [{:keys [name layer-pattern style]}]
           (when-let [matching-layers (->> (map :store-name file-specs)
                                           (filter #(str/includes? % layer-pattern))
+                                          (map #(str geoserver-workspace ":" %))
                                           (seq))]
-            (rest/create-layer-group geoserver-workspace name "SINGLE" name "" "" [] matching-layers (repeat (count matching-layers) style))))
+            (rest/create-layer-group geoserver-workspace name "SINGLE" name "" [] matching-layers (repeat (count matching-layers) style))))
         layer-groups))
+
+;; FIXME: unused
+(defn get-existing-layer-groups [{:keys [geoserver-workspace] :as config-params}]
+  (as-> (rest/get-layer-groups geoserver-workspace) %
+    (make-rest-request config-params %)
+    (:body %)
+    (json/read-str % :key-fn keyword)
+    (:layerGroups %)
+    (:layerGroup %)
+    (map :name %)
+    (set %)))
+
+;; FIXME: unused
+(defn get-existing-layers [{:keys [geoserver-workspace] :as config-params}]
+  (as-> (rest/get-layers geoserver-workspace) %
+    (make-rest-request config-params %)
+    (:body %)
+    (json/read-str % :key-fn keyword)
+    (:layers %)
+    (:layer %)
+    (map :name %)
+    (set %)))
 
 (defn get-existing-coverage-stores [{:keys [geoserver-workspace] :as config-params}]
   (as-> (rest/get-coverage-stores geoserver-workspace) %
@@ -100,17 +124,6 @@
 (defn get-existing-stores [config-params]
   (into (get-existing-coverage-stores config-params)
         (get-existing-data-stores     config-params)))
-
-;; FIXME: unused
-(defn get-existing-layers [{:keys [geoserver-workspace] :as config-params}]
-  (as-> (rest/get-layers geoserver-workspace) %
-    (make-rest-request config-params %)
-    (:body %)
-    (json/read-str % :key-fn keyword)
-    (:layers %)
-    (:layer %)
-    (map :name %)
-    (set %)))
 
 (defn workspace-exists? [{:keys [geoserver-workspace] :as config-params}]
   (as-> (rest/get-workspace geoserver-workspace) %
