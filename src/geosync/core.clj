@@ -56,7 +56,7 @@
       (do (println (format "%4s %s%n  -> %s" http-method uri-suffix (select-keys (ex-data e) [:status :reason-phrase :body])))
           (ex-data e)))))
 
-(defn file-spec->rest-specs
+(defn file-spec->layer-specs
   "Returns a sequence of one or more REST request specifications as
   triplets of [http-method uri-suffix http-body] depending on the
   structure of the passed-in file-spec or nil if the store-type is
@@ -68,6 +68,14 @@
         :geotiff   [(rest/create-coverage-via-put     geoserver-workspace store-name file-url)]
         :shapefile [(rest/create-feature-type-via-put geoserver-workspace store-name file-url)]
         (throw (ex-info "Unsupported store type detected." {:store-type store-type :file-url file-url}))))))
+
+(defn file-specs->layer-group-specs [{:keys [geoserver-workspace layer-groups]} file-specs]
+  (keep (fn [{:keys [name layer-pattern style]}]
+          (when-let [matching-layers (->> (map :store-name file-specs)
+                                          (filter #(str/includes? % layer-pattern))
+                                          (seq))]
+            (rest/create-layer-group geoserver-workspace name "SINGLE" name "" "" [] matching-layers (repeat (count matching-layers) style))))
+        layer-groups))
 
 (defn get-existing-coverage-stores [{:keys [geoserver-workspace] :as config-params}]
   (as-> (rest/get-coverage-stores geoserver-workspace) %
@@ -93,6 +101,7 @@
   (into (get-existing-coverage-stores config-params)
         (get-existing-data-stores     config-params)))
 
+;; FIXME: unused
 (defn get-existing-layers [{:keys [geoserver-workspace] :as config-params}]
   (as-> (rest/get-layers geoserver-workspace) %
     (make-rest-request config-params %)
@@ -111,16 +120,17 @@
 
 (defn file-specs->rest-specs
   "Generates a sequence of REST request specifications as triplets of
-  [http-method uri-suffix http-body]. Each file path may contribute
+  [http-method uri-suffix http-body]. Each file-spec may contribute
   one or more of these to the final sequence."
   [{:keys [geoserver-workspace] :as config-params} file-specs]
-  (let [existing-stores (get-existing-stores config-params)]
-    (let [rest-specs (->> file-specs
-                          (keep (partial file-spec->rest-specs config-params existing-stores))
-                          (apply concat))]
-      (if (workspace-exists? config-params)
-        rest-specs
-        (cons (rest/create-workspace geoserver-workspace) rest-specs)))))
+  (let [existing-stores   (get-existing-stores config-params)
+        layer-specs       (mapcat (partial file-spec->layer-specs config-params existing-stores)
+                                  file-specs)
+        layer-group-specs (file-specs->layer-group-specs config-params file-specs)
+        rest-specs        (concat layer-specs layer-group-specs)]
+    (if (workspace-exists? config-params)
+      rest-specs
+      (cons (rest/create-workspace geoserver-workspace) rest-specs))))
 
 (defn get-store-type
   "Returns a string describing the class of data or coverage store
@@ -154,7 +164,6 @@
          (map #(-> (.getPath %)
                    (str/replace-first data-dir ""))))))
 
-;; FIXME: (rest/create-layer-group layer-group "SINGLE" layer-group "" "" [] layer-names layer-styles)
 (defn update-geoserver! [{:keys [data-dir] :as config-params}]
   (let [http-response-codes (->> (load-file-paths data-dir)
                                  (file-paths->file-specs data-dir)

@@ -565,6 +565,8 @@
     (str "/workspaces/" workspace "/layergroups")
     (xml
      [:layerGroup
+      [:workspace
+       [:name workspace]]
       [:name layer-group]
       [:mode mode]
       [:title title]
@@ -599,6 +601,8 @@
     (str "/workspaces/" workspace "/layergroups/" layer-group)
     (xml
      [:layerGroup
+      [:workspace
+       [:name workspace]]
       [:name new-layer-group]
       [:mode mode]
       [:title title]
