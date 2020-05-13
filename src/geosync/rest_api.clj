@@ -563,7 +563,7 @@
       [:keywords
        (map (fn [k] [:string k]) keywords)]
       [:publishables
-       (map (fn [l] [:published [:name l]]) layers)]
+       (map (fn [l] [:published {:type "layer"} [:name l]]) layers)]
       [:styles
        (map (fn [s] [:style [:name s]]) styles)]])])
   ([workspace layer-group mode title abstract keywords layers styles]
@@ -580,7 +580,7 @@
       [:keywords
        (map (fn [k] [:string k]) keywords)]
       [:publishables
-       (map (fn [l] [:published [:name l]]) layers)]
+       (map (fn [l] [:published {:type "layer"} [:name l]]) layers)]
       [:styles
        (map (fn [s] [:style [:name s]]) styles)]])]))
 
