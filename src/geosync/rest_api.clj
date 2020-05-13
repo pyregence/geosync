@@ -543,13 +543,6 @@
     (str "/workspaces/" workspace "/layergroups/" layer-group)
     nil]))
 
-;; FIXME: Missing bounds
-;; [:bounds
-;;  [:crs "ESPG:XXXX"]
-;;  [:minx]
-;;  [:maxx]
-;;  [:miny]
-;;  [:maxy]]
 (defn create-layer-group
   ([layer-group mode title abstract keywords layers styles]
    ["POST"
