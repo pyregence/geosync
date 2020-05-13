@@ -123,12 +123,13 @@
   [http-method uri-suffix http-body]. Each file-spec may contribute
   one or more of these to the final sequence."
   [{:keys [geoserver-workspace] :as config-params} file-specs]
-  (let [existing-stores   (get-existing-stores config-params)
+  (let [ws-exists?        (workspace-exists? config-params)
+        existing-stores   (if ws-exists? (get-existing-stores config-params) #{})
         layer-specs       (mapcat (partial file-spec->layer-specs config-params existing-stores)
                                   file-specs)
         layer-group-specs (file-specs->layer-group-specs config-params file-specs)
         rest-specs        (concat layer-specs layer-group-specs)]
-    (if (workspace-exists? config-params)
+    (if ws-exists?
       rest-specs
       (cons (rest/create-workspace geoserver-workspace) rest-specs))))
 
