@@ -70,6 +70,7 @@
                     (rest/update-layer-style geoserver-workspace store-name style)]
 
         :shapefile [(rest/create-data-store-via-put geoserver-workspace store-name file-url)
+                    (rest/create-feature-type-simple geoserver-workspace store-name store-name store-name "" "" [])
                     (rest/update-layer-style geoserver-workspace store-name style)]
 
         (throw (ex-info "Unsupported store type detected." {:store-type store-type :file-url file-url}))))))

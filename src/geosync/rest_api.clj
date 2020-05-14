@@ -246,6 +246,22 @@
      [:numDecimals num-decimals]
      [:enabled true]])])
 
+(defn create-feature-type-simple [workspace store feature-type title abstract description keywords]
+  ["POST"
+   (str "/workspaces/" workspace "/datastores/" store "/featuretypes")
+   (xml
+    [:featureType
+     [:store {:class "dataStore"}
+      [:name (str workspace ":" store)]]
+     [:name feature-type]
+     [:nativeName feature-type]
+     [:title title]
+     [:abstract abstract]
+     [:description description]
+     [:keywords
+      (map (fn [k] [:string k]) keywords)]
+     [:enabled true]])])
+
 ;; NOTE: Only Shapefile feature types are currently supported.
 ;; NOTE: file-url should look like file:///path/to/nyc.shp
 (defn create-feature-type-via-put [workspace store file-url]
