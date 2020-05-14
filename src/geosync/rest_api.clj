@@ -242,7 +242,7 @@
 ;; NOTE: Only Shapefile feature types are currently supported.
 (defn create-feature-type-via-put [workspace store file-url]
   ["PUT"
-   (str "/workspaces/" workspace "/datastores/" store "/external.shp")
+   (str "/workspaces/" workspace "/datastores/" store "/external.shp?filename=" store)
    file-url])
 
 (defn update-feature-type [workspace store feature-type new-feature-type title abstract description keywords crs srs max-features num-decimals enabled?]
