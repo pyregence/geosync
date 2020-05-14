@@ -523,12 +523,14 @@
 ;;  :queryable true,
 ;;  :opaque false,
 ;;  :attribution {:logoWidth 0, :logoHeight 0}}
-(defn update-layer-name-and-style [workspace layer new-layer style]
+(defn update-layer-name-and-style [workspace layer new-layer resource-type style]
   ["PUT"
    (str "/workspaces/" workspace "/layers/" layer)
    (xml
     [:layer
      [:name new-layer]
+     [:resource {:class resource-type}
+      [:name (str workspace ":" new-layer)]]
      [:defaultStyle
       [:name style]]])])
 

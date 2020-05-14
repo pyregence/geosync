@@ -66,9 +66,9 @@
     (when-not (contains? existing-stores store-name)
       (case store-type
         :geotiff   [(rest/create-coverage-via-put     geoserver-workspace store-name file-url)
-                    (rest/update-layer-name-and-style geoserver-workspace layer-name store-name style)]
+                    (rest/update-layer-name-and-style geoserver-workspace layer-name store-name "coverage" style)]
         :shapefile [(rest/create-feature-type-via-put geoserver-workspace store-name file-url)
-                    (rest/update-layer-name-and-style geoserver-workspace layer-name store-name style)]
+                    (rest/update-layer-name-and-style geoserver-workspace layer-name store-name "featureType" style)]
         (throw (ex-info "Unsupported store type detected." {:store-type store-type :file-url file-url}))))))
 
 (defn file-specs->layer-group-specs [{:keys [geoserver-workspace layer-groups]} existing-layer-groups file-specs]
