@@ -127,6 +127,13 @@
      [:connectionParameters
       [:url file-url]]])])
 
+;; NOTE: Only Shapefile feature types are currently supported.
+;; NOTE: file-url should look like file:///path/to/nyc.shp
+(defn create-data-store-via-put [workspace store file-url]
+  ["PUT"
+   (str "/workspaces/" workspace "/datastores/" store "/external.shp?configure=none")
+   file-url])
+
 ;; NOTE: Only Shapefile stores are currently supported.
 ;; NOTE: file-url should look like file:///path/to/nyc.shp
 (defn update-data-store [workspace store file-url enabled?]
@@ -220,6 +227,7 @@
     (str "/workspaces/" workspace "/datastores/" store "/featuretypes/" feature-type)
     nil]))
 
+;; FIXME: need to fix feature-type-name
 (defn create-feature-type [workspace store feature-type title abstract description keywords crs srs max-features num-decimals]
   ["POST"
    (str "/workspaces/" workspace "/datastores/" store "/featuretypes")
@@ -238,11 +246,11 @@
      [:numDecimals num-decimals]
      [:enabled true]])])
 
-;; FIXME: need to fix feature-type-name
 ;; NOTE: Only Shapefile feature types are currently supported.
+;; NOTE: file-url should look like file:///path/to/nyc.shp
 (defn create-feature-type-via-put [workspace store file-url]
   ["PUT"
-   (str "/workspaces/" workspace "/datastores/" store "/external.shp?configure=none")
+   (str "/workspaces/" workspace "/datastores/" store "/external.shp")
    file-url])
 
 (defn update-feature-type [workspace store feature-type new-feature-type title abstract description keywords crs srs max-features num-decimals enabled?]
