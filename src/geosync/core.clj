@@ -56,6 +56,7 @@
       (do (println (format "%4s %s%n  -> %s" http-method uri-suffix (select-keys (ex-data e) [:status :reason-phrase :body])))
           (ex-data e)))))
 
+;; FIXME: layer-name is unused
 (defn file-spec->layer-specs
   "Returns a sequence of one or more REST request specifications as
   triplets of [http-method uri-suffix http-body] depending on the
@@ -66,9 +67,9 @@
     (when-not (contains? existing-stores store-name)
       (case store-type
         :geotiff   [(rest/create-coverage-via-put     geoserver-workspace store-name file-url)
-                    (rest/update-layer-name-and-style geoserver-workspace layer-name store-name "coverage" style)]
+                    (rest/update-layer-style geoserver-workspace store-name style)]
         :shapefile [(rest/create-feature-type-via-put geoserver-workspace store-name file-url)
-                    (rest/update-layer-name-and-style geoserver-workspace layer-name store-name "featureType" style)]
+                    (rest/update-layer-style geoserver-workspace store-name style)]
         (throw (ex-info "Unsupported store type detected." {:store-type store-type :file-url file-url}))))))
 
 (defn file-specs->layer-group-specs [{:keys [geoserver-workspace layer-groups]} existing-layer-groups file-specs]
