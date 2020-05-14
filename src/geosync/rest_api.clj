@@ -238,7 +238,7 @@
      [:numDecimals num-decimals]
      [:enabled true]])])
 
-;; FIXME: need to fix feature-type-name and set style and layergroup
+;; FIXME: need to fix feature-type-name and set style
 ;; NOTE: Only Shapefile feature types are currently supported.
 (defn create-feature-type-via-put [workspace store file-url]
   ["PUT"
@@ -376,11 +376,12 @@
           [:string proj-code])]
        [:enabled true]])]))
 
-;; FIXME: need to fix coverage-name and set style and layergroup
+;; FIXME: need set style
 ;; NOTE: Only GeoTIFF coverages are currently supported.
 (defn create-coverage-via-put [workspace store file-url]
   ["PUT"
-   (str "/workspaces/" workspace "/coveragestores/" store "/external.geotiff?coverageName=" store)
+   ;; (str "/workspaces/" workspace "/coveragestores/" store "/external.geotiff?coverageName=" store)
+   (str "/workspaces/" workspace "/coveragestores/" store "/external.geotiff")
    file-url])
 
 (defn update-coverage [workspace store coverage new-coverage title abstract description keywords proj-code interpolation-method file-url enabled?]
@@ -506,6 +507,30 @@
       [:resource {:class resource-type}
        [:name resource-name]]
       [:opaque opaque?]])]))
+
+;; FIXME: Does this work?
+;; {:name "fire-area_20200424_130000",
+;;  :type "RASTER",
+;;  :defaultStyle
+;;  {:name "fire-area",
+;;   :href
+;;   "https://californiafireforecast.com:8443/geoserver/rest/styles/fire-area.json"},
+;;  :resource
+;;  {:@class "coverage",
+;;   :name "demo:fire-area_20200424_130000",
+;;   :href
+;;   "https://californiafireforecast.com:8443/geoserver/rest/workspaces/demo/coveragestores/fire-area_20200424_130000/coverages/fire-area_20200424_130000.json"},
+;;  :queryable true,
+;;  :opaque false,
+;;  :attribution {:logoWidth 0, :logoHeight 0}}
+(defn update-layer-name-and-style [workspace layer new-layer style]
+  ["PUT"
+   (str "/workspaces/" workspace "/layers/" layer)
+   (xml
+    [:layer
+     [:name new-layer]
+     [:defaultStyle
+      [:name style]]])])
 
 (defn delete-layer
   ([layer]

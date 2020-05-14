@@ -61,12 +61,14 @@
   triplets of [http-method uri-suffix http-body] depending on the
   structure of the passed-in file-spec or nil if the store-type is
   unsupported."
-  [{:keys [data-dir geoserver-workspace]} existing-stores {:keys [store-type store-name file-url]}]
+  [{:keys [data-dir geoserver-workspace]} existing-stores {:keys [store-type store-name layer-name file-url style]}]
   (when store-type
     (when-not (contains? existing-stores store-name)
       (case store-type
-        :geotiff   [(rest/create-coverage-via-put     geoserver-workspace store-name file-url)]
-        :shapefile [(rest/create-feature-type-via-put geoserver-workspace store-name file-url)]
+        :geotiff   [(rest/create-coverage-via-put     geoserver-workspace store-name file-url)
+                    (rest/update-layer-name-and-style geoserver-workspace layer-name store-name style)]
+        :shapefile [(rest/create-feature-type-via-put geoserver-workspace store-name file-url)
+                    (rest/update-layer-name-and-style geoserver-workspace layer-name store-name style)]
         (throw (ex-info "Unsupported store type detected." {:store-type store-type :file-url file-url}))))))
 
 (defn file-specs->layer-group-specs [{:keys [geoserver-workspace layer-groups]} existing-layer-groups file-specs]
@@ -160,10 +162,25 @@
     (str/replace % #"-+" "-")
     (str/replace % "/" "_")))
 
-(defn file-paths->file-specs [data-dir file-paths]
+(defn file-path->layer-name [file-path]
+  (let [file-name (if (str/includes? file-path "/")
+                    (second (re-find #"^.*/([^/]+)$" file-path))
+                    file-path)]
+    (subs file-name 0 (str/last-index-of file-name \.))))
+
+(defn get-style [styles file-path]
+  (first
+   (keep (fn [{:keys [style layer-pattern]}]
+           (when (str/includes? file-path layer-pattern)
+             style))
+         styles)))
+
+(defn file-paths->file-specs [data-dir styles file-paths]
   (map #(array-map :store-type (get-store-type %)
                    :store-name (file-path->store-name %)
-                   :file-url   (str "file://" data-dir (if (str/ends-with? data-dir "/") "" "/") %))
+                   :layer-name (file-path->layer-name %)
+                   :file-url   (str "file://" data-dir (if (str/ends-with? data-dir "/") "" "/") %)
+                   :style      (get-style styles %))
        file-paths))
 
 (defn load-file-paths [data-dir]
@@ -176,9 +193,9 @@
          (map #(-> (.getPath %)
                    (str/replace-first data-dir ""))))))
 
-(defn update-geoserver! [{:keys [data-dir] :as config-params}]
+(defn update-geoserver! [{:keys [data-dir styles] :as config-params}]
   (let [http-response-codes (->> (load-file-paths data-dir)
-                                 (file-paths->file-specs data-dir)
+                                 (file-paths->file-specs data-dir styles)
                                  (file-specs->rest-specs config-params)
                                  (map (comp :status (partial make-rest-request config-params))) ; FIXME: use client/with-connection-pool for speed
                                  (doall))]
