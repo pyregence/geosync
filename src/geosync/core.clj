@@ -65,22 +65,25 @@
   (when-not (contains? existing-stores store-name)
     (case store-type
       :geotiff   [(rest/create-coverage-via-put geoserver-workspace store-name file-url)
-                  (rest/update-layer-style geoserver-workspace store-name style)]
+                  (when style (rest/update-layer-style geoserver-workspace store-name style))]
 
       :shapefile [(rest/create-feature-type-via-put geoserver-workspace store-name file-url)
                   (rest/create-feature-type-alias geoserver-workspace store-name layer-name store-name)
-                  (rest/update-layer-style geoserver-workspace store-name style)
+                  (when style (rest/update-layer-style geoserver-workspace store-name style))
                   (rest/delete-layer geoserver-workspace layer-name)]
 
       (throw (ex-info "Unsupported store type detected." {:store-type store-type :file-url file-url})))))
 
+;; FIXME: style is no longer defined
 (defn file-specs->layer-group-specs [{:keys [geoserver-workspace layer-groups]} existing-layer-groups file-specs]
   (let [layer-names (map #(str geoserver-workspace ":" (:store-name %)) file-specs)]
     (->> layer-groups
          (remove #(contains? existing-layer-groups (:name %)))
-         (keep (fn [{:keys [name layer-pattern style]}]
+         (keep (fn [{:keys [layer-pattern name]}]
                  (when-let [matching-layers (seq (filter #(str/includes? % layer-pattern) layer-names))]
-                   (rest/create-layer-group geoserver-workspace name "SINGLE" name "" [] matching-layers (repeat (count matching-layers) style))))))))
+                   ;;(rest/create-layer-group geoserver-workspace name "SINGLE" name "" [] matching-layers (repeat (count matching-layers) style))
+                   (rest/create-layer-group geoserver-workspace name "SINGLE" name "" [] matching-layers [])
+                   ))))))
 
 (defn get-existing-layer-groups [{:keys [geoserver-workspace] :as config-params}]
   (as-> (rest/get-layer-groups geoserver-workspace) %
@@ -174,12 +177,14 @@
 (defn file-path->file-url [file-path data-dir]
   (str "file://" data-dir (if (str/ends-with? data-dir "/") "" "/") file-path))
 
-;; FIXME: distinguish between raster and vector styles
-(defn get-style [styles file-path]
+(defn get-style [file-path store-type styles]
   (first
-   (keep (fn [{:keys [style layer-pattern]}]
+   (keep (fn [{:keys [layer-pattern raster-style vector-style]}]
            (when (str/includes? file-path layer-pattern)
-             style))
+             (case store-type
+               :geotiff   raster-style
+               :shapefile vector-style
+               nil)))
          styles)))
 
 (defn file-paths->file-specs [data-dir styles file-paths]
@@ -188,7 +193,7 @@
                       :store-name (file-path->store-name %)
                       :layer-name (file-path->layer-name %)
                       :file-url   (file-path->file-url % data-dir)
-                      :style      (get-style styles %)))
+                      :style      (get-style % store-type styles)))
         file-paths))
 
 (defn load-file-paths [data-dir]
