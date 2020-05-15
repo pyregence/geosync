@@ -62,18 +62,17 @@
   structure of the passed-in file-spec or nil if the store-type is
   unsupported."
   [{:keys [data-dir geoserver-workspace]} existing-stores {:keys [store-type store-name layer-name file-url style]}]
-  (when store-type
-    (when-not (contains? existing-stores store-name)
-      (case store-type
-        :geotiff   [(rest/create-coverage-via-put geoserver-workspace store-name file-url)
-                    (rest/update-layer-style geoserver-workspace store-name style)]
+  (when-not (contains? existing-stores store-name)
+    (case store-type
+      :geotiff   [(rest/create-coverage-via-put geoserver-workspace store-name file-url)
+                  (rest/update-layer-style geoserver-workspace store-name style)]
 
-        :shapefile [(rest/create-feature-type-via-put geoserver-workspace store-name file-url)
-                    (rest/create-feature-type-alias geoserver-workspace store-name layer-name store-name)
-                    (rest/update-layer-style geoserver-workspace store-name style)
-                    (rest/delete-layer geoserver-workspace layer-name)]
+      :shapefile [(rest/create-feature-type-via-put geoserver-workspace store-name file-url)
+                  (rest/create-feature-type-alias geoserver-workspace store-name layer-name store-name)
+                  (rest/update-layer-style geoserver-workspace store-name style)
+                  (rest/delete-layer geoserver-workspace layer-name)]
 
-        (throw (ex-info "Unsupported store type detected." {:store-type store-type :file-url file-url}))))))
+      (throw (ex-info "Unsupported store type detected." {:store-type store-type :file-url file-url})))))
 
 (defn file-specs->layer-group-specs [{:keys [geoserver-workspace layer-groups]} existing-layer-groups file-specs]
   (let [layer-names (map #(str geoserver-workspace ":" (:store-name %)) file-specs)]
@@ -172,6 +171,10 @@
                     file-path)]
     (subs file-name 0 (str/last-index-of file-name \.))))
 
+(defn file-path->file-url [file-path data-dir]
+  (str "file://" data-dir (if (str/ends-with? data-dir "/") "" "/") file-path))
+
+;; FIXME: distinguish between raster and vector styles
 (defn get-style [styles file-path]
   (first
    (keep (fn [{:keys [style layer-pattern]}]
@@ -180,12 +183,13 @@
          styles)))
 
 (defn file-paths->file-specs [data-dir styles file-paths]
-  (map #(array-map :store-type (get-store-type %)
-                   :store-name (file-path->store-name %)
-                   :layer-name (file-path->layer-name %)
-                   :file-url   (str "file://" data-dir (if (str/ends-with? data-dir "/") "" "/") %)
-                   :style      (get-style styles %))
-       file-paths))
+  (keep #(when-let [store-type (get-store-type %)]
+           (array-map :store-type store-type
+                      :store-name (file-path->store-name %)
+                      :layer-name (file-path->layer-name %)
+                      :file-url   (file-path->file-url % data-dir)
+                      :style      (get-style styles %)))
+        file-paths))
 
 (defn load-file-paths [data-dir]
   (let [data-dir (if (str/ends-with? data-dir "/")
