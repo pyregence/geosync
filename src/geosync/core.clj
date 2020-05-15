@@ -70,8 +70,8 @@
 
         :shapefile [(rest/create-feature-type-via-put geoserver-workspace store-name file-url)
                     (rest/create-feature-type-alias geoserver-workspace store-name layer-name store-name)
-                    (rest/delete-feature-type geoserver-workspace store-name layer-name)
-                    (rest/update-layer-style geoserver-workspace store-name style)]
+                    (rest/update-layer-style geoserver-workspace store-name style)
+                    (rest/delete-layer geoserver-workspace layer-name)]
 
         (throw (ex-info "Unsupported store type detected." {:store-type store-type :file-url file-url}))))))
 
