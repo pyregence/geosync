@@ -141,8 +141,9 @@
   (let [ws-exists?            (workspace-exists? config-params)
         existing-stores       (if ws-exists? (get-existing-stores config-params) #{})
         existing-layer-groups (if ws-exists? (get-existing-layer-groups config-params) #{})
-        layer-specs           (mapcat (partial file-spec->layer-specs config-params existing-stores)
-                                      file-specs)
+        layer-specs           (->> file-specs
+                                   (mapcat (partial file-spec->layer-specs config-params existing-stores))
+                                   (remove nil?))
         layer-group-specs     (file-specs->layer-group-specs config-params existing-layer-groups file-specs)
         rest-specs            (concat layer-specs layer-group-specs)]
     (if ws-exists?
