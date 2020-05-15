@@ -50,10 +50,10 @@
                                                 "Accept"        "application/json"
                                                 "Authorization" geoserver-auth-code}
                                     :body      http-body})]
-      (println (format "%4s %s%n  -> %s" http-method uri-suffix (select-keys response [:status :reason-phrase])))
+      (println (format "%6s %s%n    -> %s" http-method uri-suffix (select-keys response [:status :reason-phrase])))
       response)
     (catch Exception e
-      (do (println (format "%4s %s%n  -> %s" http-method uri-suffix (select-keys (ex-data e) [:status :reason-phrase :body])))
+      (do (println (format "%6s %s%n    -> %s" http-method uri-suffix (select-keys (ex-data e) [:status :reason-phrase :body])))
           (ex-data e)))))
 
 (defn file-spec->layer-specs
@@ -74,16 +74,13 @@
 
       (throw (ex-info "Unsupported store type detected." {:store-type store-type :file-url file-url})))))
 
-;; FIXME: style is no longer defined
 (defn file-specs->layer-group-specs [{:keys [geoserver-workspace layer-groups]} existing-layer-groups file-specs]
   (let [layer-names (map #(str geoserver-workspace ":" (:store-name %)) file-specs)]
     (->> layer-groups
          (remove #(contains? existing-layer-groups (:name %)))
          (keep (fn [{:keys [layer-pattern name]}]
                  (when-let [matching-layers (seq (filter #(str/includes? % layer-pattern) layer-names))]
-                   ;;(rest/create-layer-group geoserver-workspace name "SINGLE" name "" [] matching-layers (repeat (count matching-layers) style))
-                   (rest/create-layer-group geoserver-workspace name "SINGLE" name "" [] matching-layers [])
-                   ))))))
+                   (rest/create-layer-group geoserver-workspace name "SINGLE" name "" [] matching-layers [])))))))
 
 (defn get-existing-layer-groups [{:keys [geoserver-workspace] :as config-params}]
   (as-> (rest/get-layer-groups geoserver-workspace) %
