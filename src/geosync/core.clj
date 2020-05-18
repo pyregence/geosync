@@ -45,7 +45,7 @@
   (try
     (let [response (client/request {:url       (str geoserver-rest-uri uri-suffix)
                                     :method    http-method
-                                    :insecure? true
+                                    ;; :insecure? true
                                     :headers   {"Content-Type"  "text/xml"
                                                 "Accept"        "application/json"
                                                 "Authorization" geoserver-auth-code}
@@ -209,11 +209,12 @@
          (sort))))
 
 (defn update-geoserver! [{:keys [data-dir styles] :as config-params}]
-  (let [http-response-codes (->> (load-file-paths data-dir)
+  (let [rest-specs          (->> (load-file-paths data-dir)
                                  (file-paths->file-specs data-dir styles)
-                                 (file-specs->rest-specs config-params)
-                                 (map (comp :status (partial make-rest-request config-params))) ; FIXME: use client/with-connection-pool for speed
-                                 (doall))]
+                                 (file-specs->rest-specs config-params))
+        http-response-codes (client/with-connection-pool {:insecure? true}
+                              (mapv (comp :status (partial make-rest-request config-params))
+                                    rest-specs))]
     (println "\nFinished updating GeoServer.\nSuccessful requests:"
              (count (filter success-code? http-response-codes))
              "\nFailed requests:"
