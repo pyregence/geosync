@@ -202,7 +202,8 @@
          (file-seq)
          (filter #(.isFile %))
          (map #(-> (.getPath %)
-                   (str/replace-first data-dir ""))))))
+                   (str/replace-first data-dir "")))
+         (sort))))
 
 (defn update-geoserver! [{:keys [data-dir styles] :as config-params}]
   (let [http-response-codes (->> (load-file-paths data-dir)
