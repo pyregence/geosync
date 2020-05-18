@@ -134,6 +134,15 @@
    (str "/workspaces/" workspace "/datastores/" store "/external.shp?configure=none")
    file-url])
 
+;; FIXME: Add these connectionParameters
+;; <connectionParameters>
+;;   <entry key="memory mapped buffer">false</entry>
+;;   <entry key="create spatial index">true</entry>
+;;   <entry key="charset">ISO-8859-1</entry>
+;;   <entry key="cache and reuse memory maps">false</entry>
+;;   <entry key="url">file:/c:/data/states/</entry>
+;;   <entry key="namespace">http://www.openplans.org/topp</entry>
+;; </connectionParameters>
 ;; NOTE: Only Shapefile stores are currently supported.
 ;; NOTE: file-url should look like file:///path/to/nyc.shp
 (defn update-data-store [workspace store file-url enabled?]

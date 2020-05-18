@@ -68,9 +68,12 @@
                   (when style (rest/update-layer-style geoserver-workspace store-name style))]
 
       :shapefile [(rest/create-feature-type-via-put geoserver-workspace store-name file-url)
+                  ;; (rest/update-data-store geoserver-workspace store-name file-url true) ; FIXME: update this function to pass more connectionParameters
                   (rest/create-feature-type-alias geoserver-workspace store-name layer-name store-name)
+                  ;; (rest/update-feature-type-bounds geoserver-workspace store-name store-name)
                   (when style (rest/update-layer-style geoserver-workspace store-name style))
-                  (rest/delete-layer geoserver-workspace layer-name)]
+                  (rest/delete-layer geoserver-workspace layer-name)
+                  (rest/delete-feature-type geoserver-workspace store-name layer-name)]
 
       (throw (ex-info "Unsupported store type detected." {:store-type store-type :file-url file-url})))))
 
