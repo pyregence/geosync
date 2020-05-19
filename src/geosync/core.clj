@@ -17,10 +17,11 @@
 ;;;
 ;;; Description:
 ;;;
-;;; geosync is a simple command-line application that traverses a
-;;; directory of raster and vector GIS files (e.g., GeoTIFFs,
-;;; Shapefiles) and generates the necessary REST commands to add
-;;; layers for each file to a running GeoServer instance.
+;;; GeoSync is a simple command-line application that traverses a
+;;; directory of raster and vector GIS files (e.g., GeoTIFFs, Shapefiles)
+;;; and generates the necessary REST commands to add workspaces,
+;;; coveragestores, datastores, coverages, featuretypes, layers, and
+;;; layergroups for each file to a running GeoServer instance.
 
 (ns geosync.core
   (:require [clojure.edn       :as edn]
@@ -67,6 +68,7 @@
       :geotiff   [(rest/create-coverage-via-put geoserver-workspace store-name file-url)
                   (when style (rest/update-layer-style geoserver-workspace store-name style))]
 
+      ;; FIXME: Why are these layers appearing as coverages?
       :shapefile [(rest/create-feature-type-via-put geoserver-workspace store-name file-url)
                   ;; (rest/update-data-store geoserver-workspace store-name file-url true) ; FIXME: update this function to pass more connectionParameters
                   (rest/create-feature-type-alias geoserver-workspace store-name layer-name store-name)
