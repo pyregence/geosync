@@ -66,14 +66,34 @@ You can run GeoSync in one of three ways:
    $ clojure -A:run -c resources/sample-config.edn -w my-workspace -d /my/data/directory
    #+end_src
 
-*LOGGING:* You will probably want to redirect the output from these
-commands to a text file for reviewing after the fact as they report
-each REST call sent out from GeoSync and the corresponding response
-received from the GeoServer.
+** Logging
 
-*STYLES:* If you make use of the styles option, any raster or vector
-styles referenced in your style specs should already exist on the
-GeoServer before running GeoSync.
+You will probably want to redirect the output from these commands to a
+text file for reviewing after the fact as they report each REST call
+sent out from GeoSync and the corresponding response received from the
+GeoServer.
+
+#+begin_src sh
+$ clojure -A:run ... &> out.txt
+#+end_src
+
+** Styles
+
+If you make use of the styles option, any raster or vector styles
+referenced in your style specs should already exist on the GeoServer
+before running GeoSync. Documentation on creating styles for GeoServer
+can be found here:
+
+https://docs.geoserver.org/latest/en/user/styling/webadmin/index.html
+
+** Using Custom Projections
+
+If your GIS data uses a custom projection that is not known to the
+GeoServer, you will need to add it manually before running GeoSync.
+Documentation on adding custom projections to GeoServer can be found
+here:
+
+https://docs.geoserver.org/latest/en/user/configuration/crshandling/customcrs.html
 
 ** License and Distribution
 
