@@ -66,14 +66,11 @@
   (when-not (contains? existing-stores store-name)
     (case store-type
       :geotiff   [(rest/create-coverage-via-put geoserver-workspace store-name file-url)
-                  (when style (rest/update-layer-style geoserver-workspace store-name style))]
+                  (when style (rest/update-layer-style geoserver-workspace store-name style :raster))]
 
-      ;; FIXME: Why are these layers appearing as coverages?
       :shapefile [(rest/create-feature-type-via-put geoserver-workspace store-name file-url)
-                  ;; (rest/update-data-store geoserver-workspace store-name file-url true) ; FIXME: update this function to pass more connectionParameters
                   (rest/create-feature-type-alias geoserver-workspace store-name layer-name store-name)
-                  ;; (rest/update-feature-type-bounds geoserver-workspace store-name store-name)
-                  (when style (rest/update-layer-style geoserver-workspace store-name style))
+                  (when style (rest/update-layer-style geoserver-workspace store-name style :vector))
                   (rest/delete-layer geoserver-workspace layer-name)
                   (rest/delete-feature-type geoserver-workspace store-name layer-name)]
 

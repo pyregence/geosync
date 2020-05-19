@@ -533,20 +533,28 @@
       [:opaque opaque?]])]))
 
 (defn update-layer-style
-  ([layer style]
+  ([layer style layer-type]
    ["PUT"
     (str "/layers/" layer)
     (xml
      [:layer
       [:name layer]
+      [:type (case layer-type
+               :vector "VECTOR"
+               :raster "RASTER"
+               nil)]
       [:defaultStyle
        [:name style]]])])
-  ([workspace layer style]
+  ([workspace layer style layer-type]
    ["PUT"
     (str "/workspaces/" workspace "/layers/" layer)
     (xml
      [:layer
       [:name layer]
+      [:type (case layer-type
+               :vector "VECTOR"
+               :raster "RASTER"
+               nil)]
       [:defaultStyle
        [:name style]]])]))
 
