@@ -3,4 +3,5 @@
 .nrepl-port
 .rebel_readline_history
 .vscode
+logs
 target
