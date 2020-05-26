@@ -126,6 +126,8 @@
      [:enabled true]
      [:connectionParameters
       [:url file-url]
+      [:fstype "shape"]
+      [:filetype "shapefile"]
       [:charset "ISO-8859-1"]
       ["create spatial index" true]
       ["enable spatial index" true]
@@ -162,6 +164,8 @@
      [:enabled enabled?]
      [:connectionParameters
       [:url file-url]
+      [:fstype "shape"]
+      [:filetype "shapefile"]
       [:charset "ISO-8859-1"]
       ["create spatial index" true]
       ["enable spatial index" true]
