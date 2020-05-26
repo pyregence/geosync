@@ -44,13 +44,16 @@
 ;; FIXME: Use an SSL keystore and remove insecure? param
 (defn make-rest-request [{:keys [geoserver-rest-uri geoserver-auth-code]} [http-method uri-suffix http-body]]
   (try
-    (let [response (client/request {:url       (str geoserver-rest-uri uri-suffix)
-                                    :method    http-method
-                                    :insecure? true
-                                    :headers   {"Content-Type"  "text/xml"
-                                                "Accept"        "application/json"
-                                                "Authorization" geoserver-auth-code}
-                                    :body      http-body})]
+    (let [geoserver-rest-uri (if (str/ends-with? geoserver-rest-uri "/")
+                               (subs geoserver-rest-uri 0 (dec (count geoserver-rest-uri)))
+                               geoserver-rest-uri)
+          response           (client/request {:url       (str geoserver-rest-uri uri-suffix)
+                                              :method    http-method
+                                              :insecure? true
+                                              :headers   {"Content-Type"  "text/xml"
+                                                          "Accept"        "application/json"
+                                                          "Authorization" geoserver-auth-code}
+                                              :body      http-body})]
       (println (format "%6s %s%n    -> %s" http-method uri-suffix (select-keys response [:status :reason-phrase])))
       response)
     (catch Exception e
