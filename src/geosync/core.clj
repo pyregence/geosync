@@ -68,7 +68,8 @@
       :geotiff   [(rest/create-coverage-via-put geoserver-workspace store-name file-url)
                   (when style (rest/update-layer-style geoserver-workspace store-name style :raster))]
 
-      :shapefile [(rest/create-feature-type-via-put geoserver-workspace store-name file-url)
+      :shapefile [(rest/create-data-store geoserver-workspace store-name file-url)
+                  (rest/create-feature-type-via-put geoserver-workspace store-name file-url)
                   (rest/create-feature-type-alias geoserver-workspace store-name layer-name store-name)
                   (when style (rest/update-layer-style geoserver-workspace store-name style :vector))
                   (rest/delete-layer geoserver-workspace layer-name)
