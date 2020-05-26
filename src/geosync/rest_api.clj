@@ -125,14 +125,14 @@
      [:type "Shapefile"]
      [:enabled true]
      [:connectionParameters
-      [:url file-url]
-      [:fstype "shape"]
-      [:filetype "shapefile"]
-      [:charset "ISO-8859-1"]
-      ["create spatial index" true]
-      ["enable spatial index" true]
-      ["memory mapped buffer" true]
-      ["cache and reuse memory maps" true]]])])
+      [:entry {:key "url"} file-url]
+      [:entry {:key "fstype"} "shape"]
+      [:entry {:key "filetype"} "shapefile"]
+      [:entry {:key "charset"} "ISO-8859-1"]
+      [:entry {:key "create spatial index"} true]
+      [:entry {:key "enable spatial index"} true]
+      [:entry {:key "memory mapped buffer"} true]
+      [:entry {:key "cache and reuse memory maps"} true]]])])
 
 ;; NOTE: Only Shapefile feature types are currently supported.
 ;; NOTE: file-url should look like file:///path/to/nyc.shp
@@ -163,14 +163,14 @@
      [:type "Shapefile"]
      [:enabled enabled?]
      [:connectionParameters
-      [:url file-url]
-      [:fstype "shape"]
-      [:filetype "shapefile"]
-      [:charset "ISO-8859-1"]
-      ["create spatial index" true]
-      ["enable spatial index" true]
-      ["memory mapped buffer" true]
-      ["cache and reuse memory maps" true]]])])
+      [:entry {:key "url"} file-url]
+      [:entry {:key "fstype"} "shape"]
+      [:entry {:key "filetype"} "shapefile"]
+      [:entry {:key "charset"} "ISO-8859-1"]
+      [:entry {:key "create spatial index"} true]
+      [:entry {:key "enable spatial index"} true]
+      [:entry {:key "memory mapped buffer"} true]
+      [:entry {:key "cache and reuse memory maps"} true]]])])
 
 (defn delete-data-store [workspace store]
   ["DELETE"
