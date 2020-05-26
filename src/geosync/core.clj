@@ -46,7 +46,7 @@
   (try
     (let [response (client/request {:url       (str geoserver-rest-uri uri-suffix)
                                     :method    http-method
-                                    ;; :insecure? true
+                                    :insecure? true
                                     :headers   {"Content-Type"  "text/xml"
                                                 "Accept"        "application/json"
                                                 "Authorization" geoserver-auth-code}
