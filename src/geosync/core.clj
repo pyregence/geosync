@@ -253,7 +253,7 @@
         rest-response-codes (client/with-connection-pool {:insecure? true}
                               (mapv (comp :status (partial make-rest-request config-params))
                                     (file-specs->rest-specs config-params file-specs)))
-        wms-response-codes  (client/with-connection-pool
+        wms-response-codes  (client/with-connection-pool {}
                               (mapv (comp :status (partial create-feature-type-spatial-index config-params))
                                     (filter #(= :shapefile (:store-type %)) file-specs)))
         http-response-codes (concat rest-response-codes wms-response-codes)]
