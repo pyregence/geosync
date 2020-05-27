@@ -35,6 +35,42 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
+;; Files -> WMS Requests
+;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn create-feature-type-spatial-index [{:keys [geoserver-rest-uri geoserver-workspace]} {:keys [store-name]}]
+  (try
+    (let [geoserver-wms-uri (as-> (str/replace geoserver-rest-uri "/rest" "/wms") %
+                              (if (str/ends-with? % "/")
+                                (subs % 0 (dec (count %)))
+                                %))
+          layer-name        (str geoserver-workspace ":" store-name)
+          response          (client/request {:url (str geoserver-wms-uri
+                                                       "?SERVICE=WMS"
+                                                       "&VERSION=1.3.0"
+                                                       "&REQUEST=GetFeatureInfo"
+                                                       "&INFO_FORMAT=application/json"
+                                                       "&LAYERS=" layer-name
+                                                       "&QUERY_LAYERS=" layer-name
+                                                       "&FEATURE_COUNT=1"
+                                                       "&TILED=true"
+                                                       "&I=0"
+                                                       "&J=0"
+                                                       "&WIDTH=1"
+                                                       "&HEIGHT=1"
+                                                       "&CRS=EPSG:4326"
+                                                       "&BBOX=-180.0,-90.0,180.0,90.0")
+                                             :method "GET"})]
+      (println "GetFeatureInfo" layer-name "->" (select-keys response [:status :reason-phrase]))
+      response)
+    (catch Exception e
+      (let [layer-name (str geoserver-workspace ":" store-name)]
+        (println "GetFeatureInfo" layer-name "->" (select-keys (ex-data e) [:status :reason-phrase :body]))
+        (ex-data e)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
 ;; Files -> REST Requests
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -212,12 +248,15 @@
          (sort))))
 
 (defn update-geoserver! [{:keys [data-dir styles] :as config-params}]
-  (let [rest-specs          (->> (load-file-paths data-dir)
-                                 (file-paths->file-specs data-dir styles)
-                                 (file-specs->rest-specs config-params))
-        http-response-codes (client/with-connection-pool {:insecure? true}
+  (let [file-specs          (->> (load-file-paths data-dir)
+                                 (file-paths->file-specs data-dir styles))
+        rest-response-codes (client/with-connection-pool {:insecure? true}
                               (mapv (comp :status (partial make-rest-request config-params))
-                                    rest-specs))]
+                                    (file-specs->rest-specs config-params file-specs)))
+        wms-response-codes  (client/with-connection-pool
+                              (mapv (comp :status (partial create-feature-type-spatial-index config-params))
+                                    (filter #(= :shapefile (:store-type %)) file-specs)))
+        http-response-codes (concat rest-response-codes wms-response-codes)]
     (println "\nFinished updating GeoServer.\nSuccessful requests:"
              (count (filter success-code? http-response-codes))
              "\nFailed requests:"
