@@ -46,22 +46,23 @@
                                 (subs % 0 (dec (count %)))
                                 %))
           layer-name        (str geoserver-workspace ":" store-name)
-          response          (client/request {:url (str geoserver-wms-uri
-                                                       "?SERVICE=WMS"
-                                                       "&VERSION=1.3.0"
-                                                       "&REQUEST=GetFeatureInfo"
-                                                       "&INFO_FORMAT=application/json"
-                                                       "&LAYERS=" layer-name
-                                                       "&QUERY_LAYERS=" layer-name
-                                                       "&FEATURE_COUNT=1"
-                                                       "&TILED=true"
-                                                       "&I=0"
-                                                       "&J=0"
-                                                       "&WIDTH=1"
-                                                       "&HEIGHT=1"
-                                                       "&CRS=EPSG:4326"
-                                                       "&BBOX=-180.0,-90.0,180.0,90.0")
-                                             :method "GET"})]
+          response          (client/request {:url       (str geoserver-wms-uri
+                                                             "?SERVICE=WMS"
+                                                             "&VERSION=1.3.0"
+                                                             "&REQUEST=GetFeatureInfo"
+                                                             "&INFO_FORMAT=application/json"
+                                                             "&LAYERS=" layer-name
+                                                             "&QUERY_LAYERS=" layer-name
+                                                             "&FEATURE_COUNT=1"
+                                                             "&TILED=true"
+                                                             "&I=0"
+                                                             "&J=0"
+                                                             "&WIDTH=1"
+                                                             "&HEIGHT=1"
+                                                             "&CRS=EPSG:4326"
+                                                             "&BBOX=-180.0,-90.0,180.0,90.0")
+                                             :method    "GET"
+                                             :insecure? true})]
       (println "GetFeatureInfo" layer-name "->" (select-keys response [:status :reason-phrase]))
       response)
     (catch Exception e
@@ -253,7 +254,7 @@
         rest-response-codes (client/with-connection-pool {:insecure? true}
                               (mapv (comp :status (partial make-rest-request config-params))
                                     (file-specs->rest-specs config-params file-specs)))
-        wms-response-codes  (client/with-connection-pool {}
+        wms-response-codes  (client/with-connection-pool {:insecure? true}
                               (mapv (comp :status (partial create-feature-type-spatial-index config-params))
                                     (filter #(= :shapefile (:store-type %)) file-specs)))
         http-response-codes (concat rest-response-codes wms-response-codes)]
