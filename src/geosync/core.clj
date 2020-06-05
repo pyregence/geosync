@@ -122,16 +122,18 @@
                   (when style
                     (rest/update-layer-style geoserver-workspace store-name style :raster))]
 
-      :shapefile [(rest/create-data-store geoserver-workspace store-name file-url)
-                  (rest/create-feature-type-via-put geoserver-workspace store-name file-url)
-                  (rest/create-feature-type-alias geoserver-workspace
-                                                  store-name
-                                                  layer-name
-                                                  store-name)
+      :shapefile (concat
+                  [(rest/create-data-store geoserver-workspace store-name file-url)
+                   (rest/create-feature-type-via-put geoserver-workspace store-name file-url)]
+                  (when (not= store-name layer-name)
+                    [(rest/create-feature-type-alias geoserver-workspace
+                                                     store-name
+                                                     layer-name
+                                                     store-name)
+                     (rest/delete-layer geoserver-workspace layer-name)
+                     (rest/delete-feature-type geoserver-workspace store-name layer-name)])
                   (when style
-                    (rest/update-layer-style geoserver-workspace store-name style :vector))
-                  (rest/delete-layer geoserver-workspace layer-name)
-                  (rest/delete-feature-type geoserver-workspace store-name layer-name)]
+                    [(rest/update-layer-style geoserver-workspace store-name style :vector)]))
 
       (throw (ex-info "Unsupported store type detected."
                       {:store-type store-type :file-url file-url})))))
