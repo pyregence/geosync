@@ -39,7 +39,8 @@
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn create-feature-type-spatial-index [{:keys [geoserver-rest-uri geoserver-workspace]} {:keys [store-name]}]
+(defn create-feature-type-spatial-index
+  [{:keys [geoserver-rest-uri geoserver-workspace]} {:keys [store-name]}]
   (try
     (let [geoserver-wms-uri (as-> (str/replace geoserver-rest-uri "/rest" "/wms") %
                               (if (str/ends-with? % "/")
@@ -67,7 +68,10 @@
       response)
     (catch Exception e
       (let [layer-name (str geoserver-workspace ":" store-name)]
-        (println "GetFeatureInfo" layer-name "->" (select-keys (ex-data e) [:status :reason-phrase :body]))
+        (println "GetFeatureInfo"
+                 layer-name
+                 "->"
+                 (select-keys (ex-data e) [:status :reason-phrase :body]))
         (ex-data e)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -79,7 +83,8 @@
 (def success-code? #{200 201 202 203 204 205 206 207 300 301 302 303 307})
 
 ;; FIXME: Use an SSL keystore and remove insecure? param
-(defn make-rest-request [{:keys [geoserver-rest-uri geoserver-auth-code]} [http-method uri-suffix http-body]]
+(defn make-rest-request
+  [{:keys [geoserver-rest-uri geoserver-auth-code]} [http-method uri-suffix http-body]]
   (try
     (let [geoserver-rest-uri (if (str/ends-with? geoserver-rest-uri "/")
                                (subs geoserver-rest-uri 0 (dec (count geoserver-rest-uri)))
@@ -91,10 +96,16 @@
                                                           "Accept"        "application/json"
                                                           "Authorization" geoserver-auth-code}
                                               :body      http-body})]
-      (println (format "%6s %s%n    -> %s" http-method uri-suffix (select-keys response [:status :reason-phrase])))
+      (println (format "%6s %s%n    -> %s"
+                       http-method
+                       uri-suffix
+                       (select-keys response [:status :reason-phrase])))
       response)
     (catch Exception e
-      (do (println (format "%6s %s%n    -> %s" http-method uri-suffix (select-keys (ex-data e) [:status :reason-phrase :body])))
+      (do (println (format "%6s %s%n    -> %s"
+                           http-method
+                           uri-suffix
+                           (select-keys (ex-data e) [:status :reason-phrase :body])))
           (ex-data e)))))
 
 (defn file-spec->layer-specs
@@ -102,30 +113,48 @@
   triplets of [http-method uri-suffix http-body] depending on the
   structure of the passed-in file-spec or nil if the store-type is
   unsupported."
-  [{:keys [data-dir geoserver-workspace]} existing-stores {:keys [store-type store-name layer-name file-url style]}]
+  [{:keys [data-dir geoserver-workspace]}
+   existing-stores
+   {:keys [store-type store-name layer-name file-url style]}]
   (when-not (contains? existing-stores store-name)
     (case store-type
       :geotiff   [(rest/create-coverage-via-put geoserver-workspace store-name file-url)
-                  (when style (rest/update-layer-style geoserver-workspace store-name style :raster))]
+                  (when style
+                    (rest/update-layer-style geoserver-workspace store-name style :raster))]
 
       :shapefile [(rest/create-data-store geoserver-workspace store-name file-url)
                   (rest/create-feature-type-via-put geoserver-workspace store-name file-url)
-                  (rest/create-feature-type-alias geoserver-workspace store-name layer-name store-name)
-                  (when style (rest/update-layer-style geoserver-workspace store-name style :vector))
+                  (rest/create-feature-type-alias geoserver-workspace
+                                                  store-name
+                                                  layer-name
+                                                  store-name)
+                  (when style
+                    (rest/update-layer-style geoserver-workspace store-name style :vector))
                   (rest/delete-layer geoserver-workspace layer-name)
                   (rest/delete-feature-type geoserver-workspace store-name layer-name)]
 
-      (throw (ex-info "Unsupported store type detected." {:store-type store-type :file-url file-url})))))
+      (throw (ex-info "Unsupported store type detected."
+                      {:store-type store-type :file-url file-url})))))
 
-(defn file-specs->layer-group-specs [{:keys [geoserver-workspace layer-groups]} existing-layer-groups file-specs]
+(defn file-specs->layer-group-specs
+  [{:keys [geoserver-workspace layer-groups]} existing-layer-groups file-specs]
   (let [layer-names (map #(str geoserver-workspace ":" (:store-name %)) file-specs)]
     (->> layer-groups
          (remove #(contains? existing-layer-groups (:name %)))
          (keep (fn [{:keys [layer-pattern name]}]
-                 (when-let [matching-layers (seq (filter #(str/includes? % layer-pattern) layer-names))]
-                   (rest/create-layer-group geoserver-workspace name "SINGLE" name "" [] matching-layers [])))))))
+                 (when-let [matching-layers (seq (filter #(str/includes? % layer-pattern)
+                                                         layer-names))]
+                   (rest/create-layer-group geoserver-workspace
+                                            name
+                                            "SINGLE"
+                                            name
+                                            ""
+                                            []
+                                            matching-layers
+                                            [])))))))
 
-(defn get-existing-layer-groups [{:keys [geoserver-workspace] :as config-params}]
+(defn get-existing-layer-groups
+  [{:keys [geoserver-workspace] :as config-params}]
   (as-> (rest/get-layer-groups geoserver-workspace) %
     (make-rest-request config-params %)
     (:body %)
@@ -136,7 +165,8 @@
     (set %)))
 
 ;; FIXME: unused
-(defn get-existing-layers [{:keys [geoserver-workspace] :as config-params}]
+(defn get-existing-layers
+  [{:keys [geoserver-workspace] :as config-params}]
   (as-> (rest/get-layers geoserver-workspace) %
     (make-rest-request config-params %)
     (:body %)
@@ -146,7 +176,8 @@
     (map :name %)
     (set %)))
 
-(defn get-existing-coverage-stores [{:keys [geoserver-workspace] :as config-params}]
+(defn get-existing-coverage-stores
+  [{:keys [geoserver-workspace] :as config-params}]
   (as-> (rest/get-coverage-stores geoserver-workspace) %
     (make-rest-request config-params %)
     (:body %)
@@ -156,7 +187,8 @@
     (map :name %)
     (set %)))
 
-(defn get-existing-data-stores [{:keys [geoserver-workspace] :as config-params}]
+(defn get-existing-data-stores
+  [{:keys [geoserver-workspace] :as config-params}]
   (as-> (rest/get-data-stores geoserver-workspace) %
     (make-rest-request config-params %)
     (:body %)
@@ -166,11 +198,13 @@
     (map :name %)
     (set %)))
 
-(defn get-existing-stores [config-params]
+(defn get-existing-stores
+  [config-params]
   (into (get-existing-coverage-stores config-params)
         (get-existing-data-stores     config-params)))
 
-(defn workspace-exists? [{:keys [geoserver-workspace] :as config-params}]
+(defn workspace-exists?
+  [{:keys [geoserver-workspace] :as config-params}]
   (as-> (rest/get-workspace geoserver-workspace) %
     (make-rest-request config-params %)
     (:status %)
@@ -185,9 +219,13 @@
         existing-stores       (if ws-exists? (get-existing-stores config-params) #{})
         existing-layer-groups (if ws-exists? (get-existing-layer-groups config-params) #{})
         layer-specs           (->> file-specs
-                                   (mapcat (partial file-spec->layer-specs config-params existing-stores))
+                                   (mapcat (partial file-spec->layer-specs
+                                                    config-params
+                                                    existing-stores))
                                    (remove nil?))
-        layer-group-specs     (file-specs->layer-group-specs config-params existing-layer-groups file-specs)
+        layer-group-specs     (file-specs->layer-group-specs config-params
+                                                             existing-layer-groups
+                                                             file-specs)
         rest-specs            (concat layer-specs layer-group-specs)]
     (if ws-exists?
       rest-specs
@@ -202,23 +240,27 @@
     #"^.*\.shp$"   :shapefile
     nil))
 
-(defn file-path->store-name [file-path]
+(defn file-path->store-name
+  [file-path]
   (as-> file-path %
     (subs % 0 (str/last-index-of % \.))
     (str/replace % #"[^0-9a-zA-Z/\-_]" "-")
     (str/replace % #"-+" "-")
     (str/replace % "/" "_")))
 
-(defn file-path->layer-name [file-path]
+(defn file-path->layer-name
+  [file-path]
   (let [file-name (if (str/includes? file-path "/")
                     (second (re-find #"^.*/([^/]+)$" file-path))
                     file-path)]
     (subs file-name 0 (str/last-index-of file-name \.))))
 
-(defn file-path->file-url [file-path data-dir]
+(defn file-path->file-url
+  [file-path data-dir]
   (str "file://" data-dir (if (str/ends-with? data-dir "/") "" "/") file-path))
 
-(defn get-style [file-path store-type styles]
+(defn get-style
+  [file-path store-type styles]
   (first
    (keep (fn [{:keys [layer-pattern raster-style vector-style]}]
            (when (str/includes? file-path layer-pattern)
@@ -228,7 +270,8 @@
                nil)))
          styles)))
 
-(defn file-paths->file-specs [data-dir styles file-paths]
+(defn file-paths->file-specs
+  [data-dir styles file-paths]
   (keep #(when-let [store-type (get-store-type %)]
            (array-map :store-type store-type
                       :store-name (file-path->store-name %)
@@ -237,7 +280,8 @@
                       :style      (get-style % store-type styles)))
         file-paths))
 
-(defn load-file-paths [data-dir]
+(defn load-file-paths
+  [data-dir]
   (let [data-dir (if (str/ends-with? data-dir "/")
                    data-dir
                    (str data-dir "/"))]
@@ -248,14 +292,16 @@
                    (str/replace-first data-dir "")))
          (sort))))
 
-(defn update-geoserver! [{:keys [data-dir styles] :as config-params}]
+(defn update-geoserver!
+  [{:keys [data-dir styles] :as config-params}]
   (let [file-specs          (->> (load-file-paths data-dir)
                                  (file-paths->file-specs data-dir styles))
         rest-response-codes (client/with-connection-pool {:insecure? true}
                               (mapv (comp :status (partial make-rest-request config-params))
                                     (file-specs->rest-specs config-params file-specs)))
         wms-response-codes  (client/with-connection-pool {:insecure? true}
-                              (mapv (comp :status (partial create-feature-type-spatial-index config-params))
+                              (mapv (comp :status
+                                          (partial create-feature-type-spatial-index config-params))
                                     (filter #(= :shapefile (:store-type %)) file-specs)))
         http-response-codes (concat rest-response-codes wms-response-codes)]
     (println "\nFinished updating GeoServer.\nSuccessful requests:"
@@ -271,11 +317,13 @@
 
 (def base64-encoder (Base64/getUrlEncoder))
 
-(defn encode-str [s]
+(defn encode-str
+  [s]
   (.encodeToString base64-encoder (.getBytes s)))
 
 ;; FIXME: Use clojure.spec to validate the config-params map
-(defn read-config-params [config-file-path]
+(defn read-config-params
+  [config-file-path]
   (if config-file-path
     (let [config-params (edn/read-string (slurp config-file-path))]
       (if (and (map? config-params)
@@ -286,7 +334,8 @@
     {}))
 
 ;; FIXME: Use clojure.spec to validate the config-params map
-(defn process-options [options]
+(defn process-options
+  [options]
   (let [config-file-params  (read-config-params (:config-file options))
         command-line-params (into {} (remove (comp str/blank? val) (dissoc options :config-file)))
         config-params       (merge config-file-params command-line-params)]
@@ -297,7 +346,7 @@
                                           (:geoserver-password config-params)))))))
 
 (def cli-options
-  [["-c" "--config-file EDN"         "Path to an EDN file containing a map of configuration parameters"]
+  [["-c" "--config-file EDN"         "Path to an EDN file containing a map of these parameters"]
    ["-d" "--data-dir DIR"            "Path to the directory containing your GIS files"]
    ["-g" "--geoserver-rest-uri URI"  "URI of your GeoServer's REST extensions"]
    ["-u" "--geoserver-username USER" "GeoServer admin username"]
@@ -313,13 +362,14 @@
   passed-in map and added to the in-memory hash-map under
   the :geoserver-auth-code entry."
   [& args]
-  (println (str "geosync: Load a nested directory tree of GeoTIFFs and Shapefiles into a running GeoServer instance.\n"
+  (println (str "geosync: Load a nested directory tree of GeoTIFFs and Shapefiles into "
+                "a running GeoServer instance.\n"
                 "Copyright 2020 Gary W. Johnson (gjohnson@sig-gis.com)\n"))
   (let [{:keys [options arguments summary errors]} (parse-opts args cli-options)]
     ;; {:options   The options map, keyed by :id, mapped to the parsed value
     ;;  :arguments A vector of unprocessed arguments
     ;;  :summary   A string containing a minimal options summary
-    ;;  :errors    A possible vector of error message strings generated during parsing; nil when no errors exist
+    ;;  :errors    A vector of error message strings thrown during parsing; nil when no errors exist
     (if (or (seq errors) (empty? options))
       (do
         (when (seq errors)
