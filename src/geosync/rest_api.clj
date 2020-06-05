@@ -47,12 +47,13 @@
     [:workspace
      [:name workspace]])])
 
-(defn update-workspace [workspace new-workspace]
+;; FIXME: Add params that can be changed.
+(defn update-workspace [workspace]
   ["PUT"
    (str "/workspaces/" workspace)
    (xml
     [:workspace
-     [:name new-workspace]])])
+     [:name workspace]])])
 
 (defn delete-workspace [workspace]
   ["DELETE"
@@ -83,13 +84,14 @@
      [:prefix workspace]
      [:uri (str uri-prefix workspace)]])])
 
-(defn update-namespace [uri-prefix workspace new-workspace]
+;; FIXME: Add params that can be changed.
+(defn update-namespace [uri-prefix workspace]
   ["PUT"
    (str "/namespaces/" workspace)
    (xml
     [:namespace
-     [:prefix new-workspace]
-     [:uri (str uri-prefix new-workspace)]])])
+     [:prefix workspace]
+     [:uri (str uri-prefix workspace)]])])
 
 (defn delete-namespace [workspace]
   ["DELETE"
@@ -250,7 +252,8 @@
     (str "/workspaces/" workspace "/datastores/" store "/featuretypes/" feature-type)
     nil]))
 
-(defn create-feature-type [workspace store feature-type title abstract description keywords crs srs max-features num-decimals]
+(defn create-feature-type [workspace store feature-type title abstract description
+                           keywords crs srs max-features num-decimals]
   ["POST"
    (str "/workspaces/" workspace "/datastores/" store "/featuretypes")
    (xml
@@ -285,13 +288,14 @@
      [:name new-feature-type]
      [:nativeName old-feature-type]])])
 
-(defn update-feature-type [workspace store feature-type new-feature-type title abstract description keywords crs srs max-features num-decimals enabled?]
+(defn update-feature-type [workspace store feature-type native-name title abstract
+                           description keywords crs srs max-features num-decimals enabled?]
   ["PUT"
    (str "/workspaces/" workspace "/datastores/" store "/featuretypes/" feature-type)
    (xml
     [:featureType
-     [:name new-feature-type]
-     [:nativeName new-feature-type]
+     [:name feature-type]
+     [:nativeName native-name]
      [:title title]
      [:abstract abstract]
      [:description description]
@@ -346,7 +350,8 @@
 ;; - Move GEOTIFF to top of Selected Formats list
 ;; - Default Style should be "fire-area"
 ;; - Grid subset bounds should be set statically(?)
-(defn create-coverage [workspace store coverage title abstract description keywords proj-code interpolation-method file-url]
+(defn create-coverage [workspace store coverage title abstract description
+                       keywords proj-code interpolation-method file-url]
   (let [gdal-info (extract-georeferences file-url)
         proj-code (or proj-code (:proj-code gdal-info))]
     ["POST"
@@ -422,7 +427,8 @@
    (str "/workspaces/" workspace "/coveragestores/" store "/external.geotiff?coverageName=" store)
    file-url])
 
-(defn update-coverage [workspace store coverage new-coverage title abstract description keywords proj-code interpolation-method file-url enabled?]
+(defn update-coverage [workspace store coverage native-name title abstract description
+                       keywords proj-code interpolation-method file-url enabled?]
   (let [gdal-info (extract-georeferences file-url)
         proj-code (or proj-code (:proj-code gdal-info))]
     ["PUT"
@@ -431,9 +437,9 @@
       [:coverage
        [:store
         [:name (str workspace ":" store)]]
-       [:name new-coverage]
-       [:nativeName new-coverage]
-       [:nativeCoverageName new-coverage]
+       [:name coverage]
+       [:nativeName native-name]
+       [:nativeCoverageName native-name]
        [:title title]
        [:abstract abstract]
        [:description description]
@@ -515,12 +521,12 @@
 (defn create-layer [])
 
 (defn update-layer
-  ([layer new-layer path layer-type default-style styles resource-type resource-name opaque?]
+  ([layer path layer-type default-style styles resource-type resource-name opaque?]
    ["PUT"
     (str "/layers/" layer)
     (xml
      [:layer
-      [:name new-layer]
+      [:name layer]
       [:path path]
       [:type layer-type]
       [:defaultStyle
@@ -530,12 +536,12 @@
       [:resource {:class resource-type}
        [:name resource-name]]
       [:opaque opaque?]])])
-  ([workspace layer new-layer path layer-type default-style styles resource-type resource-name opaque?]
+  ([workspace layer path layer-type default-style styles resource-type resource-name opaque?]
    ["PUT"
     (str "/workspaces/" workspace "/layers/" layer)
     (xml
      [:layer
-      [:name new-layer]
+      [:name layer]
       [:path path]
       [:type layer-type]
       [:defaultStyle
@@ -643,12 +649,12 @@
        (map (fn [s] [:style [:name s]]) styles)]])]))
 
 (defn update-layer-group
-  ([layer-group new-layer-group mode title abstract description keywords layers styles]
+  ([layer-group mode title abstract description keywords layers styles]
    ["PUT"
     (str "/layergroups/" layer-group)
     (xml
      [:layerGroup
-      [:name new-layer-group]
+      [:name layer-group]
       [:mode mode]
       [:title title]
       [:abstract abstract]
@@ -659,14 +665,14 @@
        (map (fn [l] [:published [:name l]]) layers)]
       [:styles
        (map (fn [s] [:style [:name s]]) styles)]])])
-  ([workspace layer-group new-layer-group mode title abstract description keywords layers styles]
+  ([workspace layer-group mode title abstract description keywords layers styles]
    ["PUT"
     (str "/workspaces/" workspace "/layergroups/" layer-group)
     (xml
      [:layerGroup
       [:workspace
        [:name workspace]]
-      [:name new-layer-group]
+      [:name layer-group]
       [:mode mode]
       [:title title]
       [:abstract abstract]
@@ -731,19 +737,19 @@
       [:filename file-url]])]))
 
 (defn update-style
-  ([style new-style file-url]
+  ([style file-url]
    ["PUT"
     (str "/styles/" style)
     (xml
      [:style
-      [:name new-style]
+      [:name style]
       [:filename file-url]])])
-  ([workspace style new-style file-url]
+  ([workspace style file-url]
    ["PUT"
     (str "/workspaces/" workspace "/styles/" style)
     (xml
      [:style
-      [:name new-style]
+      [:name style]
       [:filename file-url]])]))
 
 (defn delete-style

@@ -42,7 +42,9 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn dms->dd [dms]
-  (let [[d m s dir] (map edn/read-string (rest (re-find #"^([ \d]+)d([ \d]+)'([ \.0123456789]+)\"(\w)$" dms)))
+  (let [[d m s dir] (->> (re-find #"^([ \d]+)d([ \d]+)'([ \.0123456789]+)\"(\w)$" dms)
+                         (rest)
+                         (map edn/read-string))
         unsigned-dd (+ d (/ m 60.0) (/ s 3600.0))]
     (if (#{'S 'W} dir)
       (- unsigned-dd)
@@ -51,24 +53,29 @@
 (defn radians->degrees [rads]
   (/ (* rads 180.0) Math/PI))
 
-;; FIXME: Consider using "gdalinfo -json file.tif" and parsing it with #(json/read-str % :key-fn keyword)
+;; FIXME: Consider using "gdalinfo -json file.tif" and parsing it with
+;;        #(json/read-str % :key-fn keyword)
 (defn run-gdal-info [data-dir file-path]
   (try
     (let [result (with-sh-dir data-dir (sh "gdalinfo" file-path))]
       (if (str/blank? (:out result))
-        (throw (ex-info "gdalinfo failed" {:data-dir data-dir :file-path file-path :error (:err result)}))
+        (throw (ex-info "gdalinfo failed"
+                        {:data-dir data-dir :file-path file-path :error (:err result)}))
         (:out result)))
     (catch Exception e
-      (throw (ex-info "gdalinfo failed" {:data-dir data-dir :file-path file-path :error (.getMessage e)})))))
+      (throw (ex-info "gdalinfo failed"
+                      {:data-dir data-dir :file-path file-path :error (.getMessage e)})))))
 
 (defn run-gdal-srs-info [data-dir file-path]
   (try
     (let [result (with-sh-dir data-dir (sh "gdalsrsinfo" "-o" "epsg" file-path))]
       (if (str/blank? (:out result))
-        (throw (ex-info "gdalsrsinfo failed" {:data-dir data-dir :file-path file-path :error (:err result)}))
+        (throw (ex-info "gdalsrsinfo failed"
+                        {:data-dir data-dir :file-path file-path :error (:err result)}))
         (str/trim (:out result))))
     (catch Exception e
-      (throw (ex-info "gdalsrsinfo failed" {:data-dir data-dir :file-path file-path :error (.getMessage e)})))))
+      (throw (ex-info "gdalsrsinfo failed"
+                      {:data-dir data-dir :file-path file-path :error (.getMessage e)})))))
 
 (defn extract-path [file-url]
   (rest (re-find #"^file://(.+)/([^/]+)$" file-url)))
@@ -94,15 +101,15 @@
         [pixel-width pixel-height] (rest (re-find pixel-size-regex gdal-info))
         [x-origin y-origin]        (rest (re-find origin-regex     gdal-info))
 
-        [ul-native-x ul-native-y ul-latlon-x ul-latlon-y] (rest (re-find upper-left-regex gdal-info))
-        [ll-native-x ll-native-y ll-latlon-x ll-latlon-y] (rest (re-find lower-left-regex gdal-info))
-        [ur-native-x ur-native-y ur-latlon-x ur-latlon-y] (rest (re-find upper-right-regex gdal-info))
-        [lr-native-x lr-native-y lr-latlon-x lr-latlon-y] (rest (re-find lower-right-regex gdal-info))
+        [native-ulx native-uly latlon-ulx latlon-uly] (rest (re-find upper-left-regex gdal-info))
+        [native-llx native-lly latlon-llx latlon-lly] (rest (re-find lower-left-regex gdal-info))
+        [native-urx native-ury latlon-urx latlon-ury] (rest (re-find upper-right-regex gdal-info))
+        [native-lrx native-lry latlon-lrx latlon-lry] (rest (re-find lower-right-regex gdal-info))
 
-        [ul-native-x ul-native-y] (map edn/read-string [ul-native-x ul-native-y])
-        [ll-native-x ll-native-y] (map edn/read-string [ll-native-x ll-native-y])
-        [ur-native-x ur-native-y] (map edn/read-string [ur-native-x ur-native-y])
-        [lr-native-x lr-native-y] (map edn/read-string [lr-native-x lr-native-y])]
+        [native-ulx native-uly] (map edn/read-string [native-ulx native-uly])
+        [native-llx native-lly] (map edn/read-string [native-llx native-lly])
+        [native-urx native-ury] (map edn/read-string [native-urx native-ury])
+        [native-lrx native-lry] (map edn/read-string [native-lrx native-lry])]
 
     {:proj-code    proj-code
      :cols-rows    (str cols " " rows)
@@ -112,13 +119,15 @@
      :y-origin     y-origin
      :color-interp (second (re-find color-interp-regex gdal-info))
      :native-crs   (second (re-find native-crs-regex gdal-info))
-     :native-min-x (str (min ul-native-x ll-native-x))
-     :native-max-x (str (max ur-native-x lr-native-x))
-     :native-min-y (str (min ll-native-y lr-native-y))
-     :native-max-y (str (max ul-native-y ur-native-y))
-     :latlon-min-x (str (apply min (map dms->dd [ul-latlon-x ll-latlon-x])))
-     :latlon-max-x (str (apply max (map dms->dd [ur-latlon-x lr-latlon-x])))
-     :latlon-min-y (str (apply min (map dms->dd [ll-latlon-y lr-latlon-y])))
-     :latlon-max-y (str (apply max (map dms->dd [ul-latlon-y ur-latlon-y])))
-     :shear-x      (str (radians->degrees (Math/asin (/ (- ll-native-x ul-native-x) (- ul-native-y ll-native-y)))))
-     :shear-y      (str (radians->degrees (Math/asin (/ (- ur-native-y ul-native-y) (- ur-native-x ul-native-x)))))}))
+     :native-min-x (str (min native-ulx native-llx))
+     :native-max-x (str (max native-urx native-lrx))
+     :native-min-y (str (min native-lly native-lry))
+     :native-max-y (str (max native-uly native-ury))
+     :latlon-min-x (str (apply min (map dms->dd [latlon-ulx latlon-llx])))
+     :latlon-max-x (str (apply max (map dms->dd [latlon-urx latlon-lrx])))
+     :latlon-min-y (str (apply min (map dms->dd [latlon-lly latlon-lry])))
+     :latlon-max-y (str (apply max (map dms->dd [latlon-uly latlon-ury])))
+     :shear-x      (str (radians->degrees (Math/asin (/ (- native-llx native-ulx)
+                                                        (- native-uly native-lly)))))
+     :shear-y      (str (radians->degrees (Math/asin (/ (- native-ury native-uly)
+                                                        (- native-urx native-ulx)))))}))
