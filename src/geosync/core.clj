@@ -270,6 +270,12 @@
                nil)))
          styles)))
 
+(defn has-spatial-index?
+  [file-path data-dir]
+  (let [file-path-sans-extension (subs file-path 0 (str/last-index-of file-path \.))
+        spatial-index-file-path  (str file-path-sans-extension ".qix")]
+    (.exists (io/file data-dir spatial-index-file-path))))
+
 (defn file-paths->file-specs
   [data-dir styles file-paths]
   (keep #(when-let [store-type (get-store-type %)]
@@ -277,7 +283,8 @@
                       :store-name (file-path->store-name %)
                       :layer-name (file-path->layer-name %)
                       :file-url   (file-path->file-url % data-dir)
-                      :style      (get-style % store-type styles)))
+                      :style      (get-style % store-type styles)
+                      :indexed?   (has-spatial-index? % data-dir)))
         file-paths))
 
 (defn load-file-paths
@@ -302,7 +309,9 @@
         wms-response-codes  (client/with-connection-pool {:insecure? true}
                               (mapv (comp :status
                                           (partial create-feature-type-spatial-index config-params))
-                                    (filter #(= :shapefile (:store-type %)) file-specs)))
+                                    (filter #(and (= :shapefile (:store-type %))
+                                                  (not (:indexed? %)))
+                                            file-specs)))
         http-response-codes (concat rest-response-codes wms-response-codes)]
     (println "\nFinished updating GeoServer.\nSuccessful requests:"
              (count (filter success-code? http-response-codes))
