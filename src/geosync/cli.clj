@@ -1,37 +1,12 @@
-;;; Copyright 2020 Gary W. Johnson (gjohnson@sig-gis.com)
-;;;
-;;; This file is part of geosync.
-;;;
-;;; geosync is free software: you can redistribute it and/or modify
-;;; it under the terms of the GNU General Public License as published
-;;; by the Free Software Foundation, either version 3 of the License,
-;;; or (at your option) any later version.
-;;;
-;;; geosync is distributed in the hope that it will be useful, but
-;;; WITHOUT ANY WARRANTY; without even the implied warranty of
-;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-;;; General Public License for more details.
-;;;
-;;; You should have received a copy of the GNU General Public License
-;;; along with geosync.  If not, see <http://www.gnu.org/licenses/>.
-;;;
-;;; Description:
-;;;
-;;; GeoSync is a simple command-line application that traverses a
-;;; directory of raster and vector GIS files (e.g., GeoTIFFs, Shapefiles)
-;;; and generates the necessary REST commands to add workspaces,
-;;; coveragestores, datastores, coverages, featuretypes, layers, and
-;;; layergroups for each file to a running GeoServer instance.
-
-(ns geosync.core
+(ns geosync.cli
+  (:import java.util.Base64)
   (:require [clojure.edn       :as edn]
             [clojure.java.io   :as io]
             [clojure.string    :as str]
             [clojure.data.json :as json]
             [clojure.tools.cli :refer [parse-opts]]
             [clj-http.client   :as client]
-            [geosync.rest-api  :as rest])
-  (:import java.util.Base64))
+            [geosync.rest-api  :as rest]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
