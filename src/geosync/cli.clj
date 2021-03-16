@@ -1,11 +1,11 @@
 (ns geosync.cli
   (:import java.util.Base64)
-  (:require [clojure.edn       :as edn]
+  (:require [clj-http.client   :as client]
+            [clojure.data.json :as json]
+            [clojure.edn       :as edn]
             [clojure.java.io   :as io]
             [clojure.string    :as s]
-            [clojure.data.json :as json]
             [clojure.tools.cli :refer [parse-opts]]
-            [clj-http.client   :as client]
             [geosync.rest-api  :as rest]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -331,6 +331,10 @@
                                           ":"
                                           (:geoserver-password config-params)))))))
 
+(def program-banner
+  (str "geosync: Load a nested directory tree of GeoTIFFs and Shapefiles into a running GeoServer instance.\n"
+       "Copyright © 2020-2021 Spatial Informatics Group, LLC.\n"))
+
 (def cli-options
   [["-c" "--config-file EDN"         "Path to an EDN file containing a map of these parameters"]
    ["-d" "--data-dir DIR"            "Path to the directory containing your GIS files"]
@@ -348,21 +352,30 @@
   passed-in map and added to the in-memory hash-map under
   the :geoserver-auth-code entry."
   [& args]
-  (println (str "geosync: Load a nested directory tree of GeoTIFFs and Shapefiles into "
-                "a running GeoServer instance.\n"
-                "Copyright 2020 Gary W. Johnson (gjohnson@sig-gis.com)\n"))
-  (let [{:keys [options arguments summary errors]} (parse-opts args cli-options)]
-    ;; {:options   The options map, keyed by :id, mapped to the parsed value
-    ;;  :arguments A vector of unprocessed arguments
-    ;;  :summary   A string containing a minimal options summary
-    ;;  :errors    A vector of error message strings thrown during parsing; nil when no errors exist
-    (if (or (seq errors) (empty? options))
-      (do
-        (when (seq errors)
-          (run! println errors)
-          (newline))
-        (println (str "Usage:\n" summary)))
-      (update-geoserver! (process-options options))))
+  (println program-banner)
+  (let [{:keys [options arguments summary errors]} (parse-opts args cli-options)
+        ;; {:options   The options map, keyed by :id, mapped to the parsed value
+        ;;  :arguments A vector of unprocessed arguments
+        ;;  :summary   A string containing a minimal options summary
+        ;;  :errors    A vector of error message strings thrown during parsing; nil when no errors exist
+        options-map (try
+                      (process-options options)
+                      (catch Exception e
+                        (ex-message e)))]
+    (cond (empty? options)
+          (println (str "Usage:\n" summary))
+
+          (seq errors)
+          (do
+            (run! println errors)
+            (println (str "\nUsage:\n" summary)))
+
+          (string? options-map)
+          (do
+            (println options-map)
+            (println (str "\nUsage:\n" summary)))
+
+          (update-geoserver! options-map)))
   ;; Exit cleanly
   (shutdown-agents)
   (flush)
