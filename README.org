@@ -17,14 +17,14 @@ To compile and run the application, navigate to the toplevel project
 directory and run:
 
 #+begin_src sh
-$ clojure -A:run
+$ clojure -M:run
 #+end_src
 
 This will print out the following usage message:
 
 #+begin_example
 geosync: Load a nested directory tree of GeoTIFFs and Shapefiles into a running GeoServer instance.
-Copyright 2020 Gary W. Johnson (gjohnson@sig-gis.com)
+Copyright © 2020-2021 Spatial Informatics Group, LLC.
 
 Usage:
   -c, --config-file EDN          Path to an EDN file containing a map of configuration parameters
@@ -40,7 +40,7 @@ You can run GeoSync in one of three ways:
 1. Pass all options (except -c) on the command line.
 
    #+begin_src sh
-   $ clojure -A:run -d /data -g http://localhost:8080/geoserver/rest -u admin -p geoserver -w demo
+   $ clojure -M:run -d /data -g http://localhost:8080/geoserver/rest -u admin -p geoserver -w demo
    #+end_src
 
    Please note that the -d option must receive a file path that is
@@ -55,7 +55,7 @@ You can run GeoSync in one of three ways:
    [[file:resources/sample-config.edn][resources/sample-config.edn]] for an example.
 
    #+begin_src sh
-   $ clojure -A:run -c resources/sample-config.edn
+   $ clojure -M:run -c resources/sample-config.edn
    #+end_src
 
 3. Pass the -c option with an EDN config file and also pass any other
@@ -63,7 +63,7 @@ You can run GeoSync in one of three ways:
    the EDN file.
 
    #+begin_src sh
-   $ clojure -A:run -c resources/sample-config.edn -w my-workspace -d /my/data/directory
+   $ clojure -M:run -c resources/sample-config.edn -w my-workspace -d /my/data/directory
    #+end_src
 
 ** Logging
@@ -74,7 +74,7 @@ sent out from GeoSync and the corresponding response received from the
 GeoServer.
 
 #+begin_src sh
-$ clojure -A:run ... &> out.txt
+$ clojure -M:run ... &> out.txt
 #+end_src
 
 ** Styles
@@ -97,4 +97,8 @@ https://docs.geoserver.org/latest/en/user/configuration/crshandling/customcrs.ht
 
 ** License and Distribution
 
-FIXME: Fill in this section.
+Copyright © 2020-2021 Spatial Informatics Group, LLC.
+
+GeoSync is distributed by Spatial Informatics Group, LLC. under the
+terms of the Eclipse Public License version 2.0 (EPLv2). See
+LICENSE.txt in this directory for more information.
