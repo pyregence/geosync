@@ -2,7 +2,7 @@
   (:import java.util.Base64)
   (:require [clojure.edn       :as edn]
             [clojure.java.io   :as io]
-            [clojure.string    :as str]
+            [clojure.string    :as s]
             [clojure.data.json :as json]
             [clojure.tools.cli :refer [parse-opts]]
             [clj-http.client   :as client]
@@ -17,8 +17,8 @@
 (defn create-feature-type-spatial-index
   [{:keys [geoserver-rest-uri geoserver-workspace]} {:keys [store-name]}]
   (try
-    (let [geoserver-wms-uri (as-> (str/replace geoserver-rest-uri "/rest" "/wms") %
-                              (if (str/ends-with? % "/")
+    (let [geoserver-wms-uri (as-> (s/replace geoserver-rest-uri "/rest" "/wms") %
+                              (if (s/ends-with? % "/")
                                 (subs % 0 (dec (count %)))
                                 %))
           layer-name        (str geoserver-workspace ":" store-name)
@@ -61,7 +61,7 @@
 (defn make-rest-request
   [{:keys [geoserver-rest-uri geoserver-auth-code]} [http-method uri-suffix http-body]]
   (try
-    (let [geoserver-rest-uri (if (str/ends-with? geoserver-rest-uri "/")
+    (let [geoserver-rest-uri (if (s/ends-with? geoserver-rest-uri "/")
                                (subs geoserver-rest-uri 0 (dec (count geoserver-rest-uri)))
                                geoserver-rest-uri)
           response           (client/request {:url       (str geoserver-rest-uri uri-suffix)
@@ -119,7 +119,7 @@
     (->> layer-groups
          (remove #(contains? existing-layer-groups (:name %)))
          (keep (fn [{:keys [layer-pattern name]}]
-                 (when-let [matching-layers (seq (filter #(str/includes? % layer-pattern)
+                 (when-let [matching-layers (seq (filter #(s/includes? % layer-pattern)
                                                          layer-names))]
                    (rest/create-layer-group geoserver-workspace
                                             name
@@ -220,27 +220,27 @@
 (defn file-path->store-name
   [file-path]
   (as-> file-path %
-    (subs % 0 (str/last-index-of % \.))
-    (str/replace % #"[^0-9a-zA-Z/\-_]" "-")
-    (str/replace % #"-+" "-")
-    (str/replace % "/" "_")))
+    (subs % 0 (s/last-index-of % \.))
+    (s/replace % #"[^0-9a-zA-Z/\-_]" "-")
+    (s/replace % #"-+" "-")
+    (s/replace % "/" "_")))
 
 (defn file-path->layer-name
   [file-path]
-  (let [file-name (if (str/includes? file-path "/")
+  (let [file-name (if (s/includes? file-path "/")
                     (second (re-find #"^.*/([^/]+)$" file-path))
                     file-path)]
-    (subs file-name 0 (str/last-index-of file-name \.))))
+    (subs file-name 0 (s/last-index-of file-name \.))))
 
 (defn file-path->file-url
   [file-path data-dir]
-  (str "file://" data-dir (if (str/ends-with? data-dir "/") "" "/") file-path))
+  (str "file://" data-dir (if (s/ends-with? data-dir "/") "" "/") file-path))
 
 (defn get-style
   [file-path store-type styles]
   (first
    (keep (fn [{:keys [layer-pattern raster-style vector-style]}]
-           (when (str/includes? file-path layer-pattern)
+           (when (s/includes? file-path layer-pattern)
              (case store-type
                :geotiff   raster-style
                :shapefile vector-style
@@ -249,7 +249,7 @@
 
 (defn has-spatial-index?
   [file-path data-dir]
-  (let [file-path-sans-extension (subs file-path 0 (str/last-index-of file-path \.))
+  (let [file-path-sans-extension (subs file-path 0 (s/last-index-of file-path \.))
         spatial-index-file-path  (str file-path-sans-extension ".qix")]
     (.exists (io/file data-dir spatial-index-file-path))))
 
@@ -266,14 +266,14 @@
 
 (defn load-file-paths
   [data-dir]
-  (let [data-dir (if (str/ends-with? data-dir "/")
+  (let [data-dir (if (s/ends-with? data-dir "/")
                    data-dir
                    (str data-dir "/"))]
     (->> (io/file data-dir)
          (file-seq)
          (filter #(.isFile %))
          (map #(-> (.getPath %)
-                   (str/replace-first data-dir "")))
+                   (s/replace-first data-dir "")))
          (sort))))
 
 (defn update-geoserver!
@@ -323,7 +323,7 @@
 (defn process-options
   [options]
   (let [config-file-params  (read-config-params (:config-file options))
-        command-line-params (into {} (remove (comp str/blank? val) (dissoc options :config-file)))
+        command-line-params (into {} (remove (comp s/blank? val) (dissoc options :config-file)))
         config-params       (merge config-file-params command-line-params)]
     (assoc config-params
            :geoserver-auth-code
