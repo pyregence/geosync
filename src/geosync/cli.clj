@@ -1,12 +1,14 @@
 (ns geosync.cli
-  (:import java.util.Base64)
-  (:require [clj-http.client   :as client]
-            [clojure.data.json :as json]
-            [clojure.edn       :as edn]
-            [clojure.java.io   :as io]
-            [clojure.string    :as s]
-            [clojure.tools.cli :refer [parse-opts]]
-            [geosync.rest-api  :as rest]))
+  (:import java.net.URL
+           java.util.Base64)
+  (:require [clj-http.client    :as client]
+            [clojure.data.json  :as json]
+            [clojure.edn        :as edn]
+            [clojure.java.io    :as io]
+            [clojure.spec.alpha :as spec]
+            [clojure.string     :as s]
+            [clojure.tools.cli  :refer [parse-opts]]
+            [geosync.rest-api   :as rest]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -336,9 +338,14 @@
        "Copyright © 2020-2021 Spatial Informatics Group, LLC.\n"))
 
 (def cli-options
-  [["-c" "--config-file EDN"         "Path to an EDN file containing a map of these parameters"]
-   ["-d" "--data-dir DIR"            "Path to the directory containing your GIS files"]
-   ["-g" "--geoserver-rest-uri URI"  "URI of your GeoServer's REST extensions"]
+  [["-c" "--config-file EDN"         "Path to an EDN file containing a map of these parameters"
+    :validate [#(.exists  (io/file %)) "The provided --config-file does not exist."
+               #(.canRead (io/file %)) "The provided --config-file is not readable."]]
+   ["-d" "--data-dir DIR"            "Path to the directory containing your GIS files"
+    :validate [#(.exists  (io/file %)) "The provided --data-dir does not exist."
+               #(.canRead (io/file %)) "The provided --data-dir is not readable."]]
+   ["-g" "--geoserver-rest-uri URI"  "URI of your GeoServer's REST extensions"
+    :validate [#(URL. %) "The provided --geoserver-rest-uri is not a valid URI."]]
    ["-u" "--geoserver-username USER" "GeoServer admin username"]
    ["-p" "--geoserver-password PASS" "GeoServer admin password"]
    ["-w" "--geoserver-workspace WS"  "Workspace name to receive the new GeoServer layers"]])
@@ -375,6 +382,7 @@
             (println options-map)
             (println (str "\nUsage:\n" summary)))
 
+          :else
           (update-geoserver! options-map)))
   ;; Exit cleanly
   (shutdown-agents)
