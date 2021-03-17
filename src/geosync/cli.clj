@@ -4,7 +4,8 @@
   (:require [clojure.edn        :as edn]
             [clojure.java.io    :as io]
             [clojure.spec.alpha :as spec]
-            [clojure.tools.cli  :refer [parse-opts]]))
+            [clojure.tools.cli  :refer [parse-opts]]
+            [geosync.core       :refer [update-geoserver!]]))
 
 (defn non-empty-string?
   [x]
