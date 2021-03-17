@@ -352,25 +352,33 @@
                                                     ::styles
                                                     ::layer-groups]))
 
+(defn throw-message
+  [msg]
+  (throw (ex-info msg {})))
+
 (defn encode-str
   [s]
   (.encodeToString (Base64/getUrlEncoder) (.getBytes s)))
 
 (defn read-config-params
   [config-file-path]
-  (if config-file-path
-    (if-let [config-params (try
-                             (edn/read-string (slurp config-file-path))
-                             (catch Exception _ nil))]
-      (if (map? config-params)
-        (if (spec/valid? ::geosync-config-opt config-params)
-          config-params
-          (throw (ex-info (str "The provided --config-file contains an invalid EDN config map:\n"
-                               (spec/explain-str ::geosync-config-opt config-params))
-                          {})))
-        (throw (ex-info "The provided --config-file does not contain an EDN map." {})))
-      (throw (ex-info "The provided --config-file does not contain valid EDN." {})))
-    {}))
+  (if (not config-file-path)
+    {}
+    (let [config-params (try
+                          (edn/read-string (slurp config-file-path))
+                          (catch Exception _ nil))]
+      (cond (nil? config-params)
+            (throw-message "The provided --config-file does not contain valid EDN.")
+
+            (not (map? config-params))
+            (throw-message "The provided --config-file does not contain an EDN map.")
+
+            (not (spec/valid? ::geosync-config-opt config-params))
+            (throw-message (str "The provided --config-file contains an invalid EDN config map:\n"
+                                (spec/explain-str ::geosync-config-opt config-params)))
+
+            :else
+            config-params))))
 
 (defn process-options
   [options]
@@ -383,9 +391,8 @@
              (str "Basic " (encode-str (format "%s:%s")
                                        (:geoserver-username config-params)
                                        (:geoserver-password config-params))))
-      (throw (ex-info (str "Some input parameters are invalid:\n"
-                           (spec/explain-str ::geosync-config config-params))
-                      {})))))
+      (throw-message (str "Some input parameters are invalid:\n"
+                          (spec/explain-str ::geosync-config config-params))))))
 
 (def cli-options
   [["-c" "--config-file EDN"         "Path to an EDN file containing a map of these parameters"
@@ -405,13 +412,6 @@
        "Copyright © 2020-2021 Spatial Informatics Group, LLC.\n"))
 
 (defn -main
-  "Call this with the name of an EDN file containing the config-params
-  map. The params will be read into a hash-map and passed on to the
-  update-geoserver! function. So that we only have to calculate it
-  once, the geoserver-auth-code is generated here from
-  the :geoserver-username and :geoserver-password fields in the
-  passed-in map and added to the in-memory hash-map under
-  the :geoserver-auth-code entry."
   [& args]
   (println program-banner)
   (let [{:keys [options arguments summary errors]} (parse-opts args cli-options)
