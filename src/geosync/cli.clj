@@ -303,35 +303,41 @@
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(def base64-encoder (Base64/getUrlEncoder))
+;; FIXME: stub
+;; (and (map? config-params)
+;;      (every? keyword? (keys config-params)))
+(spec/def ::geosync-config (constantly true))
 
 (defn encode-str
   [s]
-  (.encodeToString base64-encoder (.getBytes s)))
+  (.encodeToString (Base64/getUrlEncoder) (.getBytes s)))
 
-;; FIXME: Use clojure.spec to validate the config-params map
 (defn read-config-params
   [config-file-path]
   (if config-file-path
-    (let [config-params (edn/read-string (slurp config-file-path))]
-      (if (and (map? config-params)
-               (every? keyword? (keys config-params)))
+    (if-let [config-params (try
+                             (edn/read-string (slurp config-file-path))
+                             (catch Exception _ nil))]
+      (if (map? config-params)
         config-params
-        (throw (ex-info "The config-file must contain an EDN map whose keys are keywords."
-                        {"--config-file" config-file-path}))))
+        (throw (ex-info "The provided --config-file does not contain an EDN map." {})))
+      (throw (ex-info "The provided --config-file does not contain valid EDN." {})))
     {}))
 
-;; FIXME: Use clojure.spec to validate the final combined config-params map
 (defn process-options
   [options]
   (let [config-file-params  (read-config-params (:config-file options))
-        command-line-params (into {} (remove (comp s/blank? val) (dissoc options :config-file)))
+        command-line-params (dissoc options :config-file)
         config-params       (merge config-file-params command-line-params)]
-    (assoc config-params
-           :geoserver-auth-code
-           (str "Basic " (encode-str (str (:geoserver-username config-params)
-                                          ":"
-                                          (:geoserver-password config-params)))))))
+    (if (spec/valid? ::geosync-config config-params)
+      (assoc config-params
+             :geoserver-auth-code
+             (str "Basic " (encode-str (format "%s:%s")
+                                       (:geoserver-username config-params)
+                                       (:geoserver-password config-params))))
+      (throw (ex-info (str "The provided --config-file contains an invalid EDN config map:\n"
+                           (spec/explain-str ::geosync-config config-params))
+                      {})))))
 
 (def program-banner
   (str "geosync: Load a nested directory tree of GeoTIFFs and Shapefiles into a running GeoServer instance.\n"
