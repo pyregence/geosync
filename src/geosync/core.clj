@@ -1,4 +1,5 @@
 (ns geosync.core
+  (:import java.io.File)
   (:require [clj-http.client   :as client]
             [clojure.data.json :as json]
             [clojure.java.io   :as io]
@@ -268,8 +269,8 @@
                    (str data-dir "/"))]
     (->> (io/file data-dir)
          (file-seq)
-         (filter #(.isFile %))
-         (map #(-> (.getPath %)
+         (filter #(.isFile ^File %))
+         (map #(-> (.getPath ^File %)
                    (s/replace-first data-dir "")))
          (sort))))
 

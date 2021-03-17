@@ -1,5 +1,6 @@
 (ns geosync.cli
-  (:import java.net.URL
+  (:import java.io.File
+           java.net.URL
            java.util.Base64)
   (:require [clojure.edn        :as edn]
             [clojure.java.io    :as io]
@@ -21,9 +22,9 @@
 
 (defn readable-directory?
   [x]
-  (when-let [directory (try
-                         (io/file x)
-                         (catch Exception _ nil))]
+  (when-let [^File directory (try
+                               (io/file x)
+                               (catch Exception _ nil))]
     (and (.exists directory)
          (.canRead directory)
          (.isDirectory directory))))
@@ -62,7 +63,7 @@
 
 (defn encode-str
   [s]
-  (.encodeToString (Base64/getUrlEncoder) (.getBytes s)))
+  (.encodeToString (Base64/getUrlEncoder) (.getBytes ^String s)))
 
 (defn read-config-params
   [config-file-path]
