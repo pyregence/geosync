@@ -3,7 +3,7 @@
            (java.net Socket ServerSocket))
   (:require [clojure.java.io :as io]
             [clojure.string  :as s]
-            [geosync.logging :refer [log log-str]]))
+            [triangulum.logging :refer [log log-str]]))
 
 ;;=================================
 ;; Client Socket
