@@ -1,22 +1,3 @@
-;;; Copyright 2020 Gary W. Johnson (gjohnson@sig-gis.com)
-;;;
-;;; This file is part of geosync.
-;;;
-;;; geosync is free software: you can redistribute it and/or modify
-;;; it under the terms of the GNU General Public License as published
-;;; by the Free Software Foundation, either version 3 of the License,
-;;; or (at your option) any later version.
-;;;
-;;; geosync is distributed in the hope that it will be useful, but
-;;; WITHOUT ANY WARRANTY; without even the implied warranty of
-;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-;;; General Public License for more details.
-;;;
-;;; You should have received a copy of the GNU General Public License
-;;; along with geosync.  If not, see <http://www.gnu.org/licenses/>.
-;;;
-;;; Description:
-;;;
 ;;; This file implements most of the commonly used operations in the
 ;;; GeoServer REST API as of version 2.17.0.
 
