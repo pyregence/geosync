@@ -321,7 +321,7 @@
                         {"--config-file" config-file-path}))))
     {}))
 
-;; FIXME: Use clojure.spec to validate the config-params map
+;; FIXME: Use clojure.spec to validate the final combined config-params map
 (defn process-options
   [options]
   (let [config-file-params  (read-config-params (:config-file options))
@@ -369,13 +369,13 @@
                       (process-options options)
                       (catch Exception e
                         (ex-message e)))]
-    (cond (empty? options)
-          (println (str "Usage:\n" summary))
-
-          (seq errors)
+    (cond (seq errors)
           (do
             (run! println errors)
             (println (str "\nUsage:\n" summary)))
+
+          (or (empty? options) (seq arguments))
+          (println (str "Usage:\n" summary))
 
           (string? options-map)
           (do
