@@ -344,6 +344,13 @@
                                                     ::data-dir]
                                            :opt-un [::styles
                                                     ::layer-groups]))
+(spec/def ::geosync-config-opt  (spec/keys :opt-un [::geoserver-rest-uri
+                                                    ::geoserver-username
+                                                    ::geoserver-password
+                                                    ::geoserver-workspace
+                                                    ::data-dir
+                                                    ::styles
+                                                    ::layer-groups]))
 
 (defn encode-str
   [s]
@@ -356,7 +363,11 @@
                              (edn/read-string (slurp config-file-path))
                              (catch Exception _ nil))]
       (if (map? config-params)
-        config-params
+        (if (spec/valid? ::geosync-config-opt config-params)
+          config-params
+          (throw (ex-info (str "The provided --config-file contains an invalid EDN config map:\n"
+                               (spec/explain-str ::geosync-config-opt config-params))
+                          {})))
         (throw (ex-info "The provided --config-file does not contain an EDN map." {})))
       (throw (ex-info "The provided --config-file does not contain valid EDN." {})))
     {}))
@@ -372,7 +383,7 @@
              (str "Basic " (encode-str (format "%s:%s")
                                        (:geoserver-username config-params)
                                        (:geoserver-password config-params))))
-      (throw (ex-info (str "The provided --config-file contains an invalid EDN config map:\n"
+      (throw (ex-info (str "Some input parameters are invalid:\n"
                            (spec/explain-str ::geosync-config config-params))
                       {})))))
 
