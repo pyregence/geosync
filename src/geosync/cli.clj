@@ -303,10 +303,47 @@
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; FIXME: stub
-;; (and (map? config-params)
-;;      (every? keyword? (keys config-params)))
-(spec/def ::geosync-config (constantly true))
+(defn non-empty-string?
+  [x]
+  (and (string? x)
+       (pos? (count x))))
+
+(defn url?
+  [x]
+  (and (non-empty-string? x)
+       (try
+         (URL. x)
+         (catch Exception _ false))))
+
+(defn readable-directory?
+  [x]
+  (when-let [directory (try
+                         (io/file x)
+                         (catch Exception _ nil))]
+    (and (.exists directory)
+         (.canRead directory)
+         (.isDirectory directory))))
+
+(spec/def ::geoserver-rest-uri  url?)
+(spec/def ::geoserver-username  non-empty-string?)
+(spec/def ::geoserver-password  non-empty-string?)
+(spec/def ::geoserver-workspace non-empty-string?)
+(spec/def ::data-dir            readable-directory?)
+(spec/def ::layer-pattern       non-empty-string?)
+(spec/def ::raster-style        non-empty-string?)
+(spec/def ::vector-style        non-empty-string?)
+(spec/def ::style               (spec/keys :req-un [::layer-pattern (or ::raster-style ::vector-style)]))
+(spec/def ::styles              (spec/coll-of ::style :kind vector? :distinct true))
+(spec/def ::name                non-empty-string?)
+(spec/def ::layer-group         (spec/keys :req-un [::layer-pattern ::name]))
+(spec/def ::layer-groups        (spec/coll-of ::layer-group :kind vector? :distinct true))
+(spec/def ::geosync-config      (spec/keys :req-un [::geoserver-rest-uri
+                                                    ::geoserver-username
+                                                    ::geoserver-password
+                                                    ::geoserver-workspace
+                                                    ::data-dir]
+                                           :opt-un [::styles
+                                                    ::layer-groups]))
 
 (defn encode-str
   [s]
@@ -339,10 +376,6 @@
                            (spec/explain-str ::geosync-config config-params))
                       {})))))
 
-(def program-banner
-  (str "geosync: Load a nested directory tree of GeoTIFFs and Shapefiles into a running GeoServer instance.\n"
-       "Copyright © 2020-2021 Spatial Informatics Group, LLC.\n"))
-
 (def cli-options
   [["-c" "--config-file EDN"         "Path to an EDN file containing a map of these parameters"
     :validate [#(.exists  (io/file %)) "The provided --config-file does not exist."
@@ -351,10 +384,14 @@
     :validate [#(.exists  (io/file %)) "The provided --data-dir does not exist."
                #(.canRead (io/file %)) "The provided --data-dir is not readable."]]
    ["-g" "--geoserver-rest-uri URI"  "URI of your GeoServer's REST extensions"
-    :validate [#(URL. %) "The provided --geoserver-rest-uri is not a valid URI."]]
+    :validate [url? "The provided --geoserver-rest-uri is not a valid URI."]]
    ["-u" "--geoserver-username USER" "GeoServer admin username"]
    ["-p" "--geoserver-password PASS" "GeoServer admin password"]
    ["-w" "--geoserver-workspace WS"  "Workspace name to receive the new GeoServer layers"]])
+
+(def program-banner
+  (str "geosync: Load a nested directory tree of GeoTIFFs and Shapefiles into a running GeoServer instance.\n"
+       "Copyright © 2020-2021 Spatial Informatics Group, LLC.\n"))
 
 (defn -main
   "Call this with the name of an EDN file containing the config-params
