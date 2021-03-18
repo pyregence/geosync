@@ -1,8 +1,8 @@
 (ns geosync.simple-sockets
   (:import (java.io BufferedReader)
            (java.net Socket ServerSocket))
-  (:require [clojure.java.io :as io]
-            [clojure.string  :as s]
+  (:require [clojure.java.io    :as io]
+            [clojure.string     :as s]
             [triangulum.logging :refer [log log-str]]))
 
 ;;=================================
@@ -17,10 +17,6 @@
                   (str "\n")))
       (.flush))
     (.shutdownOutput socket)))
-
-#_(send-to-server! "wx.pyregence.org"
-                   31337
-                   "clj-socket-test2,2021-03-01 12:00 PDT,-117.5,33.8,24000,24000,24000,24000,no,yes,localhost")
 
 ;;=================================
 ;; Server Socket
@@ -66,5 +62,3 @@
                 (catch Exception e
                   (log-str "Error creating server socket: " e)
                   (stop-server!)))))))
-
-#_(start-server! 31337 (fn [msg] :do-something))

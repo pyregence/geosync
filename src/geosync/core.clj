@@ -1,16 +1,17 @@
 (ns geosync.core
   (:import java.io.File)
-  (:require [clj-http.client   :as client]
-            [clojure.data.json :as json]
-            [clojure.java.io   :as io]
-            [clojure.string    :as s]
-            [geosync.rest-api  :as rest]))
+  (:require [clj-http.client    :as client]
+            [clojure.data.json  :as json]
+            [clojure.java.io    :as io]
+            [clojure.string     :as s]
+            [geosync.rest-api   :as rest]
+            [triangulum.logging :refer [log-str]]))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;===========================================================
 ;;
 ;; Files -> WMS Requests
 ;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;===========================================================
 
 (defn create-feature-type-spatial-index
   [{:keys [geoserver-rest-uri geoserver-workspace]} {:keys [store-name]}]
@@ -37,21 +38,21 @@
                                                              "&BBOX=-180.0,-90.0,180.0,90.0")
                                              :method    "GET"
                                              :insecure? true})]
-      (println "GetFeatureInfo" layer-name "->" (select-keys response [:status :reason-phrase]))
+      (log-str "GetFeatureInfo " layer-name " -> " (select-keys response [:status :reason-phrase]))
       response)
     (catch Exception e
       (let [layer-name (str geoserver-workspace ":" store-name)]
-        (println "GetFeatureInfo"
+        (log-str "GetFeatureInfo "
                  layer-name
-                 "->"
+                 " -> "
                  (select-keys (ex-data e) [:status :reason-phrase :body]))
         (ex-data e)))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;===========================================================
 ;;
 ;; Files -> REST Requests
 ;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;===========================================================
 
 (def success-code? #{200 201 202 203 204 205 206 207 300 301 302 303 307})
 
@@ -69,13 +70,13 @@
                                                           "Accept"        "application/json"
                                                           "Authorization" geoserver-auth-code}
                                               :body      http-body})]
-      (println (format "%6s %s%n    -> %s"
+      (log-str (format "%6s %s%n    -> %s"
                        http-method
                        uri-suffix
                        (select-keys response [:status :reason-phrase])))
       response)
     (catch Exception e
-      (do (println (format "%6s %s%n    -> %s"
+      (do (log-str (format "%6s %s%n    -> %s"
                            http-method
                            uri-suffix
                            (select-keys (ex-data e) [:status :reason-phrase :body])))
@@ -288,7 +289,7 @@
                                                   (not (:indexed? %)))
                                             file-specs)))
         http-response-codes (concat rest-response-codes wms-response-codes)]
-    (println "\nFinished updating GeoServer.\nSuccessful requests:"
+    (log-str "\nFinished updating GeoServer.\nSuccessful requests:"
              (count (filter success-code? http-response-codes))
              "\nFailed requests:"
              (count (remove success-code? http-response-codes)))))
