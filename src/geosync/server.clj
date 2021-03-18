@@ -48,29 +48,34 @@
 
 (defonce job-queue (chan 100))
 
-;; FIXME: Review and update
-(defn process-requests! [{:keys [host port]}]
-  (go (loop [{:keys [fire-name response-host response-port] :as message} (<! job-queue)]
-        (<! (timeout 500))
-        (println "Message:" message)
+(defn process-requests!
+  [{:keys [geosync-server-host geosync-server-port geoserver-rest-uri geoserver-username geoserver-password]}]
+  (go (loop [{:keys [response-host response-port] :as request} (<! job-queue)]
+        (log-str "Request: " request)
+        ;; FIXME: Update GeoServer in response to the request using these config-params:
+        ;; geoserver-rest-uri geoserver-username geoserver-password
+        (<! (timeout 2000))
         (sockets/send-to-server! response-host
                                  (val->int response-port)
-                                 (json/write-str {:fire-name     fire-name
-                                                  :response-host host
-                                                  :response-port port
-                                                  :status        0}
+                                 (json/write-str {:status        0    ; Return 1 for errors
+                                                  :message       "OK" ; Return error message if any
+                                                  :response-host geosync-server-host
+                                                  :response-port geosync-server-port}
                                                  :key-fn (comp kebab->camel name)))
         (recur (<! job-queue)))))
 
-(defn handler [msg]
+(defn handler
+  [msg]
   (go
     (let [request (json/read-str msg :key-fn (comp keyword camel->kebab))]
       (>! job-queue request))))
 
-(defn stop-server! []
+(defn stop-server!
+  []
   (sockets/stop-server!))
 
-(defn start-server! [{:keys [geosync-server-port] :as config-params}]
+(defn start-server!
+  [{:keys [geosync-server-port] :as config-params}]
   (log-str "Running server on port " geosync-server-port ".")
   (sockets/start-server! geosync-server-port handler)
   (process-requests! config-params))
