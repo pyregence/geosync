@@ -34,10 +34,11 @@
 ;; TODO: Make this stricter with a regex
 (defn hostname?
   [x]
-  (and (non-empty-string? x)
-       (s/includes? x ".")
-       (not (s/starts-with? x "."))
-       (not (s/ends-with? x "."))))
+  (or (= x "localhost")
+      (and (non-empty-string? x)
+           (s/includes? x ".")
+           (not (s/starts-with? x "."))
+           (not (s/ends-with? x ".")))))
 
 (defn port?
   [x]
@@ -132,9 +133,9 @@
           :else
           (assoc config-params
                  :geoserver-auth-code
-                 (str "Basic " (encode-str (format "%s:%s")
-                                           (:geoserver-username config-params)
-                                           (:geoserver-password config-params)))))))
+                 (str "Basic " (encode-str (str (:geoserver-username config-params)
+                                                ":"
+                                                (:geoserver-password config-params))))))))
 
 (def cli-options
   [["-c" "--config-file EDN" "Path to an EDN file containing a map of these parameters"
