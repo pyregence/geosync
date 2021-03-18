@@ -106,19 +106,28 @@
             :else
             config-params))))
 
+(def required-keys [:geoserver-rest-uri :geoserver-username :geoserver-password :geoserver-workspace :data-dir])
+
 (defn process-options
   [options]
   (let [config-file-params  (read-config-params (:config-file options))
         command-line-params (dissoc options :config-file)
         config-params       (merge config-file-params command-line-params)]
-    (if (spec/valid? ::geosync-config config-params)
-      (assoc config-params
-             :geoserver-auth-code
-             (str "Basic " (encode-str (format "%s:%s")
-                                       (:geoserver-username config-params)
-                                       (:geoserver-password config-params))))
-      (throw-message (str "Some input parameters are invalid:\n"
-                          (spec/explain-str ::geosync-config config-params))))))
+    (cond (not-every? config-params required-keys)
+          (throw-message (str "These input parameters are required:\n"
+                              (s/join " " (map #(str "--" (name %)) required-keys))
+                              "\n"))
+
+          (not (spec/valid? ::geosync-config config-params))
+          (throw-message (str "Some input parameters are invalid:\n"
+                              (spec/explain-str ::geosync-config config-params)))
+
+          :else
+          (assoc config-params
+                 :geoserver-auth-code
+                 (str "Basic " (encode-str (format "%s:%s")
+                                           (:geoserver-username config-params)
+                                           (:geoserver-password config-params)))))))
 
 (def cli-options
   [["-c" "--config-file EDN" "Path to an EDN file containing a map of these parameters"
