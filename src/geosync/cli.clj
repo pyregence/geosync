@@ -94,10 +94,10 @@
                           (edn/read-string (slurp config-file-path))
                           (catch Exception _ nil))]
       (cond (nil? config-params)
-            (throw-message "The provided --config-file does not contain valid EDN.")
+            (throw-message "The provided --config-file does not contain valid EDN.\n")
 
             (not (map? config-params))
-            (throw-message "The provided --config-file does not contain an EDN map.")
+            (throw-message "The provided --config-file does not contain an EDN map.\n")
 
             (not (spec/valid? ::geosync-config-opt config-params))
             (throw-message (str "The provided --config-file contains an invalid EDN config map:\n"
@@ -165,7 +165,7 @@
           (string? config-params)
           (do
             (println config-params)
-            (println (str "\nUsage:\n" summary)))
+            (println (str "Usage:\n" summary)))
 
           (and (:geosync-server-host config-params)
                (:geosync-server-port config-params))
