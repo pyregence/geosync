@@ -1,49 +1,21 @@
 (ns geosync.cli
-  (:import java.io.File
-           java.net.URL
-           java.util.Base64)
+  (:import java.util.Base64)
   (:require [clojure.edn        :as edn]
             [clojure.java.io    :as io]
             [clojure.spec.alpha :as spec]
-            [clojure.string     :as s]
             [clojure.tools.cli  :refer [parse-opts]]
             [geosync.core       :refer [update-geoserver!]]
-            [geosync.server     :refer [start-server!]]))
+            [geosync.server     :refer [start-server!]]
+            [geosync.utils      :refer [non-empty-string?
+                                        url?
+                                        readable-directory?
+                                        hostname?
+                                        port?
+                                        throw-message]]))
 
-(defn non-empty-string?
-  [x]
-  (and (string? x)
-       (pos? (count x))))
-
-(defn url?
-  [x]
-  (and (non-empty-string? x)
-       (try
-         (URL. x)
-         (catch Exception _ false))))
-
-(defn readable-directory?
-  [x]
-  (when-let [^File directory (try
-                               (io/file x)
-                               (catch Exception _ nil))]
-    (and (.exists directory)
-         (.canRead directory)
-         (.isDirectory directory))))
-
-;; TODO: Make this stricter with a regex
-(defn hostname?
-  [x]
-  (or (= x "localhost")
-      (and (non-empty-string? x)
-           (s/includes? x ".")
-           (not (s/starts-with? x "."))
-           (not (s/ends-with? x ".")))))
-
-(defn port?
-  [x]
-  (and (integer? x)
-       (< 0 x 0x10000)))
+;;===========================================================
+;; Argument Validation
+;;===========================================================
 
 (spec/def ::geoserver-rest-uri  url?)
 (spec/def ::geoserver-username  non-empty-string?)
@@ -80,13 +52,18 @@
                                                     ::styles
                                                     ::layer-groups]))
 
-(defn throw-message
-  [msg]
-  (throw (ex-info msg {})))
+;;===========================================================
+;; Argument Processing
+;;===========================================================
 
 (defn encode-str
   [s]
   (.encodeToString (Base64/getUrlEncoder) (.getBytes ^String s)))
+
+(defn all-required-keys? [config-params]
+  (and (every? config-params [:geoserver-rest-uri :geoserver-username :geoserver-password])
+       (or (every? config-params [:geoserver-workspace :data-dir])
+           (every? config-params [:geosync-server-host :geosync-server-port]))))
 
 (defn read-config-params
   [config-file-path]
@@ -107,11 +84,6 @@
 
             :else
             config-params))))
-
-(defn all-required-keys? [config-params]
-  (and (every? config-params [:geoserver-rest-uri :geoserver-username :geoserver-password])
-       (or (every? config-params [:geoserver-workspace :data-dir])
-           (every? config-params [:geosync-server-host :geosync-server-port]))))
 
 (defn process-options
   [options]
@@ -136,6 +108,10 @@
                  (str "Basic " (encode-str (str (:geoserver-username config-params)
                                                 ":"
                                                 (:geoserver-password config-params))))))))
+
+;;===========================================================
+;; User Interface
+;;===========================================================
 
 (def cli-options
   [["-c" "--config-file EDN" "Path to an EDN file containing a map of these parameters"

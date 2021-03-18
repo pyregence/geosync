@@ -1,23 +1,26 @@
 (ns geosync.utils
+  (:import java.io.File
+           java.net.URL)
   (:require [clojure.edn        :as edn]
-            [clojure.string     :as str]
+            [clojure.java.io    :as io]
             [clojure.java.shell :refer [with-sh-dir sh]]
+            [clojure.string     :as s]
             [hiccup2.core       :refer [html]]))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;===========================================================
 ;;
 ;; XML Generation
 ;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;===========================================================
 
 (defmacro xml [& args]
   `(str (html {:mode :xml} ~@args)))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;===========================================================
 ;;
 ;; GDAL Interaction
 ;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;===========================================================
 
 (defn dms->dd [dms]
   (let [[d m s dir] (->> (re-find #"^([ \d]+)d([ \d]+)'([ \.0123456789]+)\"(\w)$" dms)
@@ -36,7 +39,7 @@
 (defn run-gdal-info [data-dir file-path]
   (try
     (let [result (with-sh-dir data-dir (sh "gdalinfo" file-path))]
-      (if (str/blank? (:out result))
+      (if (s/blank? (:out result))
         (throw (ex-info "gdalinfo failed"
                         {:data-dir data-dir :file-path file-path :error (:err result)}))
         (:out result)))
@@ -47,10 +50,10 @@
 (defn run-gdal-srs-info [data-dir file-path]
   (try
     (let [result (with-sh-dir data-dir (sh "gdalsrsinfo" "-o" "epsg" file-path))]
-      (if (str/blank? (:out result))
+      (if (s/blank? (:out result))
         (throw (ex-info "gdalsrsinfo failed"
                         {:data-dir data-dir :file-path file-path :error (:err result)}))
-        (str/trim (:out result))))
+        (s/trim (:out result))))
     (catch Exception e
       (throw (ex-info "gdalsrsinfo failed"
                       {:data-dir data-dir :file-path file-path :error (.getMessage e)})))))
@@ -109,3 +112,87 @@
                                                         (- native-uly native-lly)))))
      :shear-y      (str (radians->degrees (Math/asin (/ (- native-ury native-uly)
                                                         (- native-urx native-ulx)))))}))
+
+;;===========================================================
+;; Type Conversion
+;;===========================================================
+
+;; TODO: Remove when code is in triangulum
+(defn camel->kebab
+  "Converts camelString to kebab-string."
+  [camel-string]
+  (as-> camel-string text
+    (s/split text #"(?<=[a-z])(?=[A-Z])")
+    (map s/lower-case text)
+    (s/join "-" text)))
+
+;; TODO: Remove when code is in triangulum
+(defn kebab->camel
+  "Converts kebab-string to camelString."
+  [kebab-string]
+  (let [words (-> kebab-string
+                  (s/lower-case)
+                  (s/replace #"^[^a-z_$]|[^\w-]" "")
+                  (s/split #"-"))]
+    (->> (map s/capitalize (rest words))
+         (cons (first words))
+         (s/join ""))))
+
+;; TODO: Remove when code is in triangulum
+(defn val->int
+  ([val]
+   (val->int val (int -1)))
+  ([val default]
+   (cond
+     (instance? Integer val) val
+     (number? val)           (int val)
+     :else                   (try
+                               (Integer/parseInt val)
+                               (catch Exception _ (int default))))))
+
+;;===========================================================
+;; Spec Predicates
+;;===========================================================
+
+(defn non-empty-string?
+  [x]
+  (and (string? x)
+       (pos? (count x))))
+
+(defn url?
+  [x]
+  (and (non-empty-string? x)
+       (try
+         (URL. x)
+         (catch Exception _ false))))
+
+(defn readable-directory?
+  [x]
+  (when-let [^File directory (try
+                               (io/file x)
+                               (catch Exception _ nil))]
+    (and (.exists directory)
+         (.canRead directory)
+         (.isDirectory directory))))
+
+;; TODO: Make this stricter with a regex
+(defn hostname?
+  [x]
+  (or (= x "localhost")
+      (and (non-empty-string? x)
+           (s/includes? x ".")
+           (not (s/starts-with? x "."))
+           (not (s/ends-with? x ".")))))
+
+(defn port?
+  [x]
+  (and (integer? x)
+       (< 0 x 0x10000)))
+
+;;===========================================================
+;; Exception Handling
+;;===========================================================
+
+(defn throw-message
+  [msg]
+  (throw (ex-info msg {})))
