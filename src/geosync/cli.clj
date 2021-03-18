@@ -189,8 +189,7 @@
           (start-server! config-params)
 
           :else
-          (update-geoserver! config-params)))
-  ;; Exit cleanly
-  (shutdown-agents)
-  (flush)
-  (System/exit 0))
+          (do
+            (update-geoserver! config-params)
+            (shutdown-agents)
+            (flush)))))
