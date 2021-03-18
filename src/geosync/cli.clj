@@ -62,21 +62,22 @@
 (spec/def ::geosync-config      (spec/keys :req-un [::geoserver-rest-uri
                                                     ::geoserver-username
                                                     ::geoserver-password
-                                                    ::geoserver-workspace
-                                                    ::data-dir]
+                                                    (or
+                                                     (and ::geoserver-workspace
+                                                          ::data-dir)
+                                                     (and ::geosync-server-host
+                                                          ::geosync-server-port))]
                                            :opt-un [::styles
-                                                    ::layer-groups
-                                                    ::geosync-server-host
-                                                    ::geosync-server-port]))
-(spec/def ::geosync-config-opt  (spec/keys :opt-un [::geoserver-rest-uri
+                                                    ::layer-groups]))
+(spec/def ::geosync-config-file (spec/keys :opt-un [::geoserver-rest-uri
                                                     ::geoserver-username
                                                     ::geoserver-password
                                                     ::geoserver-workspace
                                                     ::data-dir
-                                                    ::styles
-                                                    ::layer-groups
                                                     ::geosync-server-host
-                                                    ::geosync-server-port]))
+                                                    ::geosync-server-port
+                                                    ::styles
+                                                    ::layer-groups]))
 
 (defn throw-message
   [msg]
@@ -99,24 +100,30 @@
             (not (map? config-params))
             (throw-message "The provided --config-file does not contain an EDN map.\n")
 
-            (not (spec/valid? ::geosync-config-opt config-params))
+            (not (spec/valid? ::geosync-config-file config-params))
             (throw-message (str "The provided --config-file contains an invalid EDN config map:\n"
-                                (spec/explain-str ::geosync-config-opt config-params)))
+                                (spec/explain-str ::geosync-config-file config-params)))
 
             :else
             config-params))))
 
-(def required-keys [:geoserver-rest-uri :geoserver-username :geoserver-password :geoserver-workspace :data-dir])
+(defn all-required-keys? [config-params]
+  (and (every? config-params [:geoserver-rest-uri :geoserver-username :geoserver-password])
+       (or (every? config-params [:geoserver-workspace :data-dir])
+           (every? config-params [:geosync-server-host :geosync-server-port]))))
 
 (defn process-options
   [options]
   (let [config-file-params  (read-config-params (:config-file options))
         command-line-params (dissoc options :config-file)
         config-params       (merge config-file-params command-line-params)]
-    (cond (not-every? config-params required-keys)
-          (throw-message (str "These input parameters are required:\n"
-                              (s/join " " (map #(str "--" (name %)) required-keys))
-                              "\n"))
+    (cond (not (all-required-keys? config-params))
+          (throw-message (str "These parameters are always required (but may be included in --config-file):\n"
+                              "  --geoserver-rest-uri --geoserver-username --geoserver-password\n"
+                              "For command-line mode, please include:\n"
+                              "  --geoserver-workspace --data-dir\n"
+                              "For server mode, please include:\n"
+                              "  --geosync-server-host --geosync-server-port\n"))
 
           (not (spec/valid? ::geosync-config config-params))
           (throw-message (str "Some input parameters are invalid:\n"
