@@ -76,7 +76,7 @@
       (try
         ;; FIXME: Validate the request map with spec before adding to the job queue
         (>! job-queue request)
-        (catch Exception _
+        (catch AssertionError _
           (log-str "Job Queue Limit Exceeded! Dropping Request: " msg)))
       (log-str "Malformed Request: " msg))))
 
