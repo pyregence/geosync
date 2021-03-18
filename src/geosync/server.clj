@@ -51,24 +51,34 @@
 (defn process-requests!
   [{:keys [geosync-server-host geosync-server-port geoserver-rest-uri geoserver-username geoserver-password]}]
   (go (loop [{:keys [response-host response-port] :as request} (<! job-queue)]
-        (log-str "Request: " request)
-        ;; FIXME: Update GeoServer in response to the request using these config-params:
-        ;; geoserver-rest-uri geoserver-username geoserver-password
-        (<! (timeout 2000))
-        (sockets/send-to-server! response-host
-                                 (val->int response-port)
-                                 (json/write-str {:status        0    ; Return 1 for errors
-                                                  :message       "OK" ; Return error message if any
-                                                  :response-host geosync-server-host
-                                                  :response-port geosync-server-port}
-                                                 :key-fn (comp kebab->camel name)))
+        (try
+          (log-str "Request: " request)
+          (<! (timeout 2000))
+          ;; FIXME: Update GeoServer in response to the request using these config-params:
+          ;;        geoserver-rest-uri geoserver-username geoserver-password
+          (sockets/send-to-server! response-host
+                                   (val->int response-port)
+                                   (json/write-str {:status        0    ; Return 1 for errors
+                                                    :message       "OK" ; Return error message if any
+                                                    :response-host geosync-server-host
+                                                    :response-port geosync-server-port}
+                                                   :key-fn (comp kebab->camel name)))
+          (catch Exception e
+            (log-str "Request Processing Exception: " (ex-message e))))
         (recur (<! job-queue)))))
 
 (defn handler
   [msg]
   (go
-    (let [request (json/read-str msg :key-fn (comp keyword camel->kebab))]
-      (>! job-queue request))))
+    (if-let [request (try
+                       (json/read-str msg :key-fn (comp keyword camel->kebab))
+                       (catch Exception _ nil))]
+      (try
+        ;; FIXME: Validate the request map with spec before adding to the job queue
+        (>! job-queue request)
+        (catch Exception _
+          (log-str "Job Queue Limit Exceeded! Dropping Request: " msg)))
+      (log-str "Malformed Request: " msg))))
 
 (defn stop-server!
   []
