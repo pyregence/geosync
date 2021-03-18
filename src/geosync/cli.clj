@@ -5,8 +5,10 @@
   (:require [clojure.edn        :as edn]
             [clojure.java.io    :as io]
             [clojure.spec.alpha :as spec]
+            [clojure.string     :as s]
             [clojure.tools.cli  :refer [parse-opts]]
-            [geosync.core       :refer [update-geoserver!]]))
+            [geosync.core       :refer [update-geoserver!]]
+            [geosync.server     :refer [start-server!]]))
 
 (defn non-empty-string?
   [x]
@@ -29,6 +31,19 @@
          (.canRead directory)
          (.isDirectory directory))))
 
+;; TODO: Make this stricter with a regex
+(defn hostname?
+  [x]
+  (and (non-empty-string? x)
+       (s/includes? x ".")
+       (not (s/starts-with? x "."))
+       (not (s/ends-with? x "."))))
+
+(defn port?
+  [x]
+  (and (integer? x)
+       (< 0 x 0x10000)))
+
 (spec/def ::geoserver-rest-uri  url?)
 (spec/def ::geoserver-username  non-empty-string?)
 (spec/def ::geoserver-password  non-empty-string?)
@@ -42,20 +57,26 @@
 (spec/def ::name                non-empty-string?)
 (spec/def ::layer-group         (spec/keys :req-un [::layer-pattern ::name]))
 (spec/def ::layer-groups        (spec/coll-of ::layer-group :kind vector? :distinct true))
+(spec/def ::geosync-server-host hostname?)
+(spec/def ::geosync-server-port port?)
 (spec/def ::geosync-config      (spec/keys :req-un [::geoserver-rest-uri
                                                     ::geoserver-username
                                                     ::geoserver-password
                                                     ::geoserver-workspace
                                                     ::data-dir]
                                            :opt-un [::styles
-                                                    ::layer-groups]))
+                                                    ::layer-groups
+                                                    ::geosync-server-host
+                                                    ::geosync-server-port]))
 (spec/def ::geosync-config-opt  (spec/keys :opt-un [::geoserver-rest-uri
                                                     ::geoserver-username
                                                     ::geoserver-password
                                                     ::geoserver-workspace
                                                     ::data-dir
                                                     ::styles
-                                                    ::layer-groups]))
+                                                    ::layer-groups
+                                                    ::geosync-server-host
+                                                    ::geosync-server-port]))
 
 (defn throw-message
   [msg]
@@ -100,17 +121,22 @@
                           (spec/explain-str ::geosync-config config-params))))))
 
 (def cli-options
-  [["-c" "--config-file EDN"         "Path to an EDN file containing a map of these parameters"
+  [["-c" "--config-file EDN" "Path to an EDN file containing a map of these parameters"
     :validate [#(.exists  (io/file %)) "The provided --config-file does not exist."
                #(.canRead (io/file %)) "The provided --config-file is not readable."]]
-   ["-d" "--data-dir DIR"            "Path to the directory containing your GIS files"
+   ["-d" "--data-dir DIR" "Path to the directory containing your GIS files"
     :validate [#(.exists  (io/file %)) "The provided --data-dir does not exist."
                #(.canRead (io/file %)) "The provided --data-dir is not readable."]]
-   ["-g" "--geoserver-rest-uri URI"  "URI of your GeoServer's REST extensions"
+   ["-g" "--geoserver-rest-uri URI" "URI of your GeoServer's REST extensions"
     :validate [url? "The provided --geoserver-rest-uri is not a valid URI."]]
    ["-u" "--geoserver-username USER" "GeoServer admin username"]
    ["-p" "--geoserver-password PASS" "GeoServer admin password"]
-   ["-w" "--geoserver-workspace WS"  "Workspace name to receive the new GeoServer layers"]])
+   ["-w" "--geoserver-workspace WS" "Workspace name to receive the new GeoServer layers"]
+   ["-h" "--geosync-server-host HOST" "Hostname to advertise in server responses"
+    :validate [hostname? "The provided --geosync-server-host is invalid."]]
+   ["-P" "--geosync-server-port PORT" "Server port to listen on for incoming requests"
+    :parse-fn #(Integer/parseInt %)
+    :validate [port? "The provided --geosync-server-port must be an integer between 0 and 65536."]]])
 
 (def program-banner
   (str "geosync: Load a nested directory tree of GeoTIFFs and Shapefiles into a running GeoServer instance.\n"
@@ -124,10 +150,10 @@
         ;;  :arguments A vector of unprocessed arguments
         ;;  :summary   A string containing a minimal options summary
         ;;  :errors    A vector of error message strings thrown during parsing; nil when no errors exist
-        options-map (try
-                      (process-options options)
-                      (catch Exception e
-                        (ex-message e)))]
+        config-params (try
+                        (process-options options)
+                        (catch Exception e
+                          (ex-message e)))]
     (cond (seq errors)
           (do
             (run! println errors)
@@ -136,13 +162,17 @@
           (or (empty? options) (seq arguments))
           (println (str "Usage:\n" summary))
 
-          (string? options-map)
+          (string? config-params)
           (do
-            (println options-map)
+            (println config-params)
             (println (str "\nUsage:\n" summary)))
 
+          (and (:geosync-server-host config-params)
+               (:geosync-server-port config-params))
+          (start-server! config-params)
+
           :else
-          (update-geoserver! options-map)))
+          (update-geoserver! config-params)))
   ;; Exit cleanly
   (shutdown-agents)
   (flush)
