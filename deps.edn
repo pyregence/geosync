@@ -3,10 +3,10 @@
            hiccup/hiccup          {:mvn/version "2.0.0-alpha2"}
            org.clojure/clojure    {:mvn/version "1.10.3"}
            org.clojure/core.async {:mvn/version "1.3.610"}
-           org.clojure/data.json  {:mvn/version "1.1.0"}
+           org.clojure/data.json  {:mvn/version "2.0.1"}
            org.clojure/tools.cli  {:mvn/version "1.0.206"}
            sig-gis/triangulum     {:git/url "https://github.com/sig-gis/triangulum"
-                                   :sha     "0156172ae819efa99bb4b6ac73f7930bbdc54bd9"}}
+                                   :sha     "7d582f8b2d1a225ade41bc555c4bc0eccb437da9"}}
  :aliases {:run              {:main-opts ["-m" "geosync.cli"]}
            :check-reflection {:main-opts ["-e" "(do,(set!,*warn-on-reflection*,true),nil)"
                                           "-e" "(require,'geosync.cli)"]}
