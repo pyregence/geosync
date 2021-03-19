@@ -44,10 +44,11 @@
                                         :data-dir            data-dir)))
           (sockets/send-to-server! response-host
                                    (val->int response-port)
-                                   (json/write-str {:status        0 ; Return 1 for errors
-                                                    :message       "OK" ; Return error message if any
-                                                    :response-host geosync-server-host
-                                                    :response-port geosync-server-port}
+                                   (json/write-str (merge request
+                                                          {:status        0 ; Return 1 for errors
+                                                           :message       "OK" ; Return error message if any
+                                                           :response-host geosync-server-host
+                                                           :response-port geosync-server-port})
                                                    :key-fn (comp kebab->camel name)))
           (catch Exception e
             (log-str "Request Processing Exception: " (ex-message e))))
