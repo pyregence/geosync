@@ -60,39 +60,29 @@
 (defn handler
   [geosync-server-host geosync-server-port msg]
   (go
+    (log-str "Request: " msg)
     (if-let [request (nil-on-error (json/read-str msg :key-fn (comp keyword camel->kebab)))]
-      (try
-        (cond
-          (spec/valid? ::geosync-server-request request)
-          (try (>! job-queue request)
-               (catch AssertionError _
-                 (log-str "Job Queue Limit Exceeded! Dropping Request: " msg)
-                 (let [error-msg "Job Queue Limit Exceeded! Dropping Request!"]
-                   (sockets/send-to-server! (:response-host request)
-                                            (val->int (:response-port request))
-                                            (json/write-str (merge request
-                                                                   {:status        1
-                                                                    :message       error-msg
-                                                                    :response-host geosync-server-host
-                                                                    :response-port geosync-server-port})
-                                                            :key-fn (comp kebab->camel name))))))
-
-          (spec/valid? ::geosync-server-request-minimal request)
-          (let [error-msg (spec/explain-str ::geosync-server-request request)]
-            (sockets/send-to-server! (:response-host request)
-                                     (val->int (:response-port request))
-                                     (json/write-str (merge request
-                                                            {:status        1
-                                                             :message       error-msg
-                                                             :response-host geosync-server-host
-                                                             :response-port geosync-server-port})
-                                                     :key-fn (comp kebab->camel name))))
-
-          :else
-          (log-str "Malformed Request (invalid fields): " msg))
-        (catch Exception e
-          (log-str "Request Validation Error: " msg "\n    -> " (ex-message e))))
-      (log-str "Malformed Request (invalid JSON): " msg))))
+      (when-let [error-msg (try
+                             (if (spec/valid? ::geosync-server-request request)
+                               (do
+                                 (>! job-queue request)
+                                 nil)
+                               (spec/explain-str ::geosync-server-request request))
+                             (catch AssertionError _
+                               "Job Queue Limit Exceeded! Dropping Request!")
+                             (catch Exception e
+                               (str "Validation Error: " (ex-message e))))]
+        (log-str "  -> " error-msg)
+        (when (spec/valid? ::geosync-server-request-minimal request)
+          (sockets/send-to-server! (:response-host request)
+                                   (val->int (:response-port request))
+                                   (json/write-str (merge request
+                                                          {:status        1
+                                                           :message       error-msg
+                                                           :response-host geosync-server-host
+                                                           :response-port geosync-server-port})
+                                                   :key-fn (comp kebab->camel name)))))
+      (log-str "  -> Invalid JSON"))))
 
 (defn stop-server!
   []
