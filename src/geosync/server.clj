@@ -4,7 +4,8 @@
             [clojure.spec.alpha     :as spec]
             [geosync.core           :refer [update-geoserver!]]
             [geosync.simple-sockets :as sockets]
-            [geosync.utils          :refer [camel->kebab
+            [geosync.utils          :refer [nil-on-error
+                                            camel->kebab
                                             kebab->camel
                                             val->int
                                             hostname?
@@ -57,9 +58,7 @@
 (defn handler
   [msg]
   (go
-    (if-let [request (try
-                       (json/read-str msg :key-fn (comp keyword camel->kebab))
-                       (catch Exception _ nil))]
+    (if-let [request (nil-on-error (json/read-str msg :key-fn (comp keyword camel->kebab)))]
       (try
         (if (spec/valid? ::geosync-server-request request)
           (>! job-queue request)

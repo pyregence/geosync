@@ -114,6 +114,19 @@
                                                         (- native-urx native-ulx)))))}))
 
 ;;===========================================================
+;; Exception Handling
+;;===========================================================
+
+(defmacro nil-on-error
+  [& body]
+  (let [_ (gensym)]
+    `(try ~@body (catch Exception ~_ nil))))
+
+(defn throw-message
+  [msg]
+  (throw (ex-info msg {})))
+
+;;===========================================================
 ;; Type Conversion
 ;;===========================================================
 
@@ -162,15 +175,11 @@
 (defn url?
   [x]
   (and (non-empty-string? x)
-       (try
-         (URL. x)
-         (catch Exception _ false))))
+       (nil-on-error (URL. x))))
 
 (defn readable-directory?
   [x]
-  (when-let [^File directory (try
-                               (io/file x)
-                               (catch Exception _ nil))]
+  (when-let [^File directory (nil-on-error (io/file x))]
     (and (.exists directory)
          (.canRead directory)
          (.isDirectory directory))))
@@ -188,11 +197,3 @@
   [x]
   (and (integer? x)
        (< 0 x 0x10000)))
-
-;;===========================================================
-;; Exception Handling
-;;===========================================================
-
-(defn throw-message
-  [msg]
-  (throw (ex-info msg {})))

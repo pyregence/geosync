@@ -6,12 +6,13 @@
             [clojure.tools.cli  :refer [parse-opts]]
             [geosync.core       :refer [update-geoserver!]]
             [geosync.server     :refer [start-server!]]
-            [geosync.utils      :refer [non-empty-string?
+            [geosync.utils      :refer [nil-on-error
+                                        throw-message
+                                        non-empty-string?
                                         url?
                                         readable-directory?
                                         hostname?
-                                        port?
-                                        throw-message]]))
+                                        port?]]))
 
 ;;===========================================================
 ;; Argument Validation
@@ -69,9 +70,7 @@
   [config-file-path]
   (if (not config-file-path)
     {}
-    (let [config-params (try
-                          (edn/read-string (slurp config-file-path))
-                          (catch Exception _ nil))]
+    (let [config-params (nil-on-error (edn/read-string (slurp config-file-path)))]
       (cond (nil? config-params)
             (throw-message "The provided --config-file does not contain valid EDN.\n")
 

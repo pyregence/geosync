@@ -3,6 +3,7 @@
            (java.net Socket ServerSocket))
   (:require [clojure.java.io    :as io]
             [clojure.string     :as s]
+            [geosync.utils      :refer [nil-on-error]]
             [triangulum.logging :refer [log log-str]]))
 
 ;;=================================
@@ -30,15 +31,13 @@
 
 (defn- accept-connections! [^ServerSocket server-socket handler]
   (while @global-server-thread
-    (try
-      (let [socket (.accept server-socket)]
-        (try
-          (->> (read-socket! socket)
-               (handler))
-          (catch Exception e
-            (log-str "Server error: " e))
-          (finally (.close socket))))
-      (catch Exception _))))
+    (when-let [socket (nil-on-error (.accept server-socket))]
+      (try
+        (->> (read-socket! socket)
+             (handler))
+        (catch Exception e
+          (log-str "Server error: " e))
+        (finally (.close socket))))))
 
 (defn stop-server! []
   (if @global-server-thread
