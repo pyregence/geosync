@@ -39,7 +39,7 @@
   [{:keys [geosync-server-host geosync-server-port] :as config-params}]
   (go (loop [{:keys [response-host response-port geoserver-workspace data-dir] :as request} (<! job-queue)]
         (try
-          (log-str "Request: " request)
+          ;; FIXME: Catch server errors from update-geoserver! and report them in the response message
           (update-geoserver! (-> config-params
                                  (dissoc :geosync-server-host
                                          :geosync-server-port)
