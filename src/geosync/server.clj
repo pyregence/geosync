@@ -2,7 +2,7 @@
   (:require [clojure.core.async     :refer [<! >! chan go]]
             [clojure.data.json      :as json]
             [clojure.spec.alpha     :as spec]
-            [geosync.core           :refer [update-geoserver!]]
+            [geosync.core           :refer [add-directory-to-workspace!]]
             [geosync.simple-sockets :as sockets]
             [geosync.utils          :refer [nil-on-error
                                             camel->kebab
@@ -39,12 +39,13 @@
   [{:keys [geosync-server-host geosync-server-port] :as config-params}]
   (go (loop [{:keys [response-host response-port geoserver-workspace data-dir] :as request} (<! job-queue)]
         (try
-          ;; FIXME: Catch server errors from update-geoserver! and report them in the response message
-          (update-geoserver! (-> config-params
-                                 (dissoc :geosync-server-host
-                                         :geosync-server-port)
-                                 (assoc :geoserver-workspace geoserver-workspace
-                                        :data-dir            data-dir)))
+          (log-str "Processing Request: " request)
+          ;; FIXME: Catch server errors from add-directory-to-workspace! and report them in the response message
+          (add-directory-to-workspace! (-> config-params
+                                           (dissoc :geosync-server-host
+                                                   :geosync-server-port)
+                                           (assoc :geoserver-workspace geoserver-workspace
+                                                  :data-dir            data-dir)))
           (sockets/send-to-server! response-host
                                    (val->int response-port)
                                    (json/write-str (merge request
@@ -60,13 +61,13 @@
 (defn handler
   [geosync-server-host geosync-server-port msg]
   (go
-    (log-str "Request: " msg)
+    (log-str "Received Request: " msg)
     (if-let [request (nil-on-error (json/read-str msg :key-fn (comp keyword camel->kebab)))]
       (when-let [error-msg (try
                              (if (spec/valid? ::geosync-server-request request)
                                (do
                                  (>! job-queue request)
-                                 nil)
+                                 (log-str "  -> Added to Job Queue"))
                                (spec/explain-str ::geosync-server-request request))
                              (catch AssertionError _
                                "Job Queue Limit Exceeded! Dropping Request!")

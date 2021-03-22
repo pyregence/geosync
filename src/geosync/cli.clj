@@ -4,7 +4,7 @@
             [clojure.java.io    :as io]
             [clojure.spec.alpha :as spec]
             [clojure.tools.cli  :refer [parse-opts]]
-            [geosync.core       :refer [update-geoserver!]]
+            [geosync.core       :refer [add-directory-to-workspace!]]
             [geosync.server     :refer [start-server!]]
             [geosync.utils      :refer [nil-on-error
                                         throw-message
@@ -165,6 +165,6 @@
 
           :else
           (do
-            (update-geoserver! config-params)
+            (add-directory-to-workspace! config-params)
             (shutdown-agents)
             (flush)))))

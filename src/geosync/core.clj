@@ -275,7 +275,7 @@
                    (s/replace-first data-dir "")))
          (sort))))
 
-(defn update-geoserver!
+(defn add-directory-to-workspace!
   [{:keys [data-dir styles] :as config-params}]
   (let [file-specs          (->> (load-file-paths data-dir)
                                  (file-paths->file-specs data-dir styles))
