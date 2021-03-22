@@ -59,27 +59,27 @@
         (recur (<! job-queue)))))
 
 (defn handler
-  [geosync-server-host geosync-server-port msg]
+  [geosync-server-host geosync-server-port request-msg]
   (go
-    (log-str "Received Request: " msg)
-    (if-let [request (nil-on-error (json/read-str msg :key-fn (comp keyword camel->kebab)))]
-      (when-let [error-msg (try
-                             (if (spec/valid? ::geosync-server-request request)
-                               (do
-                                 (>! job-queue request)
-                                 (log-str "  -> Added to Job Queue"))
-                               (spec/explain-str ::geosync-server-request request))
-                             (catch AssertionError _
-                               "Job Queue Limit Exceeded! Dropping Request!")
-                             (catch Exception e
-                               (str "Validation Error: " (ex-message e))))]
-        (log-str "  -> " error-msg)
+    (log-str "Received Request: " request-msg)
+    (if-let [request (nil-on-error (json/read-str request-msg :key-fn (comp keyword camel->kebab)))]
+      (let [[status status-msg] (try
+                                  (if (spec/valid? ::geosync-server-request request)
+                                    (do
+                                      (>! job-queue request)
+                                      [2 "Added to Job Queue"])
+                                    [1 (spec/explain-str ::geosync-server-request request)])
+                                  (catch AssertionError _
+                                    [1 "Job Queue Limit Exceeded! Dropping Request!"])
+                                  (catch Exception e
+                                    [1 (str "Validation Error: " (ex-message e))]))]
+        (log-str "  -> " status-msg)
         (when (spec/valid? ::geosync-server-request-minimal request)
           (sockets/send-to-server! (:response-host request)
                                    (val->int (:response-port request))
                                    (json/write-str (merge request
-                                                          {:status        1
-                                                           :message       error-msg
+                                                          {:status        status
+                                                           :message       status-msg
                                                            :response-host geosync-server-host
                                                            :response-port geosync-server-port})
                                                    :key-fn (comp kebab->camel name)))))
