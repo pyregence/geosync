@@ -23,14 +23,14 @@
 (spec/def ::action                         #{"add" "remove"})
 (spec/def ::geoserver-workspace            non-empty-string?)
 (spec/def ::data-dir                       readable-directory?)
-(spec/def ::geosync-server-request         (s/and (spec/keys :req-un [::response-host
-                                                                      ::response-port
-                                                                      ::action
-                                                                      ::geoserver-workspace]
-                                                             :opt-un [::data-dir])
-                                                  (fn [{:keys [action data-dir]}]
-                                                    (or (and (= action "add") (string? data-dir))
-                                                        (and (= action "remove") (nil? data-dir))))))
+(spec/def ::geosync-server-request         (spec/and (spec/keys :req-un [::response-host
+                                                                         ::response-port
+                                                                         ::action
+                                                                         ::geoserver-workspace]
+                                                                :opt-un [::data-dir])
+                                                     (fn [{:keys [action data-dir]}]
+                                                       (or (and (= action "add") (string? data-dir))
+                                                           (and (= action "remove") (nil? data-dir))))))
 (spec/def ::geosync-server-request-minimal (spec/keys :req-un [::response-host
                                                                ::response-port]))
 

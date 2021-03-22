@@ -36,9 +36,9 @@
     [:workspace
      [:name workspace]])])
 
-(defn delete-workspace [workspace]
+(defn delete-workspace [workspace recurse?]
   ["DELETE"
-   (str "/workspaces/" workspace)
+   (str "/workspaces/" workspace "?recurse=" recurse?)
    nil])
 
 ;;=================================================================================

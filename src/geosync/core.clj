@@ -298,7 +298,10 @@
       [0 "Workspace Updated"]
       [1 "Errors Encountered During Layer Registration"])))
 
-;; FIXME: stub
 (defn remove-workspace!
-  [{:keys [geoserver-rest-uri geoserver-username geoserver-password geoserver-auth-code geoserver-workspace] :as config-params}]
-  [0 "Workspace Removed"])
+  [{:keys [geoserver-workspace] :as config-params}]
+  (let [response (make-rest-request config-params
+                                    (rest/delete-workspace geoserver-workspace true))]
+    (if (success-code? (:status response))
+      [0 "Workspace Removed"]
+      [1 (:body response)])))
