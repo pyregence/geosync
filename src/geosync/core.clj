@@ -288,8 +288,17 @@
                                     (filter #(and (= :shapefile (:store-type %))
                                                   (not (:indexed? %)))
                                             file-specs)))
-        http-response-codes (concat rest-response-codes wms-response-codes)]
-    (log-str "\nFinished updating GeoServer.\nSuccessful requests:"
-             (count (filter success-code? http-response-codes))
-             "\nFailed requests:"
-             (count (remove success-code? http-response-codes)))))
+        http-response-codes (concat rest-response-codes wms-response-codes)
+        num-success-codes   (count (filter success-code? http-response-codes))
+        num-failure-codes   (count (remove success-code? http-response-codes))]
+    (log-str "\nFinished updating GeoServer."
+             "\nSuccessful requests: " num-success-codes
+             "\nFailed requests: " num-failure-codes)
+    (if (zero? num-failure-codes)
+      [0 "Workspace Updated"]
+      [1 "Errors Encountered During Layer Registration"])))
+
+;; FIXME: stub
+(defn remove-workspace!
+  [{:keys [geoserver-rest-uri geoserver-username geoserver-password geoserver-auth-code geoserver-workspace] :as config-params}]
+  [0 "Workspace Removed"])
