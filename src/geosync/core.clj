@@ -304,4 +304,4 @@
                                     (rest/delete-workspace geoserver-workspace true))]
     (if (success-code? (:status response))
       [0 "Workspace Removed"]
-      [1 (:body response)])))
+      [1 (:reason-phrase response)])))
