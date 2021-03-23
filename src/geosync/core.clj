@@ -70,13 +70,13 @@
                                                           "Accept"        "application/json"
                                                           "Authorization" geoserver-auth-code}
                                               :body      http-body})]
-      (log-str (format "%6s %s%n    -> %s"
+      (log-str (format "%6s %s%n               -> %s"
                        http-method
                        uri-suffix
                        (select-keys response [:status :reason-phrase])))
       response)
     (catch Exception e
-      (do (log-str (format "%6s %s%n    -> %s"
+      (do (log-str (format "%6s %s%n               -> %s"
                            http-method
                            uri-suffix
                            (select-keys (ex-data e) [:status :reason-phrase :body])))

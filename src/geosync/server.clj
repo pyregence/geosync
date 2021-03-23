@@ -61,7 +61,7 @@
                                                            (assoc :geoserver-workspace geoserver-workspace))))
                                   (catch Exception e
                                     [1 (str "Processing Error: " (ex-message e))]))]
-        (log-str "  -> " status-msg)
+        (log-str "-> " status-msg)
         (sockets/send-to-server! response-host
                                  response-port
                                  (json/write-str (merge request
@@ -87,7 +87,7 @@
                                     [1 "Job Queue Limit Exceeded! Dropping Request!"])
                                   (catch Exception e
                                     [1 (str "Validation Error: " (ex-message e))]))]
-        (log-str "  -> " status-msg)
+        (log-str "-> " status-msg)
         (when (spec/valid? ::geosync-server-request-minimal request)
           (sockets/send-to-server! (:response-host request)
                                    (:response-port request)
@@ -97,7 +97,7 @@
                                                            :response-host geosync-server-host
                                                            :response-port geosync-server-port})
                                                    :key-fn (comp kebab->camel name)))))
-      (log-str "  -> Invalid JSON"))))
+      (log-str "-> Invalid JSON"))))
 
 (defn stop-server!
   []
