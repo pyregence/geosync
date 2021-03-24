@@ -1,6 +1,6 @@
 (ns geosync.simple-sockets
   (:import (java.io BufferedReader)
-           (java.net Socket ServerSocket))
+           (java.net ConnectException Socket ServerSocket))
   (:require [clojure.java.io    :as io]
             [clojure.string     :as s]
             [geosync.utils      :refer [nil-on-error]]
@@ -11,13 +11,17 @@
 ;;=================================
 
 (defn send-to-server! [host port message]
-  (with-open [socket (Socket. ^String host ^Integer port)]
-    (doto (io/writer socket)
-      (.write (-> message
-                  (s/trim-newline)
-                  (str "\n")))
-      (.flush))
-    (.shutdownOutput socket)))
+  (try
+    (with-open [socket (Socket. ^String host ^Integer port)]
+      (doto (io/writer socket)
+        (.write (-> message
+                    (s/trim-newline)
+                    (str "\n")))
+        (.flush))
+      (.shutdownOutput socket)
+      true)
+    (catch ConnectException _
+      (log-str "Connection to " host ":" port " failed!"))))
 
 ;;=================================
 ;; Server Socket
