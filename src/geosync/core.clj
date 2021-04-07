@@ -83,6 +83,30 @@
                            (select-keys (ex-data e) [:status :reason-phrase :body])))
           (ex-data e)))))
 
+(defn file-specs->wms-specs
+  [file-specs]
+  (filterv #(and (= :shapefile (:store-type %))
+                 (not (:indexed? %)))
+           file-specs))
+
+(defn file-specs->layer-group-specs
+  [{:keys [geoserver-workspace layer-groups]} existing-layer-groups file-specs]
+  (let [layer-names (mapv #(str geoserver-workspace ":" (:store-name %)) file-specs)]
+    (into []
+          (comp (remove #(contains? existing-layer-groups (:name %)))
+                (keep (fn [{:keys [layer-pattern name]}]
+                        (when-let [matching-layers (seq (filterv #(s/includes? % layer-pattern)
+                                                                 layer-names))]
+                          (rest/create-layer-group geoserver-workspace
+                                                   name
+                                                   "SINGLE"
+                                                   name
+                                                   ""
+                                                   []
+                                                   matching-layers
+                                                   [])))))
+          layer-groups)))
+
 (defn file-spec->layer-specs
   "Returns a sequence of one or more REST request specifications as
   triplets of [http-method uri-suffix http-body] depending on the
@@ -122,24 +146,6 @@
                                existing-stores))
               (remove nil?))
         file-specs))
-
-(defn file-specs->layer-group-specs
-  [{:keys [geoserver-workspace layer-groups]} existing-layer-groups file-specs]
-  (let [layer-names (mapv #(str geoserver-workspace ":" (:store-name %)) file-specs)]
-    (into []
-          (comp (remove #(contains? existing-layer-groups (:name %)))
-                (keep (fn [{:keys [layer-pattern name]}]
-                        (when-let [matching-layers (seq (filterv #(s/includes? % layer-pattern)
-                                                                 layer-names))]
-                          (rest/create-layer-group geoserver-workspace
-                                                   name
-                                                   "SINGLE"
-                                                   name
-                                                   ""
-                                                   []
-                                                   matching-layers
-                                                   [])))))
-          layer-groups)))
 
 (defn get-existing-layer-groups
   [{:keys [geoserver-workspace] :as config-params}]
@@ -289,17 +295,19 @@
    (let [file-specs          (tufte/p :file-specs
                                       (->> (load-file-paths data-dir)
                                            (file-paths->file-specs data-dir styles)))
+         rest-specs          (tufte/p :rest-specs
+                                      (file-specs->rest-specs config-params file-specs))
+         wms-specs           (tufte/p :wms-specs
+                                      (file-specs->wms-specs file-specs))
          rest-response-codes (tufte/p :rest-requests
                                       (client/with-connection-pool {:insecure? true}
                                         (mapv (comp :status (partial make-rest-request config-params))
-                                              (file-specs->rest-specs config-params file-specs))))
+                                              rest-specs)))
          wms-response-codes  (tufte/p :wms-requests
                                       (client/with-connection-pool {:insecure? true}
                                         (mapv (comp :status
                                                     (partial create-feature-type-spatial-index config-params))
-                                              (filter #(and (= :shapefile (:store-type %))
-                                                            (not (:indexed? %)))
-                                                      file-specs))))
+                                              wms-specs)))
          http-response-codes (concat rest-response-codes wms-response-codes)
          num-success-codes   (count (filter success-code? http-response-codes))
          num-failure-codes   (count (remove success-code? http-response-codes))]
