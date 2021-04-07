@@ -59,6 +59,30 @@
                            (select-keys (ex-data e) [:status :reason-phrase :body])))
           (ex-data e)))))
 
+;; FIXME: Use an SSL keystore and remove insecure? param
+(defn make-rest-request-async
+  [{:keys [geoserver-rest-uri geoserver-rest-headers]} [http-method uri-suffix http-body]]
+  (let [result (promise)]
+    (client/request {:url       (str geoserver-rest-uri uri-suffix)
+                     :method    http-method
+                     :headers   geoserver-rest-headers
+                     :body      http-body
+                     :insecure? true
+                     :async?    true}
+                    (fn [response]
+                      (log-str (format "%6s %s%n               -> %s"
+                                       http-method
+                                       uri-suffix
+                                       (select-keys response [:status :reason-phrase])))
+                      (deliver result response))
+                    (fn [error]
+                      (log-str (format "%6s %s%n               -> %s"
+                                       http-method
+                                       uri-suffix
+                                       (select-keys (ex-data error) [:status :reason-phrase :body])))
+                      (deliver result (ex-data error))))
+    result))
+
 (defn file-specs->wms-specs
   [file-specs]
   (filterv #(and (= :shapefile (:store-type %))
@@ -277,10 +301,15 @@
                                       (file-specs->wms-specs file-specs))
          rest-response-codes (tufte/p :rest-requests
                                       (client/with-connection-pool {:insecure? true}
-                                        (mapv #(:status (make-rest-request config-params %))
-                                              rest-specs)))
+                                        ;; FIXME: Try :timeout :threads :default-per-route
+                                        (->> rest-specs
+                                             (mapv #(make-rest-request-async config-params %))
+                                             (mapv (comp :status deref)))
+                                        #_(mapv #(:status (make-rest-request config-params %))
+                                                rest-specs)))
          wms-response-codes  (tufte/p :wms-requests
                                       (client/with-connection-pool {:insecure? true}
+                                        ;; FIXME: Try :timeout :threads :default-per-route
                                         (mapv #(:status (create-feature-type-spatial-index config-params %))
                                               wms-specs)))
          http-response-codes (into rest-response-codes wms-response-codes)
