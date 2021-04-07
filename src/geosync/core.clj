@@ -255,14 +255,15 @@
 
 (defn file-paths->file-specs
   [data-dir styles file-paths]
-  (keep #(when-let [store-type (get-store-type %)]
-           (array-map :store-type store-type
-                      :store-name (file-path->store-name %)
-                      :layer-name (file-path->layer-name %)
-                      :file-url   (file-path->file-url % data-dir)
-                      :style      (get-style % store-type styles)
-                      :indexed?   (has-spatial-index? % data-dir)))
-        file-paths))
+  (into []
+        (keep #(when-let [store-type (get-store-type %)]
+                 (array-map :store-type store-type
+                            :store-name (file-path->store-name %)
+                            :layer-name (file-path->layer-name %)
+                            :file-url   (file-path->file-url % data-dir)
+                            :style      (get-style % store-type styles)
+                            :indexed?   (has-spatial-index? % data-dir)))
+              file-paths)))
 
 (defn load-file-paths
   [data-dir]
