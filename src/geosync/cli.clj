@@ -3,6 +3,7 @@
   (:require [clojure.edn        :as edn]
             [clojure.java.io    :as io]
             [clojure.spec.alpha :as spec]
+            [clojure.string     :as s]
             [clojure.tools.cli  :refer [parse-opts]]
             [geosync.core       :refer [add-directory-to-workspace!]]
             [geosync.server     :refer [start-server!]]
@@ -84,6 +85,34 @@
             :else
             config-params))))
 
+(defn add-derived-params
+  [{:keys [geoserver-rest-uri geoserver-username geoserver-password] :as config-params}]
+  (let [geoserver-rest-uri (if (s/ends-with? geoserver-rest-uri "/")
+                             (subs geoserver-rest-uri 0 (dec (count geoserver-rest-uri)))
+                             geoserver-rest-uri)]
+    (assoc config-params
+           :geoserver-rest-uri     geoserver-rest-uri
+           :geoserver-rest-headers {"Content-Type"  "text/xml"
+                                    "Accept"        "application/json"
+                                    "Authorization" (str "Basic "
+                                                         (encode-str (str geoserver-username
+                                                                          ":"
+                                                                          geoserver-password)))}
+           :geoserver-wms-uri      (-> geoserver-rest-uri
+                                       (s/replace "/rest" "/wms")
+                                       (str "?SERVICE=WMS"
+                                            "&VERSION=1.3.0"
+                                            "&REQUEST=GetFeatureInfo"
+                                            "&INFO_FORMAT=application/json"
+                                            "&FEATURE_COUNT=1"
+                                            "&TILED=true"
+                                            "&I=0"
+                                            "&J=0"
+                                            "&WIDTH=1"
+                                            "&HEIGHT=1"
+                                            "&CRS=EPSG:4326"
+                                            "&BBOX=-180.0,-90.0,180.0,90.0")))))
+
 (defn process-options
   [options]
   (let [config-file-params  (read-config-params (:config-file options))
@@ -102,11 +131,7 @@
                               (spec/explain-str ::geosync-config config-params)))
 
           :else
-          (assoc config-params
-                 :geoserver-auth-code
-                 (str "Basic " (encode-str (str (:geoserver-username config-params)
-                                                ":"
-                                                (:geoserver-password config-params))))))))
+          (add-derived-params config-params))))
 
 ;;===========================================================
 ;; User Interface

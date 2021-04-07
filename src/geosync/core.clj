@@ -15,38 +15,19 @@
 ;;===========================================================
 
 (defn create-feature-type-spatial-index
-  [{:keys [geoserver-rest-uri geoserver-workspace]} {:keys [store-name]}]
+  [{:keys [geoserver-wms-uri geoserver-workspace]} {:keys [store-name]}]
   (try
-    (let [geoserver-wms-uri (as-> (s/replace geoserver-rest-uri "/rest" "/wms") %
-                              (if (s/ends-with? % "/")
-                                (subs % 0 (dec (count %)))
-                                %))
-          layer-name        (str geoserver-workspace ":" store-name)
-          response          (client/request {:url       (str geoserver-wms-uri
-                                                             "?SERVICE=WMS"
-                                                             "&VERSION=1.3.0"
-                                                             "&REQUEST=GetFeatureInfo"
-                                                             "&INFO_FORMAT=application/json"
-                                                             "&LAYERS=" layer-name
-                                                             "&QUERY_LAYERS=" layer-name
-                                                             "&FEATURE_COUNT=1"
-                                                             "&TILED=true"
-                                                             "&I=0"
-                                                             "&J=0"
-                                                             "&WIDTH=1"
-                                                             "&HEIGHT=1"
-                                                             "&CRS=EPSG:4326"
-                                                             "&BBOX=-180.0,-90.0,180.0,90.0")
-                                             :method    "GET"
-                                             :insecure? true})]
+    (let [layer-name (str geoserver-workspace ":" store-name)
+          response   (client/request {:url       (str geoserver-wms-uri
+                                                      "&LAYERS=" layer-name
+                                                      "&QUERY_LAYERS=" layer-name)
+                                      :method    "GET"
+                                      :insecure? true})]
       (log-str "GetFeatureInfo " layer-name " -> " (select-keys response [:status :reason-phrase]))
       response)
     (catch Exception e
       (let [layer-name (str geoserver-workspace ":" store-name)]
-        (log-str "GetFeatureInfo "
-                 layer-name
-                 " -> "
-                 (select-keys (ex-data e) [:status :reason-phrase :body]))
+        (log-str "GetFeatureInfo " layer-name " -> " (select-keys (ex-data e) [:status :reason-phrase :body]))
         (ex-data e)))))
 
 ;;===========================================================
@@ -59,18 +40,13 @@
 
 ;; FIXME: Use an SSL keystore and remove insecure? param
 (defn make-rest-request
-  [{:keys [geoserver-rest-uri geoserver-auth-code]} [http-method uri-suffix http-body]]
+  [{:keys [geoserver-rest-uri geoserver-rest-headers]} [http-method uri-suffix http-body]]
   (try
-    (let [geoserver-rest-uri (if (s/ends-with? geoserver-rest-uri "/")
-                               (subs geoserver-rest-uri 0 (dec (count geoserver-rest-uri)))
-                               geoserver-rest-uri)
-          response           (client/request {:url       (str geoserver-rest-uri uri-suffix)
-                                              :method    http-method
-                                              :insecure? true
-                                              :headers   {"Content-Type"  "text/xml"
-                                                          "Accept"        "application/json"
-                                                          "Authorization" geoserver-auth-code}
-                                              :body      http-body})]
+    (let [response (client/request {:url       (str geoserver-rest-uri uri-suffix)
+                                    :method    http-method
+                                    :headers   geoserver-rest-headers
+                                    :body      http-body
+                                    :insecure? true})]
       (log-str (format "%6s %s%n               -> %s"
                        http-method
                        uri-suffix
@@ -301,16 +277,15 @@
                                       (file-specs->wms-specs file-specs))
          rest-response-codes (tufte/p :rest-requests
                                       (client/with-connection-pool {:insecure? true}
-                                        (mapv (comp :status (partial make-rest-request config-params))
+                                        (mapv #(:status (make-rest-request config-params %))
                                               rest-specs)))
          wms-response-codes  (tufte/p :wms-requests
                                       (client/with-connection-pool {:insecure? true}
-                                        (mapv (comp :status
-                                                    (partial create-feature-type-spatial-index config-params))
+                                        (mapv #(:status (create-feature-type-spatial-index config-params %))
                                               wms-specs)))
-         http-response-codes (concat rest-response-codes wms-response-codes)
+         http-response-codes (into rest-response-codes wms-response-codes)
          num-success-codes   (count (filter success-code? http-response-codes))
-         num-failure-codes   (count (remove success-code? http-response-codes))]
+         num-failure-codes   (- (count http-response-codes) num-success-codes)]
      (log-str "\nFinished updating GeoServer."
               "\nSuccessful requests: " num-success-codes
               "\nFailed requests: " num-failure-codes)
