@@ -97,38 +97,49 @@
                   (when style
                     (rest/update-layer-style geoserver-workspace store-name style :raster))]
 
-      :shapefile (concat
-                  [(rest/create-data-store geoserver-workspace store-name file-url)
-                   (rest/create-feature-type-via-put geoserver-workspace store-name file-url)]
-                  (when (not= store-name layer-name)
-                    [(rest/create-feature-type-alias geoserver-workspace
-                                                     store-name
-                                                     layer-name
-                                                     store-name)
-                     (rest/delete-layer geoserver-workspace layer-name)
-                     (rest/delete-feature-type geoserver-workspace store-name layer-name)])
-                  (when style
-                    [(rest/update-layer-style geoserver-workspace store-name style :vector)]))
+      :shapefile (doall
+                  (concat
+                   [(rest/create-data-store geoserver-workspace store-name file-url)
+                    (rest/create-feature-type-via-put geoserver-workspace store-name file-url)]
+                   (when (not= store-name layer-name)
+                     [(rest/create-feature-type-alias geoserver-workspace
+                                                      store-name
+                                                      layer-name
+                                                      store-name)
+                      (rest/delete-layer geoserver-workspace layer-name)
+                      (rest/delete-feature-type geoserver-workspace store-name layer-name)])
+                   (when style
+                     [(rest/update-layer-style geoserver-workspace store-name style :vector)])))
 
       (throw (ex-info "Unsupported store type detected."
                       {:store-type store-type :file-url file-url})))))
 
+(defn file-specs->layer-specs
+  [config-params existing-stores file-specs]
+  (into []
+        (comp (mapcat (partial file-spec->layer-specs
+                               config-params
+                               existing-stores))
+              (remove nil?))
+        file-specs))
+
 (defn file-specs->layer-group-specs
   [{:keys [geoserver-workspace layer-groups]} existing-layer-groups file-specs]
-  (let [layer-names (map #(str geoserver-workspace ":" (:store-name %)) file-specs)]
-    (->> layer-groups
-         (remove #(contains? existing-layer-groups (:name %)))
-         (keep (fn [{:keys [layer-pattern name]}]
-                 (when-let [matching-layers (seq (filter #(s/includes? % layer-pattern)
-                                                         layer-names))]
-                   (rest/create-layer-group geoserver-workspace
-                                            name
-                                            "SINGLE"
-                                            name
-                                            ""
-                                            []
-                                            matching-layers
-                                            [])))))))
+  (let [layer-names (mapv #(str geoserver-workspace ":" (:store-name %)) file-specs)]
+    (into []
+          (comp (remove #(contains? existing-layer-groups (:name %)))
+                (keep (fn [{:keys [layer-pattern name]}]
+                        (when-let [matching-layers (seq (filterv #(s/includes? % layer-pattern)
+                                                                 layer-names))]
+                          (rest/create-layer-group geoserver-workspace
+                                                   name
+                                                   "SINGLE"
+                                                   name
+                                                   ""
+                                                   []
+                                                   matching-layers
+                                                   [])))))
+          layer-groups)))
 
 (defn get-existing-layer-groups
   [{:keys [geoserver-workspace] :as config-params}]
@@ -195,15 +206,9 @@
   (let [ws-exists?            (workspace-exists? config-params)
         existing-stores       (if ws-exists? (get-existing-stores config-params) #{})
         existing-layer-groups (if ws-exists? (get-existing-layer-groups config-params) #{})
-        layer-specs           (->> file-specs
-                                   (mapcat (partial file-spec->layer-specs
-                                                    config-params
-                                                    existing-stores))
-                                   (remove nil?))
-        layer-group-specs     (file-specs->layer-group-specs config-params
-                                                             existing-layer-groups
-                                                             file-specs)
-        rest-specs            (concat layer-specs layer-group-specs)]
+        layer-specs           (file-specs->layer-specs config-params existing-stores file-specs)
+        layer-group-specs     (file-specs->layer-group-specs config-params existing-layer-groups file-specs)
+        rest-specs            (into layer-specs layer-group-specs)]
     (if ws-exists?
       rest-specs
       (cons (rest/create-workspace geoserver-workspace) rest-specs))))
