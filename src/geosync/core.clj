@@ -5,7 +5,8 @@
             [clojure.java.io    :as io]
             [clojure.string     :as s]
             [geosync.rest-api   :as rest]
-            [triangulum.logging :refer [log-str]]))
+            [triangulum.logging :refer [log log-str]]
+            [taoensso.tufte     :as tufte]))
 
 ;;===========================================================
 ;;
@@ -277,7 +278,10 @@
 
 (defn add-directory-to-workspace!
   [{:keys [data-dir styles] :as config-params}]
-  (let [file-specs          (->> (load-file-paths data-dir)
+  (let [stats-accumulator   (do
+                              (tufte/remove-handler! :accumulating)
+                              (tufte/add-accumulating-handler! {:handler-id :accumulating}))
+        file-specs          (->> (load-file-paths data-dir)
                                  (file-paths->file-specs data-dir styles))
         rest-response-codes (client/with-connection-pool {:insecure? true}
                               (mapv (comp :status (partial make-rest-request config-params))
@@ -291,9 +295,13 @@
         http-response-codes (concat rest-response-codes wms-response-codes)
         num-success-codes   (count (filter success-code? http-response-codes))
         num-failure-codes   (count (remove success-code? http-response-codes))]
+    (Thread/sleep 1000)
     (log-str "\nFinished updating GeoServer."
              "\nSuccessful requests: " num-success-codes
              "\nFailed requests: " num-failure-codes)
+    (log (tufte/format-grouped-pstats @stats-accumulator
+                                      {:format-pstats-opts {:columns [:n-calls :min :max :mean :mad :clock :total]}})
+         :truncate? false)
     (zero? num-failure-codes))) ; Return true if successful
 
 (defn remove-workspace!
