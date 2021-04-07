@@ -267,8 +267,8 @@
                             :layer-name (file-path->layer-name %)
                             :file-url   (file-path->file-url % data-dir)
                             :style      (get-style % store-type styles)
-                            :indexed?   (has-spatial-index? % data-dir)))
-              file-paths)))
+                            :indexed?   (has-spatial-index? % data-dir))))
+        file-paths))
 
 (defn load-file-paths
   [data-dir]
