@@ -38,12 +38,17 @@
 ;; Server and Handler Functions
 ;;===========================================================
 
-(defonce job-queue (chan 100))
+(defonce job-queue-size (atom 0))
+
+(defonce job-queue (chan 100
+                         (map (fn [x]
+                                (swap! job-queue-size inc)
+                                (delay (swap! job-queue-size dec) x)))))
 
 (defn process-requests!
   [{:keys [geosync-server-host geosync-server-port] :as config-params}]
   (go
-    (loop [{:keys [response-host response-port action geoserver-workspace data-dir] :as request} (<! job-queue)]
+    (loop [{:keys [response-host response-port action geoserver-workspace data-dir] :as request} @(<! job-queue)]
       (log-str "Processing Request: " request)
       (let [[status status-msg] (try
                                   (case action
@@ -70,7 +75,7 @@
                                                          :response-host geosync-server-host
                                                          :response-port geosync-server-port})
                                                  :key-fn (comp kebab->camel name))))
-      (recur (<! job-queue)))))
+      (recur @(<! job-queue)))))
 
 (defn handler
   [geosync-server-host geosync-server-port request-msg]
