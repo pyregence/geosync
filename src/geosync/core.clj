@@ -276,39 +276,44 @@
                    (s/replace-first data-dir "")))
          (sort))))
 
-(defn add-directory-to-workspace!
+(defn add-directory-to-workspace-aux!
   [{:keys [data-dir styles] :as config-params}]
+  (tufte/profile
+   {:id :add-directory-to-workspace!}
+   (let [file-specs          (tufte/p :file-specs
+                                      (->> (load-file-paths data-dir)
+                                           (file-paths->file-specs data-dir styles)))
+         rest-response-codes (tufte/p :rest-requests
+                                      (client/with-connection-pool {:insecure? true}
+                                        (mapv (comp :status (partial make-rest-request config-params))
+                                              (file-specs->rest-specs config-params file-specs))))
+         wms-response-codes  (tufte/p :wms-requests
+                                      (client/with-connection-pool {:insecure? true}
+                                        (mapv (comp :status
+                                                    (partial create-feature-type-spatial-index config-params))
+                                              (filter #(and (= :shapefile (:store-type %))
+                                                            (not (:indexed? %)))
+                                                      file-specs))))
+         http-response-codes (concat rest-response-codes wms-response-codes)
+         num-success-codes   (count (filter success-code? http-response-codes))
+         num-failure-codes   (count (remove success-code? http-response-codes))]
+     (log-str "\nFinished updating GeoServer."
+              "\nSuccessful requests: " num-success-codes
+              "\nFailed requests: " num-failure-codes)
+     (zero? num-failure-codes)))) ; Return true if successful
+
+(defn add-directory-to-workspace!
+  [config-params]
   (let [stats-accumulator (do
                             (tufte/remove-handler! :accumulating)
-                            (tufte/add-accumulating-handler! {:handler-id :accumulating}))]
-    (tufte/profile
-     {:id :add-directory-to-workspace!}
-     (let [file-specs          (tufte/p :file-specs
-                                        (->> (load-file-paths data-dir)
-                                             (file-paths->file-specs data-dir styles)))
-           rest-response-codes (tufte/p :rest-requests
-                                        (client/with-connection-pool {:insecure? true}
-                                          (mapv (comp :status (partial make-rest-request config-params))
-                                                (file-specs->rest-specs config-params file-specs))))
-           wms-response-codes  (tufte/p :wms-requests
-                                        (client/with-connection-pool {:insecure? true}
-                                          (mapv (comp :status
-                                                      (partial create-feature-type-spatial-index config-params))
-                                                (filter #(and (= :shapefile (:store-type %))
-                                                              (not (:indexed? %)))
-                                                        file-specs))))
-           http-response-codes (concat rest-response-codes wms-response-codes)
-           num-success-codes   (count (filter success-code? http-response-codes))
-           num-failure-codes   (count (remove success-code? http-response-codes))]
-       (log-str "\nFinished updating GeoServer."
-                "\nSuccessful requests: " num-success-codes
-                "\nFailed requests: " num-failure-codes)
-       (Thread/sleep 1000)
-       (log (tufte/format-grouped-pstats @stats-accumulator
-                                         {:format-pstats-opts {:columns [:n-calls :min :max
-                                                                         :mean :mad :clock :total]}})
-            :truncate? false)
-       (zero? num-failure-codes))))) ; Return true if successful
+                            (tufte/add-accumulating-handler! {:handler-id :accumulating}))
+        success?          (add-directory-to-workspace-aux! config-params)]
+    (Thread/sleep 1000)
+    (log (tufte/format-grouped-pstats @stats-accumulator
+                                      {:format-pstats-opts {:columns [:n-calls :min :max
+                                                                      :mean :mad :clock :total]}})
+         :truncate? false)
+    success?))
 
 (defn remove-workspace!
   [{:keys [geoserver-workspace] :as config-params}]
