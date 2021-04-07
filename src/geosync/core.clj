@@ -294,14 +294,10 @@
     (log-str "\nFinished updating GeoServer."
              "\nSuccessful requests: " num-success-codes
              "\nFailed requests: " num-failure-codes)
-    (if (zero? num-failure-codes)
-      [0 "Workspace Updated"]
-      [1 "Errors Encountered During Layer Registration"])))
+    (zero? num-failure-codes))) ; Return true if successful
 
 (defn remove-workspace!
   [{:keys [geoserver-workspace] :as config-params}]
   (let [response (make-rest-request config-params
                                     (rest/delete-workspace geoserver-workspace true))]
-    (if (success-code? (:status response))
-      [0 "Workspace Removed"]
-      [1 (:reason-phrase response)])))
+    (success-code? (:status response)))) ; Return true if successful

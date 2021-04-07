@@ -50,22 +50,22 @@
   (go
     (loop [{:keys [response-host response-port action geoserver-workspace data-dir] :as request} @(<! job-queue)]
       (log-str "Processing Request: " request)
-      (let [[status status-msg] (try
+      (let [config-params       (-> config-params
+                                    (dissoc :geosync-server-host :geosync-server-port)
+                                    (assoc :geoserver-workspace geoserver-workspace :data-dir data-dir))
+            [status status-msg] (try
                                   (case action
                                     "add"
-                                    (add-directory-to-workspace! (-> config-params
-                                                                     (dissoc :geosync-server-host
-                                                                             :geosync-server-port)
-                                                                     (assoc :geoserver-workspace geoserver-workspace
-                                                                            :data-dir            data-dir)))
+                                    (if (add-directory-to-workspace! config-params)
+                                      [0 "GeoSync: Workspace updated."]
+                                      [1 "GeoSync: Errors encountered during layer registration."])
 
                                     "remove"
-                                    (remove-workspace! (-> config-params
-                                                           (dissoc :geosync-server-host
-                                                                   :geosync-server-port)
-                                                           (assoc :geoserver-workspace geoserver-workspace))))
+                                    (if (remove-workspace! config-params)
+                                      [0 "GeoSync: Workspace removed."]
+                                      [1 (str "GeoSync: Errors encountered during workspace removal.")]))
                                   (catch Exception e
-                                    [1 (str "Processing Error: " (ex-message e))]))]
+                                    [1 (str "GeoSync: Error updating GeoServer: " (ex-message e))]))]
         (log-str "-> " status-msg)
         (sockets/send-to-server! response-host
                                  response-port
@@ -86,12 +86,12 @@
                                   (if (spec/valid? ::geosync-server-request request)
                                     (do
                                       (>! job-queue request)
-                                      [2 "Added to Job Queue"])
-                                    [1 (str "Invalid Request: " (spec/explain-str ::geosync-server-request request))])
+                                      [2 (format "GeoSync: You are number %d in the queue." @job-queue-size)])
+                                    [1 (str "GeoSync: Invalid request: " (spec/explain-str ::geosync-server-request request))])
                                   (catch AssertionError _
-                                    [1 "Job Queue Limit Exceeded! Dropping Request!"])
+                                    [1 "GeoSync: Job queue limit exceeded! Dropping request!"])
                                   (catch Exception e
-                                    [1 (str "Validation Error: " (ex-message e))]))]
+                                    [1 (str "GeoSync: Request validation error: " (ex-message e))]))]
         (log-str "-> " status-msg)
         (when (spec/valid? ::geosync-server-request-minimal request)
           (sockets/send-to-server! (:response-host request)
