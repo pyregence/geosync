@@ -42,6 +42,8 @@
 ;;
 ;;===========================================================
 
+(def num-processors (.availableProcessors (Runtime/getRuntime)))
+
 (def success-code? #{200 201 202 203 204 205 206 207 300 301 302 303 307})
 
 ;; FIXME: Use an SSL keystore and remove insecure? param
@@ -318,9 +320,9 @@
          wms-specs           (tufte/p :wms-specs
                                       (file-specs->wms-specs file-specs))
          rest-response-codes (tufte/p :rest-requests
-                                      (client/with-connection-pool {:insecure? true
-                                                                    :threads   (-> (Runtime/getRuntime)
-                                                                                   (.availableProcessors))}
+                                      (client/with-async-connection-pool {:threads           num-processors
+                                                                          :default-per-route 10
+                                                                          :insecure?         true}
                                         ;; FIXME: Try :default-per-route
                                         (into []
                                               (mapcat (fn [spec-type]
