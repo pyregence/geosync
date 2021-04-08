@@ -318,8 +318,10 @@
          wms-specs           (tufte/p :wms-specs
                                       (file-specs->wms-specs file-specs))
          rest-response-codes (tufte/p :rest-requests
-                                      (client/with-connection-pool {:insecure? true}
-                                        ;; FIXME: Try :timeout :threads :default-per-route
+                                      (client/with-connection-pool {:insecure? true
+                                                                    :threads   (-> (Runtime/getRuntime)
+                                                                                   (.availableProcessors))}
+                                        ;; FIXME: Try :default-per-route
                                         (into []
                                               (mapcat (fn [spec-type]
                                                         (->> (get rest-specs spec-type)
@@ -335,7 +337,7 @@
                                                :create-layer-group])))
          wms-response-codes  (tufte/p :wms-requests
                                       (client/with-connection-pool {:insecure? true}
-                                        ;; FIXME: Try :timeout :threads :default-per-route
+                                        ;; FIXME: Try :threads :default-per-route
                                         (mapv #(:status (create-feature-type-spatial-index config-params %))
                                               wms-specs)))
          http-response-codes (into rest-response-codes wms-response-codes)
