@@ -30,6 +30,23 @@
         (log-str "GetFeatureInfo " layer-name " -> " (select-keys (ex-data e) [:status :reason-phrase :body]))
         (ex-data e)))))
 
+(defn create-feature-type-spatial-index-async
+  [{:keys [geoserver-wms-uri geoserver-workspace]} {:keys [store-name]}]
+  (let [layer-name (str geoserver-workspace ":" store-name)
+        result     (promise)]
+    (client/request {:url       (str geoserver-wms-uri "&LAYERS=" layer-name "&QUERY_LAYERS=" layer-name)
+                     :method    "GET"
+                     :insecure? true
+                     :async?    true}
+                    (fn [response]
+                      (log-str "GetFeatureInfo " layer-name " -> " (select-keys response [:status :reason-phrase]))
+                      (deliver result response))
+                    (fn [error]
+                      (log-str "GetFeatureInfo " layer-name " -> " (select-keys (ex-data error)
+                                                                                [:status :reason-phrase :body]))
+                      (deliver result (ex-data error))))
+    result))
+
 (defn file-specs->wms-specs
   [file-specs]
   (filterv #(and (= :shapefile (:store-type %))
@@ -306,6 +323,12 @@
        (mapv #(make-rest-request-async config-params %))
        (mapv (comp :status deref))))
 
+(defn make-parallel-wms-requests
+  [config-params wms-specs]
+  (->> wms-specs
+       (mapv #(create-feature-type-spatial-index-async config-params %))
+       (mapv (comp :status deref))))
+
 (defn add-directory-to-workspace-aux!
   [{:keys [data-dir styles] :as config-params}]
   (tufte/profile
@@ -319,7 +342,6 @@
                                       (file-specs->wms-specs file-specs))
          rest-response-codes (tufte/p :rest-requests
                                       (client/with-async-connection-pool {:insecure? true}
-                                        ;; FIXME: Try :default-per-route
                                         (into []
                                               (mapcat (fn [spec-type]
                                                         (->> (get rest-specs spec-type)
@@ -334,10 +356,8 @@
                                                :update-layer-style
                                                :create-layer-group])))
          wms-response-codes  (tufte/p :wms-requests
-                                      (client/with-connection-pool {:insecure? true}
-                                        ;; FIXME: Try :threads :default-per-route
-                                        (mapv #(:status (create-feature-type-spatial-index config-params %))
-                                              wms-specs)))
+                                      (client/with-async-connection-pool {:insecure? true}
+                                        (make-parallel-wms-requests config-params wms-specs)))
          http-response-codes (into rest-response-codes wms-response-codes)
          num-success-codes   (count (filter success-code? http-response-codes))
          num-failure-codes   (- (count http-response-codes) num-success-codes)]
