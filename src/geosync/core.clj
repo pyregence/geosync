@@ -30,6 +30,12 @@
         (log-str "GetFeatureInfo " layer-name " -> " (select-keys (ex-data e) [:status :reason-phrase :body]))
         (ex-data e)))))
 
+(defn file-specs->wms-specs
+  [file-specs]
+  (filterv #(and (= :shapefile (:store-type %))
+                 (not (:indexed? %)))
+           file-specs))
+
 ;;===========================================================
 ;;
 ;; Files -> REST Requests
@@ -82,12 +88,6 @@
                                        (select-keys (ex-data error) [:status :reason-phrase :body])))
                       (deliver result (ex-data error))))
     result))
-
-(defn file-specs->wms-specs
-  [file-specs]
-  (filterv #(and (= :shapefile (:store-type %))
-                 (not (:indexed? %)))
-           file-specs))
 
 (defn file-specs->layer-group-specs
   [{:keys [geoserver-workspace layer-groups]} existing-layer-groups file-specs]
@@ -204,20 +204,32 @@
     (:status %)
     (success-code? %)))
 
+(defn get-spec-type
+  [[http-method uri-suffix _]]
+  (cond (and (= http-method "PUT")    (s/includes?  uri-suffix "/coveragestores/")) :create-coverage-via-put
+        (and (= http-method "PUT")    (s/includes?  uri-suffix "/layers/"))         :update-layer-style
+        (and (= http-method "POST")   (s/ends-with? uri-suffix "/datastores"))      :create-data-store
+        (and (= http-method "PUT")    (s/includes?  uri-suffix "/datastores/"))     :create-feature-type-via-put
+        (and (= http-method "POST")   (s/ends-with? uri-suffix "/featuretypes"))    :create-feature-type-alias
+        (and (= http-method "DELETE") (s/includes?  uri-suffix "/layers/"))         :delete-layer
+        (and (= http-method "DELETE") (s/includes?  uri-suffix "/featuretypes/"))   :delete-feature-type))
+
 (defn file-specs->rest-specs
   "Generates a sequence of REST request specifications as triplets of
   [http-method uri-suffix http-body]. Each file-spec may contribute
-  one or more of these to the final sequence."
+  one or more of these to the final sequence. Returns a map of these
+  REST specs grouped by spec type."
   [{:keys [geoserver-workspace] :as config-params} file-specs]
   (let [ws-exists?            (workspace-exists? config-params)
         existing-stores       (if ws-exists? (get-existing-stores config-params) #{})
         existing-layer-groups (if ws-exists? (get-existing-layer-groups config-params) #{})
         layer-specs           (file-specs->layer-specs config-params existing-stores file-specs)
         layer-group-specs     (file-specs->layer-group-specs config-params existing-layer-groups file-specs)
-        rest-specs            (into layer-specs layer-group-specs)]
+        rest-specs            (-> (group-by get-spec-type layer-specs)
+                                  (assoc :create-layer-group layer-group-specs))]
     (if ws-exists?
       rest-specs
-      (cons (rest/create-workspace geoserver-workspace) rest-specs))))
+      (assoc rest-specs :create-workspace [(rest/create-workspace geoserver-workspace)]))))
 
 (defn get-store-type
   "Returns a string describing the class of data or coverage store
@@ -288,6 +300,12 @@
                    (s/replace-first data-dir "")))
          (sort))))
 
+(defn make-parallel-rest-requests
+  [config-params rest-specs]
+  (->> rest-specs
+       (mapv #(make-rest-request-async config-params %))
+       (mapv (comp :status deref))))
+
 (defn add-directory-to-workspace-aux!
   [{:keys [data-dir styles] :as config-params}]
   (tufte/profile
@@ -302,11 +320,19 @@
          rest-response-codes (tufte/p :rest-requests
                                       (client/with-connection-pool {:insecure? true}
                                         ;; FIXME: Try :timeout :threads :default-per-route
-                                        (->> rest-specs
-                                             (mapv #(make-rest-request-async config-params %))
-                                             (mapv (comp :status deref)))
-                                        #_(mapv #(:status (make-rest-request config-params %))
-                                                rest-specs)))
+                                        (into []
+                                              (mapcat (fn [spec-type]
+                                                        (->> (get rest-specs spec-type)
+                                                             (make-parallel-rest-requests config-params))))
+                                              [:create-workspace
+                                               :create-coverage-via-put
+                                               :create-data-store
+                                               :create-feature-type-via-put
+                                               :create-feature-type-alias
+                                               :delete-layer
+                                               :delete-feature-type
+                                               :update-layer-style
+                                               :create-layer-group])))
          wms-response-codes  (tufte/p :wms-requests
                                       (client/with-connection-pool {:insecure? true}
                                         ;; FIXME: Try :timeout :threads :default-per-route
