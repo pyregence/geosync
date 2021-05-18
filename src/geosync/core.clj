@@ -63,11 +63,13 @@
 
 ;; FIXME: Use an SSL keystore and remove insecure? param
 (defn make-rest-request
-  [{:keys [geoserver-rest-uri geoserver-rest-headers]} [http-method uri-suffix http-body]]
+  [{:keys [geoserver-rest-uri geoserver-rest-headers]} [http-method uri-suffix http-body content-type]]
   (try
     (let [response (client/request {:url       (str geoserver-rest-uri uri-suffix)
                                     :method    http-method
-                                    :headers   geoserver-rest-headers
+                                    :headers   (if content-type
+                                                 (assoc geoserver-rest-headers "Content-Type" content-type)
+                                                 geoserver-rest-headers)
                                     :body      http-body
                                     :insecure? true})]
       (log-str (format "%6s %s%n               -> %s"
@@ -84,11 +86,13 @@
 
 ;; FIXME: Use an SSL keystore and remove insecure? param
 (defn make-rest-request-async
-  [{:keys [geoserver-rest-uri geoserver-rest-headers]} [http-method uri-suffix http-body]]
+  [{:keys [geoserver-rest-uri geoserver-rest-headers]} [http-method uri-suffix http-body content-type]]
   (let [result (promise)]
     (client/request {:url       (str geoserver-rest-uri uri-suffix)
                      :method    http-method
-                     :headers   geoserver-rest-headers
+                     :headers   (if content-type
+                                  (assoc geoserver-rest-headers "Content-Type" content-type)
+                                  geoserver-rest-headers)
                      :body      http-body
                      :insecure? true
                      :async?    true}
@@ -126,9 +130,9 @@
 
 (defn file-spec->layer-specs
   "Returns a sequence of one or more REST request specifications as
-  triplets of [http-method uri-suffix http-body] depending on the
-  structure of the passed-in file-spec or nil if the store-type is
-  unsupported."
+  tuples of [http-method uri-suffix http-body content-type] depending
+  on the structure of the passed-in file-spec or nil if the store-type
+  is unsupported."
   [{:keys [data-dir geoserver-workspace]}
    existing-stores
    {:keys [store-type store-name layer-name file-url style]}]
