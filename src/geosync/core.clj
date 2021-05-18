@@ -5,6 +5,7 @@
             [clojure.java.io    :as io]
             [clojure.string     :as s]
             [geosync.rest-api   :as rest]
+            [geosync.utils      :refer [nil-on-error]]
             [triangulum.logging :refer [log log-str]]
             [taoensso.tufte     :as tufte]))
 
@@ -110,6 +111,7 @@
                       (deliver result (ex-data error))))
     result))
 
+;; FIXME: Correctly handle imagemosaic_properties.zip
 (defn file-specs->layer-group-specs
   [{:keys [geoserver-workspace layer-groups]} existing-layer-groups file-specs]
   (let [layer-names (mapv #(str geoserver-workspace ":" (:store-name %)) file-specs)]
@@ -159,6 +161,7 @@
       (throw (ex-info "Unsupported store type detected."
                       {:store-type store-type :file-url file-url})))))
 
+;; FIXME: Correctly handle imagemosaic_properties.zip
 (defn file-specs->layer-specs
   [config-params existing-stores file-specs]
   (into []
@@ -226,20 +229,29 @@
     (success-code? %)))
 
 (defn get-spec-type
-  [[http-method uri-suffix _]]
-  (cond (and (= http-method "PUT")    (s/includes?  uri-suffix "/coveragestores/")) :create-coverage-via-put
-        (and (= http-method "PUT")    (s/includes?  uri-suffix "/layers/"))         :update-layer-style
-        (and (= http-method "POST")   (s/ends-with? uri-suffix "/datastores"))      :create-data-store
-        (and (= http-method "PUT")    (s/includes?  uri-suffix "/datastores/"))     :create-feature-type-via-put
-        (and (= http-method "POST")   (s/ends-with? uri-suffix "/featuretypes"))    :create-feature-type-alias
-        (and (= http-method "DELETE") (s/includes?  uri-suffix "/layers/"))         :delete-layer
-        (and (= http-method "DELETE") (s/includes?  uri-suffix "/featuretypes/"))   :delete-feature-type))
+  [[http-method uri-suffix]]
+  (nil-on-error
+   (case http-method
+     "POST"   (condp #(s/ends-with? %2 %1) uri-suffix
+                "external.imagemosaic" :update-coverage-store-image-mosaic
+                "/coverages"           :create-coverage
+                "/datastores"          :create-data-store
+                "/featuretypes"        :create-feature-type-alias)
+     "PUT"    (condp #(s/includes? %2 %1) uri-suffix
+                "file.imagemosaic"     :create-coverage-store-image-mosaic
+                "external.geotiff"     :create-coverage-via-put
+                "external.shp"         :create-feature-type-via-put
+                "/coveragestores/"     :update-coverage-store
+                "/layers/"             :update-layer-style)
+     "DELETE" (condp #(s/includes? %2 %1) uri-suffix
+                "/layers/"             :delete-layer
+                "/featuretypes/"       :delete-feature-type))))
 
 (defn file-specs->rest-specs
-  "Generates a sequence of REST request specifications as triplets of
-  [http-method uri-suffix http-body]. Each file-spec may contribute
-  one or more of these to the final sequence. Returns a map of these
-  REST specs grouped by spec type."
+  "Generates a sequence of REST request specifications as tuples of
+  [http-method uri-suffix http-body content-type]. Each file-spec may
+  contribute one or more of these to the final sequence. Returns a map
+  of these REST specs grouped by spec type."
   [{:keys [geoserver-workspace] :as config-params} file-specs]
   (let [ws-exists?            (workspace-exists? config-params)
         existing-stores       (if ws-exists? (get-existing-stores config-params) #{})
@@ -257,10 +269,12 @@
   implied by the structure of the passed-in file-path."
   [file-path]
   (condp re-matches file-path
-    #"^.*\.tiff?$" :geotiff
-    #"^.*\.shp$"   :shapefile
+    #"^.*\.tiff?$"                     :geotiff
+    #"^.*\.shp$"                       :shapefile
+    #"^.*imagemosaic_properties\.zip$" :imagemosaic
     nil))
 
+;; FIXME: Correctly handle imagemosaic_properties.zip
 (defn file-path->store-name
   [file-path]
   (as-> file-path %
@@ -269,6 +283,7 @@
     (s/replace % #"-+" "-")
     (s/replace % "/" "_")))
 
+;; FIXME: Correctly handle imagemosaic_properties.zip
 (defn file-path->layer-name
   [file-path]
   (let [file-name (if (s/includes? file-path "/")
@@ -278,7 +293,7 @@
 
 (defn file-path->file-url
   [file-path data-dir]
-  (str "file://" data-dir (if (s/ends-with? data-dir "/") "" "/") file-path))
+  (str "file://" data-dir (when-not (s/ends-with? data-dir "/") "/") file-path))
 
 (defn get-style
   [file-path store-type styles]
@@ -286,8 +301,9 @@
    (keep (fn [{:keys [layer-pattern raster-style vector-style]}]
            (when (s/includes? file-path layer-pattern)
              (case store-type
-               :geotiff   raster-style
-               :shapefile vector-style
+               :geotiff     raster-style
+               :shapefile   vector-style
+               :imagemosaic raster-style
                nil)))
          styles)))
 
@@ -299,15 +315,28 @@
 
 (defn file-paths->file-specs
   [data-dir styles file-paths]
-  (into []
-        (keep #(when-let [store-type (get-store-type %)]
-                 (array-map :store-type store-type
-                            :store-name (file-path->store-name %)
-                            :layer-name (file-path->layer-name %)
-                            :file-url   (file-path->file-url % data-dir)
-                            :style      (get-style % store-type styles)
-                            :indexed?   (has-spatial-index? % data-dir))))
+  (mapv #(let [store-type (get-store-type %)]
+           (array-map :store-type store-type
+                      :store-name (file-path->store-name %)
+                      :layer-name (file-path->layer-name %)
+                      :file-url   (file-path->file-url % data-dir)
+                      :style      (get-style % store-type styles)
+                      :indexed?   (has-spatial-index? % data-dir)))
         file-paths))
+
+(defn gis-file-seq
+  [^File node]
+  (lazy-seq
+   (if (.isDirectory node)
+     (let [children (seq (.listFiles node))]
+       (if-let [imagemosaic-properties (->> children
+                                            (filter #(= (.getName ^File %)
+                                                        "imagemosaic_properties.zip"))
+                                            (first))]
+         (cons imagemosaic-properties nil)
+         (mapcat gis-file-seq children)))
+     (when (get-store-type (.getName node))
+       (cons node nil)))))
 
 (defn load-file-paths
   [data-dir]
@@ -315,8 +344,7 @@
                    data-dir
                    (str data-dir "/"))]
     (->> (io/file data-dir)
-         (file-seq)
-         (filter #(.isFile ^File %))
+         (gis-file-seq)
          (map #(-> (.getPath ^File %)
                    (s/replace-first data-dir "")))
          (sort))))
@@ -351,6 +379,10 @@
                                                         (->> (get rest-specs spec-type)
                                                              (make-parallel-rest-requests config-params))))
                                               [:create-workspace
+                                               :create-coverage-store-image-mosaic
+                                               :update-coverage-store
+                                               :update-coverage-store-image-mosaic
+                                               :create-coverage
                                                :create-coverage-via-put
                                                :create-data-store
                                                :create-feature-type-via-put
