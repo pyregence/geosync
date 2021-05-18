@@ -189,18 +189,27 @@
      [:enabled true]
      [:url file-url]])])
 
+(defn create-coverage-store-image-mosaic [workspace store image-mosaic-dir]
+  ["PUT"
+   (str "/workspaces/" workspace "/coveragestores/" store "/file.imagemosaic?configure=none")
+   (str "file://" image-mosaic-dir (when-not (s/ends-with? image-mosaic-dir "/") "/") "imagemosaic_properties.zip")
+   "text/plain"])
+
 ;; NOTE: file-url should look like file:///path/to/nyc.tiff
-(defn update-coverage-store [workspace store file-url enabled?]
+(defn update-coverage-store [workspace store {:keys [type enabled? file-url]}]
   ["PUT"
    (str "/workspaces/" workspace "/coveragestores/" store)
    (xml
     [:coverageStore
-     [:workspace
-      [:name workspace]]
-     [:name store]
-     [:type "GeoTIFF"]
-     [:enabled enabled?]
-     [:url file-url]])])
+     (when type [:type type])
+     (when enabled? [:enabled enabled?])
+     (when file-url [:url file-url])])])
+
+(defn update-coverage-store-image-mosaic [workspace store image-mosaic-dir]
+  ["POST"
+   (str "/workspaces/" workspace "/coveragestores/" store "/external.imagemosaic")
+   (str "file://" image-mosaic-dir (when-not (s/ends-with? image-mosaic-dir "/") "/"))
+   "text/plain"])
 
 (defn delete-coverage-store [workspace store]
   ["DELETE"
@@ -319,6 +328,14 @@
     (str "/workspaces/" workspace "/coveragestores/" store "/coverages/" coverage)
     nil]))
 
+(defn create-coverage [workspace store coverage]
+  ["POST"
+   (str "/workspaces/" workspace "/coveragestores/" store "/coverages")
+   (xml
+    [:coverage
+     [:name coverage]
+     [:nativeCoverageName coverage]])])
+
 ;; FIXME: GeoSync coverages load incorrectly:
 ;; - Dimensions tab throws errors (the coverageName "foo" is not supported)
 ;; - Missing keywords: {coverage}, WCS, GeoTIFF
@@ -331,76 +348,76 @@
 ;; - Move GEOTIFF to top of Selected Formats list
 ;; - Default Style should be "fire-area"
 ;; - Grid subset bounds should be set statically(?)
-(defn create-coverage [workspace store coverage title abstract description
-                       keywords proj-code interpolation-method file-url]
-  (let [gdal-info (extract-georeferences file-url)
-        proj-code (or proj-code (:proj-code gdal-info))]
-    ["POST"
-     (str "/workspaces/" workspace "/coveragestores/" store "/coverages")
-     (xml
-      [:coverage
-       [:store
-        [:name (str workspace ":" store)]]
-       [:name coverage]
-       [:nativeName coverage]
-       [:nativeCoverageName coverage]
-       [:title title]
-       [:abstract abstract]
-       [:description description]
-       [:keywords
-        (map (fn [k] [:string k]) keywords)]
-       [:nativeCRS (:native-crs gdal-info)]
-       [:srs proj-code]
-       [:nativeBoundingBox
-        [:crs proj-code]
-        [:minx (:native-min-x gdal-info)]
-        [:maxx (:native-max-x gdal-info)]
-        [:miny (:native-min-y gdal-info)]
-        [:maxy (:native-max-y gdal-info)]]
-       [:latLonBoundingBox
-        [:crs "EPSG:4326"]
-        [:minx (:latlon-min-x gdal-info)]
-        [:maxx (:latlon-max-x gdal-info)]
-        [:miny (:latlon-min-y gdal-info)]
-        [:maxy (:latlon-max-y gdal-info)]]
-       [:projectionPolicy "REPROJECT_TO_DECLARED"]
-       [:nativeFormat "GEOTIFF"]
-       [:grid {:dimension "2"}
-        [:crs proj-code]
-        [:range
-         [:low "0 0"]
-         [:high (:cols-rows gdal-info)]]
-        [:transform
-         [:scaleX     (:pixel-width  gdal-info)]
-         [:scaleY     (:pixel-height gdal-info)]
-         [:shearX     (:shear-x      gdal-info)]
-         [:shearY     (:shear-y      gdal-info)]
-         [:translateX (:x-origin     gdal-info)]
-         [:translateY (:y-origin     gdal-info)]]]
-       [:supportedFormats
-        [:string "GIF"]
-        [:string "PNG"]
-        [:string "JPEG"]
-        [:string "TIFF"]
-        [:string "GEOTIFF"]]
-       [:interpolationMethods
-        [:string "nearest neighbor"]
-        [:string "bilinear"]
-        [:string "bicubic"]]
-       [:defaultInterpolationMethod interpolation-method]
-       [:dimensions
-        [:coverageDimension
-         [:name (s/upper-case (str (:color-interp gdal-info) "_INDEX"))]
-         [:description "GridSampleDimension[-Infinity,Infinity]"]]]
-       [:requestSRS
-        [:string "EPSG:4326"]
-        (if (not= proj-code "EPSG:4326")
-          [:string proj-code])]
-       [:responseSRS
-        [:string "EPSG:4326"]
-        (if (not= proj-code "EPSG:4326")
-          [:string proj-code])]
-       [:enabled true]])]))
+#_(defn create-coverage [workspace store coverage title abstract description
+                         keywords proj-code interpolation-method file-url]
+    (let [gdal-info (extract-georeferences file-url)
+          proj-code (or proj-code (:proj-code gdal-info))]
+      ["POST"
+       (str "/workspaces/" workspace "/coveragestores/" store "/coverages")
+       (xml
+        [:coverage
+         [:store
+          [:name (str workspace ":" store)]]
+         [:name coverage]
+         [:nativeName coverage]
+         [:nativeCoverageName coverage]
+         [:title title]
+         [:abstract abstract]
+         [:description description]
+         [:keywords
+          (map (fn [k] [:string k]) keywords)]
+         [:nativeCRS (:native-crs gdal-info)]
+         [:srs proj-code]
+         [:nativeBoundingBox
+          [:crs proj-code]
+          [:minx (:native-min-x gdal-info)]
+          [:maxx (:native-max-x gdal-info)]
+          [:miny (:native-min-y gdal-info)]
+          [:maxy (:native-max-y gdal-info)]]
+         [:latLonBoundingBox
+          [:crs "EPSG:4326"]
+          [:minx (:latlon-min-x gdal-info)]
+          [:maxx (:latlon-max-x gdal-info)]
+          [:miny (:latlon-min-y gdal-info)]
+          [:maxy (:latlon-max-y gdal-info)]]
+         [:projectionPolicy "REPROJECT_TO_DECLARED"]
+         [:nativeFormat "GEOTIFF"]
+         [:grid {:dimension "2"}
+          [:crs proj-code]
+          [:range
+           [:low "0 0"]
+           [:high (:cols-rows gdal-info)]]
+          [:transform
+           [:scaleX     (:pixel-width  gdal-info)]
+           [:scaleY     (:pixel-height gdal-info)]
+           [:shearX     (:shear-x      gdal-info)]
+           [:shearY     (:shear-y      gdal-info)]
+           [:translateX (:x-origin     gdal-info)]
+           [:translateY (:y-origin     gdal-info)]]]
+         [:supportedFormats
+          [:string "GIF"]
+          [:string "PNG"]
+          [:string "JPEG"]
+          [:string "TIFF"]
+          [:string "GEOTIFF"]]
+         [:interpolationMethods
+          [:string "nearest neighbor"]
+          [:string "bilinear"]
+          [:string "bicubic"]]
+         [:defaultInterpolationMethod interpolation-method]
+         [:dimensions
+          [:coverageDimension
+           [:name (s/upper-case (str (:color-interp gdal-info) "_INDEX"))]
+           [:description "GridSampleDimension[-Infinity,Infinity]"]]]
+         [:requestSRS
+          [:string "EPSG:4326"]
+          (if (not= proj-code "EPSG:4326")
+            [:string proj-code])]
+         [:responseSRS
+          [:string "EPSG:4326"]
+          (if (not= proj-code "EPSG:4326")
+            [:string proj-code])]
+         [:enabled true]])]))
 
 ;; NOTE: Only GeoTIFF coverages are currently supported.
 (defn create-coverage-via-put [workspace store file-url]
