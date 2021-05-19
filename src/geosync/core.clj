@@ -162,7 +162,7 @@
                                                 store-name
                                                 {:file-url (s/replace file-url "imagemosaic_properties.zip" "")})
                     (rest/update-coverage-store-image-mosaic geoserver-workspace store-name file-url)
-                    (rest/create-coverage geoserver-workspace store-name store-name)
+                    (rest/create-coverage geoserver-workspace store-name store-name layer-name)
                     (when style
                       (rest/update-layer-style geoserver-workspace store-name style :raster))]
 

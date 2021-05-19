@@ -328,13 +328,13 @@
     (str "/workspaces/" workspace "/coveragestores/" store "/coverages/" coverage)
     nil]))
 
-(defn create-coverage [workspace store coverage]
+(defn create-coverage [workspace store coverage layer-name]
   ["POST"
    (str "/workspaces/" workspace "/coveragestores/" store "/coverages")
    (xml
     [:coverage
      [:name coverage]
-     [:nativeCoverageName coverage]])])
+     [:nativeName layer-name]])])
 
 ;; FIXME: GeoSync coverages load incorrectly:
 ;; - Dimensions tab throws errors (the coverageName "foo" is not supported)
