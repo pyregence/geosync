@@ -189,10 +189,10 @@
      [:enabled true]
      [:url file-url]])])
 
-(defn create-coverage-store-image-mosaic [workspace store image-mosaic-dir]
+(defn create-coverage-store-image-mosaic [workspace store file-url]
   ["PUT"
    (str "/workspaces/" workspace "/coveragestores/" store "/file.imagemosaic?configure=none")
-   (str "file://" image-mosaic-dir (when-not (s/ends-with? image-mosaic-dir "/") "/") "imagemosaic_properties.zip")
+   file-url
    "text/plain"])
 
 ;; NOTE: file-url should look like file:///path/to/nyc.tiff
@@ -205,10 +205,10 @@
      (when enabled? [:enabled enabled?])
      (when file-url [:url file-url])])])
 
-(defn update-coverage-store-image-mosaic [workspace store image-mosaic-dir]
+(defn update-coverage-store-image-mosaic [workspace store file-url]
   ["POST"
    (str "/workspaces/" workspace "/coveragestores/" store "/external.imagemosaic")
-   (str "file://" image-mosaic-dir (when-not (s/ends-with? image-mosaic-dir "/") "/"))
+   file-url
    "text/plain"])
 
 (defn delete-coverage-store [workspace store]

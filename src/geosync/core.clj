@@ -111,7 +111,6 @@
                       (deliver result (ex-data error))))
     result))
 
-;; FIXME: Correctly handle imagemosaic_properties.zip
 (defn file-specs->layer-group-specs
   [{:keys [geoserver-workspace layer-groups]} existing-layer-groups file-specs]
   (let [layer-names (mapv #(str geoserver-workspace ":" (:store-name %)) file-specs)]
@@ -140,28 +139,36 @@
    {:keys [store-type store-name layer-name file-url style]}]
   (when-not (contains? existing-stores store-name)
     (case store-type
-      :geotiff   [(rest/create-coverage-via-put geoserver-workspace store-name file-url)
-                  (when style
-                    (rest/update-layer-style geoserver-workspace store-name style :raster))]
+      :geotiff     [(rest/create-coverage-via-put geoserver-workspace store-name file-url)
+                    (when style
+                      (rest/update-layer-style geoserver-workspace store-name style :raster))]
 
-      :shapefile (doall
-                  (concat
-                   [(rest/create-data-store geoserver-workspace store-name file-url)
-                    (rest/create-feature-type-via-put geoserver-workspace store-name file-url)]
-                   (when (not= store-name layer-name)
-                     [(rest/create-feature-type-alias geoserver-workspace
-                                                      store-name
-                                                      layer-name
-                                                      store-name)
-                      (rest/delete-layer geoserver-workspace layer-name)
-                      (rest/delete-feature-type geoserver-workspace store-name layer-name)])
-                   (when style
-                     [(rest/update-layer-style geoserver-workspace store-name style :vector)])))
+      :shapefile   (doall
+                    (concat
+                     [(rest/create-data-store geoserver-workspace store-name file-url)
+                      (rest/create-feature-type-via-put geoserver-workspace store-name file-url)]
+                     (when (not= store-name layer-name)
+                       [(rest/create-feature-type-alias geoserver-workspace
+                                                        store-name
+                                                        layer-name
+                                                        store-name)
+                        (rest/delete-layer geoserver-workspace layer-name)
+                        (rest/delete-feature-type geoserver-workspace store-name layer-name)])
+                     (when style
+                       [(rest/update-layer-style geoserver-workspace store-name style :vector)])))
+
+      :imagemosaic [(rest/create-coverage-store-image-mosaic geoserver-workspace store-name file-url)
+                    (rest/update-coverage-store geoserver-workspace
+                                                store-name
+                                                {:file-url (s/replace file-url "imagemosaic_properties.zip" "")})
+                    (rest/update-coverage-store-image-mosaic geoserver-workspace store-name file-url)
+                    (rest/create-coverage geoserver-workspace store-name store-name)
+                    (when style
+                      (rest/update-layer-style geoserver-workspace store-name style :raster))]
 
       (throw (ex-info "Unsupported store type detected."
                       {:store-type store-type :file-url file-url})))))
 
-;; FIXME: Correctly handle imagemosaic_properties.zip
 (defn file-specs->layer-specs
   [config-params existing-stores file-specs]
   (into []
@@ -274,22 +281,31 @@
     #"^.*imagemosaic_properties\.zip$" :imagemosaic
     nil))
 
-;; FIXME: Correctly handle imagemosaic_properties.zip
+(defn clean-file-path
+  [file-path translate-bad-chars?]
+  (let [pruned-file-path (as-> file-path %
+                           (subs % 0 (s/last-index-of % \.))
+                           (s/replace % "/imagemosaic_properties" ""))]
+    (if translate-bad-chars?
+      (-> pruned-file-path
+          (s/replace #"[^0-9a-zA-Z/\-_]" "-")
+          (s/replace #"-+" "-"))
+      pruned-file-path)))
+
+;; FIXME: This will behave incorrectly if imagemosaic_properties.zip is in the toplevel data-dir directory.
 (defn file-path->store-name
   [file-path]
-  (as-> file-path %
-    (subs % 0 (s/last-index-of % \.))
-    (s/replace % #"[^0-9a-zA-Z/\-_]" "-")
-    (s/replace % #"-+" "-")
-    (s/replace % "/" "_")))
+  (-> file-path
+      (clean-file-path true)
+      (s/replace "/" "_")))
 
-;; FIXME: Correctly handle imagemosaic_properties.zip
+;; FIXME: This will behave incorrectly if imagemosaic_properties.zip is in the toplevel data-dir directory.
 (defn file-path->layer-name
   [file-path]
-  (let [file-name (if (s/includes? file-path "/")
-                    (second (re-find #"^.*/([^/]+)$" file-path))
-                    file-path)]
-    (subs file-name 0 (s/last-index-of file-name \.))))
+  (let [cleaned-file-path (clean-file-path file-path false)]
+    (if (s/includes? cleaned-file-path "/")
+      (second (re-find #"^.*/([^/]+)$" cleaned-file-path))
+      cleaned-file-path)))
 
 (defn file-path->file-url
   [file-path data-dir]
@@ -333,10 +349,10 @@
                                             (filter #(= (.getName ^File %)
                                                         "imagemosaic_properties.zip"))
                                             (first))]
-         (cons imagemosaic-properties nil)
+         [imagemosaic-properties]
          (mapcat gis-file-seq children)))
      (when (get-store-type (.getName node))
-       (cons node nil)))))
+       [node]))))
 
 (defn load-file-paths
   [data-dir]
