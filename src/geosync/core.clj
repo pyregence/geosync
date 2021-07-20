@@ -301,14 +301,14 @@
           (s/replace #"-+" "-"))
       pruned-file-path)))
 
-;; FIXME: This will behave incorrectly if imagemosaic_properties.zip is in the toplevel data-dir directory.
+;; FIXME: This will behave incorrectly if datastore.properties is in the toplevel data-dir directory.
 (defn file-path->store-name
   [file-path]
   (-> file-path
       (clean-file-path true)
       (s/replace "/" "_")))
 
-;; FIXME: This will behave incorrectly if imagemosaic_properties.zip is in the toplevel data-dir directory.
+;; FIXME: This will behave incorrectly if datastore.properties is in the toplevel data-dir directory.
 (defn file-path->layer-name
   [file-path]
   (let [cleaned-file-path (clean-file-path file-path false)]

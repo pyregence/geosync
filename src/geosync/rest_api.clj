@@ -343,6 +343,7 @@
     [:coverage
      [:name store]
      [:nativeName store]
+     [:title store]
      [:metadata
       [:entry {:key "time"}
        [:dimensionInfo
