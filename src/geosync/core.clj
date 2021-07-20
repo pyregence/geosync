@@ -129,6 +129,13 @@
                                                    [])))))
           layer-groups)))
 
+(defn properties->map [file-name]
+  [file-name]
+  (with-open [^java.io.Reader reader (clojure.java.io/reader file-name)]
+    (let [props (java.util.Properties.)]
+      (.load props reader)
+      (into {} (for [[k v] props] [(keyword k) (read-string v)])))))
+
 (defn file-spec->layer-specs
   "Returns a sequence of one or more REST request specifications as
   tuples of [http-method uri-suffix http-body content-type] depending
@@ -161,7 +168,7 @@
                          file-directory (s/replace file-url "datastore.properties" "")
                          ; FIXME, store name must match indexer.properties -> Name field
                          ; read in from indexer.properties or spit out to.
-                         store "id-dolly-creek_20210716_091800_10_hours-since-burned"]
+                         store (:Name (properties->map (s/replace file-url "datastore" "indexer")))]
                      [(rest/create-coverage-store-image-mosaic geoserver-workspace store file-directory)
                       (rest/update-coverage-store-image-mosaic geoserver-workspace store file-directory)
                       (rest/create-coverage-image-mosaic geoserver-workspace store)
