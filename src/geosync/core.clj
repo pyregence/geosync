@@ -167,7 +167,8 @@
                      (when style
                        [(rest/update-layer-style geoserver-workspace store-name style :vector)])))
 
-      :imagemosaic (do (update-properties-file! (str file-url "/indexer.properties") "Name" store-name)
+      :imagemosaic (do (update-properties-file! (str file-url "/datastore.properties") "schema" geoserver-workspace)
+                       (update-properties-file! (str file-url "/indexer.properties") "Name" store-name)
                        [(rest/create-coverage-store-image-mosaic geoserver-workspace store-name file-url)
                         (rest/update-coverage-store-image-mosaic geoserver-workspace store-name file-url)
                         (rest/create-coverage-image-mosaic geoserver-workspace store-name)
