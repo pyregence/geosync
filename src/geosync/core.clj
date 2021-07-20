@@ -1,5 +1,6 @@
 (ns geosync.core
-  (:import java.io.File)
+  (:import java.io.File
+           java.util.Properties)
   (:require [clj-http.client    :as client]
             [clojure.data.json  :as json]
             [clojure.java.io    :as io]
@@ -129,6 +130,15 @@
                                                    [])))))
           layer-groups)))
 
+(defn update-properties-file!
+  [file-path attribute value]
+  (let [props (with-open [reader (io/reader file-path)]
+                (doto (Properties.) (.load reader)))]
+    (with-open [writer (io/writer file-path)]
+      (doto props
+        (.setProperty attribute value)
+        (.store writer nil)))))
+
 (defn file-spec->layer-specs
   "Returns a sequence of one or more REST request specifications as
   tuples of [http-method uri-suffix http-body content-type] depending
@@ -157,16 +167,12 @@
                      (when style
                        [(rest/update-layer-style geoserver-workspace store-name style :vector)])))
 
-      :imagemosaic (let [_ (log file-url)
-                         file-directory (s/replace file-url "datastore.properties" "")
-                         ; FIXME, store name must match indexer.properties -> Name field
-                         ; read in from indexer.properties or spit out to.
-                         store "id-dolly-creek_20210716_091800_10_hours-since-burned"]
-                     [(rest/create-coverage-store-image-mosaic geoserver-workspace store file-directory)
-                      (rest/update-coverage-store-image-mosaic geoserver-workspace store file-directory)
-                      (rest/create-coverage-image-mosaic geoserver-workspace store)
-                      (when style
-                        (rest/update-layer-style geoserver-workspace store style :raster))])
+      :imagemosaic (do (update-properties-file! (str file-url "/indexer.properties") "Name" store-name)
+                       [(rest/create-coverage-store-image-mosaic geoserver-workspace store-name file-url)
+                        (rest/update-coverage-store-image-mosaic geoserver-workspace store-name file-url)
+                        (rest/create-coverage-image-mosaic geoserver-workspace store-name)
+                        (when style
+                          (rest/update-layer-style geoserver-workspace store-name style :raster))])
 
       (throw (ex-info "Unsupported store type detected."
                       {:store-type store-type :file-url file-url})))))
@@ -285,9 +291,9 @@
 
 (defn clean-file-path
   [file-path translate-bad-chars?]
-  (let [pruned-file-path (as-> file-path %
-                           (subs % 0 (s/last-index-of % \.))
-                           (s/replace % "/datastore.properties" ""))]
+  (let [pruned-file-path (if (s/ends-with? file-path "/datastore.properties")
+                           (s/replace file-path "/datastore.properties" "")
+                           (subs file-path 0 (s/last-index-of file-path \.)))]
     (if translate-bad-chars?
       (-> pruned-file-path
           (s/replace #"[^0-9a-zA-Z/\-_]" "-")
@@ -311,19 +317,25 @@
 
 (defn file-path->file-url
   [file-path data-dir]
-  (str "file://" data-dir (when-not (s/ends-with? data-dir "/") "/") file-path))
+  (let [cleaned-file-path (if (s/ends-with? file-path "/datastore.properties")
+                            (s/replace file-path "/datastore.properties" "")
+                            file-path)]
+    (str "file://" data-dir (when-not (s/ends-with? data-dir "/") "/") cleaned-file-path)))
 
 (defn get-style
   [file-path store-type styles]
-  (first
-   (keep (fn [{:keys [layer-pattern raster-style vector-style]}]
-           (when (s/includes? file-path layer-pattern)
-             (case store-type
-               :geotiff     raster-style
-               :shapefile   vector-style
-               :imagemosaic raster-style
-               nil)))
-         styles)))
+  (let [cleaned-file-path (if (s/ends-with? file-path "/datastore.properties")
+                            (s/replace file-path "/datastore.properties" "")
+                            file-path)]
+    (first
+     (keep (fn [{:keys [layer-pattern raster-style vector-style]}]
+             (when (s/includes? cleaned-file-path layer-pattern)
+               (case store-type
+                 :geotiff     raster-style
+                 :shapefile   vector-style
+                 :imagemosaic raster-style
+                 nil)))
+           styles))))
 
 (defn has-spatial-index?
   [file-path data-dir]

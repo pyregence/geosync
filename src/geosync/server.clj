@@ -63,7 +63,7 @@
                                     "remove"
                                     (if (remove-workspace! config-params)
                                       [0 "GeoSync: Workspace removed."]
-                                      [1 (str "GeoSync: Errors encountered during workspace removal.")]))
+                                      [1 "GeoSync: Errors encountered during workspace removal."]))
                                   (catch Exception e
                                     [1 (str "GeoSync: Error updating GeoServer: " (ex-message e))]))]
         (log-str "-> " status-msg)
