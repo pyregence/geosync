@@ -134,7 +134,7 @@
   tuples of [http-method uri-suffix http-body content-type] depending
   on the structure of the passed-in file-spec or nil if the store-type
   is unsupported."
-  [{:keys [data-dir geoserver-workspace]}
+  [{:keys [geoserver-workspace]}
    existing-stores
    {:keys [store-type store-name layer-name file-url style]}]
   (when-not (contains? existing-stores store-name)
@@ -157,14 +157,16 @@
                      (when style
                        [(rest/update-layer-style geoserver-workspace store-name style :vector)])))
 
-      :imagemosaic [(rest/create-coverage-store-image-mosaic geoserver-workspace store-name file-url)
-                    (rest/update-coverage-store geoserver-workspace
-                                                store-name
-                                                {:file-url (s/replace file-url "imagemosaic_properties.zip" "")})
-                    (rest/update-coverage-store-image-mosaic geoserver-workspace store-name file-url)
-                    (rest/create-coverage geoserver-workspace store-name store-name layer-name)
-                    (when style
-                      (rest/update-layer-style geoserver-workspace store-name style :raster))]
+      :imagemosaic (let [_ (log file-url)
+                         file-directory (s/replace file-url "datastore.properties" "")
+                         ; FIXME, store name must match indexer.properties -> Name field
+                         ; read in from indexer.properties or spit out to.
+                         store "id-dolly-creek_20210716_091800_10_hours-since-burned"]
+                     [(rest/create-coverage-store-image-mosaic geoserver-workspace store file-directory)
+                      (rest/update-coverage-store-image-mosaic geoserver-workspace store file-directory)
+                      (rest/create-coverage-image-mosaic geoserver-workspace store)
+                      (when style
+                        (rest/update-layer-style geoserver-workspace store style :raster))])
 
       (throw (ex-info "Unsupported store type detected."
                       {:store-type store-type :file-url file-url})))))
@@ -245,7 +247,7 @@
                 "/datastores"          :create-data-store
                 "/featuretypes"        :create-feature-type-alias)
      "PUT"    (condp #(s/includes? %2 %1) uri-suffix
-                "file.imagemosaic"     :create-coverage-store-image-mosaic
+                "external.imagemosaic" :create-coverage-store-image-mosaic
                 "external.geotiff"     :create-coverage-via-put
                 "external.shp"         :create-feature-type-via-put
                 "/coveragestores/"     :update-coverage-store
@@ -276,16 +278,16 @@
   implied by the structure of the passed-in file-path."
   [file-path]
   (condp re-matches file-path
-    #"^.*\.tiff?$"                     :geotiff
-    #"^.*\.shp$"                       :shapefile
-    #"^.*imagemosaic_properties\.zip$" :imagemosaic
+    #"^.*\.tiff?$"               :geotiff
+    #"^.*\.shp$"                 :shapefile
+    #"^.*datastore\.properties$" :imagemosaic
     nil))
 
 (defn clean-file-path
   [file-path translate-bad-chars?]
   (let [pruned-file-path (as-> file-path %
                            (subs % 0 (s/last-index-of % \.))
-                           (s/replace % "/imagemosaic_properties" ""))]
+                           (s/replace % "/datastore.properties" ""))]
     (if translate-bad-chars?
       (-> pruned-file-path
           (s/replace #"[^0-9a-zA-Z/\-_]" "-")
@@ -347,7 +349,7 @@
      (let [children (seq (.listFiles node))]
        (if-let [imagemosaic-properties (->> children
                                             (filter #(= (.getName ^File %)
-                                                        "imagemosaic_properties.zip"))
+                                                        "datastore.properties"))
                                             (first))]
          [imagemosaic-properties]
          (mapcat gis-file-seq children)))

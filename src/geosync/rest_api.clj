@@ -191,7 +191,7 @@
 
 (defn create-coverage-store-image-mosaic [workspace store file-url]
   ["PUT"
-   (str "/workspaces/" workspace "/coveragestores/" store "/file.imagemosaic?configure=none")
+   (str "/workspaces/" workspace "/coveragestores/" store "/external.imagemosaic?configure=none")
    file-url
    "text/plain"])
 
@@ -335,6 +335,24 @@
     [:coverage
      [:name coverage]
      [:nativeName layer-name]])])
+
+(defn create-coverage-image-mosaic [workspace store]
+  ["POST"
+   (str "/workspaces/" workspace "/coveragestores/" store "/coverages")
+   (xml
+    [:coverage
+     [:name store]
+     [:nativeName store]
+     [:metadata
+      [:entry {:key "time"}
+       [:dimensionInfo
+        [:enabled true]
+        [:presentation "LIST"]
+        [:units "ISO8601"]
+        [:defaultValue
+         [:strategy "MINIMUM"]]
+        [:nearestMatchEnabled false]
+        [:rawNearestMatchEnabled false]]]]])])
 
 ;; FIXME: GeoSync coverages load incorrectly:
 ;; - Dimensions tab throws errors (the coverageName "foo" is not supported)
