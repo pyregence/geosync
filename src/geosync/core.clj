@@ -237,6 +237,16 @@
   (into (get-existing-coverage-stores config-params)
         (get-existing-data-stores     config-params)))
 
+(defn get-existing-workspaces
+  [config-params]
+  (let [response (make-rest-request config-params
+                                    (rest/get-workspaces))]
+    (-> response
+        (:body)
+        (json/read-str :key-fn keyword)
+        (:workspaces)
+        (:workspace))))
+
 (defn workspace-exists?
   [{:keys [geoserver-workspace] :as config-params}]
   (as-> (rest/get-workspace geoserver-workspace) %
@@ -447,23 +457,16 @@
     success?))
 
 (defn remove-workspace!
-  [{:keys [regex-pattern] :as config-params}]
-  (let [response (make-rest-request config-params
-                                    (rest/get-workspaces))]
-    ;; Return true if successful
-    (and (success-code? (:status response))
-         (as-> response %
-           (:body %)
-           (json/read-str % :key-fn keyword)
-           (:workspaces %)
-           (:workspace %)
-           (map :name %)
-           (filter (fn [w] (re-matches (re-pattern regex-pattern) w)) %)
-           (reduce (fn [acc cur]
-                     (->> (make-rest-request config-params
-                                             (rest/delete-workspace cur true))
-                          (:status)
-                          (success-code?)
-                          (and acc)))
-                   true
-                   %)))))
+  [{:keys [geoserver-workspace] :as config-params}]
+  (let [workspaces (get-existing-workspaces config-params)]
+    (log (str (count workspaces) " workspaces are queued to be removed."))
+    (->> workspaces
+         (map :name)
+         (filter (fn [w] (re-matches (re-pattern geoserver-workspace) w)))
+         (reduce (fn [acc cur]
+                   (->> (make-rest-request config-params
+                                           (rest/delete-workspace cur true))
+                        (:status)
+                        (success-code?)
+                        (and acc)))
+                 true))))

@@ -81,24 +81,24 @@ newline-terminated JSON object matching one of these forms:
 1. Add All GIS Files under a Directory Tree to a (Possibly New) Workspace
 
 #+begin_src js
-{action: "add",
- dataDir: "/data",
- geoserverWorkspace: "demo",
- responseHost: "localhost",
- responsePort: 5555}
+{"action":             "add",
+ "dataDir":            "/data",
+ "geoserverWorkspace": "demo",
+ "responseHost":       "localhost",
+ "responsePort":       5555}
 #+end_src
 
-2. Remove All Layers under a Workspace from GeoServer and Delete the Workspace(s)
-that match the regex pattern
+2. Remove All Layers under a Workspace from GeoServer and Delete the Workspace(s).
+~geoserverWorkspace~ can be plain text or a regex pattern. Iif a plain text string
+is provided a plain string will do exact matching.  If a regex pattern is provided
+multiple workspaces may be deleted.
 
 #+begin_src js
-{action: "remove",
- regexPattern: "demo",
- responseHost: "my.server.org",
- responsePort: 5555}
+{"action":             "remove",
+ "geoserverWorkspace": "demo",
+ "responseHost":       "my.server.org",
+ "responsePort":       5555}
 #+end_src
-
--Note that providing a plain string will do exact matching.
 
 Because GeoServer updates can take awhile to complete, these requests
 are processed asynchronously. This means that the network connection
