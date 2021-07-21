@@ -88,10 +88,12 @@ newline-terminated JSON object matching one of these forms:
  "responsePort":       5555}
 #+end_src
 
-2. Remove All Layers under a Workspace from GeoServer and Delete the Workspace(s).
-~geoserverWorkspace~ can be plain text or a regex pattern. Iif a plain text string
-is provided a plain string will do exact matching.  If a regex pattern is provided
-multiple workspaces may be deleted.
+2. Remove All Layers under a Workspace(s) from GeoServer and Delete the Workspace(s)
+
+The ~geoserverWorkspace~ parameter can be plain text or a regex
+pattern. If a plain text string is provided, an exact match will be
+performed to identify the workspace to be removed. If a regex pattern
+is provided, all workspaces matching the regex will be deleted.
 
 #+begin_src js
 {"action":             "remove",

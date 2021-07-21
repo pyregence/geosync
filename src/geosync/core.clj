@@ -239,13 +239,12 @@
 
 (defn get-existing-workspaces
   [config-params]
-  (let [response (make-rest-request config-params
-                                    (rest/get-workspaces))]
-    (-> response
-        (:body)
-        (json/read-str :key-fn keyword)
-        (:workspaces)
-        (:workspace))))
+  (as-> (rest/get-workspaces) %
+    (make-rest-request config-params %)
+    (:body %)
+    (json/read-str % :key-fn keyword)
+    (:workspaces %)
+    (:workspace %)))
 
 (defn workspace-exists?
   [{:keys [geoserver-workspace] :as config-params}]
@@ -464,8 +463,8 @@
          (map :name)
          (filter (fn [w] (re-matches (re-pattern geoserver-workspace) w)))
          (reduce (fn [acc cur]
-                   (->> (make-rest-request config-params
-                                           (rest/delete-workspace cur true))
+                   (->> (rest/delete-workspace cur true)
+                        (make-rest-request config-params)
                         (:status)
                         (success-code?)
                         (and acc)))
