@@ -97,6 +97,16 @@ newline-terminated JSON object matching one of these forms:
  responsePort: 5555}
 #+end_src
 
+3. Remove All Layers under a Workspace from GeoServer and Delete the Workspace(s)
+that match the regex pattern
+
+#+begin_src js
+{action: "remove-regex",
+ regexPattern: "demo",
+ responseHost: "my.server.org",
+ responsePort: 5555}
+#+end_src
+
 Because GeoServer updates can take awhile to complete, these requests
 are processed asynchronously. This means that the network connection
 will be closed as soon as the incoming request is read from the

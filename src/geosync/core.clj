@@ -446,6 +446,28 @@
          :truncate? false)
     success?))
 
+(defn remove-regex-workspace!
+  [{:keys [regex-pattern] :as config-params}]
+  (let [response (make-rest-request config-params
+                                    (rest/get-workspaces))]
+    ;; Return true if successful
+    (and (success-code? (:status response))
+         (as-> response %
+           (:body %)
+           (json/read-str % :key-fn keyword)
+           (:workspaces %)
+           (:workspace %)
+           (map :name %)
+           (filter (fn [w] (re-matches (re-pattern regex-pattern) w)) %)
+           (reduce (fn [acc cur]
+                     (->> (make-rest-request config-params
+                                             (rest/delete-workspace cur true))
+                          (:status)
+                          (success-code?)
+                          (and acc)))
+                   true
+                   %)))))
+
 (defn remove-workspace!
   [{:keys [geoserver-workspace] :as config-params}]
   (let [response (make-rest-request config-params

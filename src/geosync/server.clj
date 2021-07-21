@@ -3,6 +3,7 @@
             [clojure.data.json      :as json]
             [clojure.spec.alpha     :as spec]
             [geosync.core           :refer [add-directory-to-workspace!
+                                            remove-regex-workspace!
                                             remove-workspace!]]
             [geosync.simple-sockets :as sockets]
             [geosync.utils          :refer [nil-on-error
@@ -20,17 +21,22 @@
 
 (spec/def ::response-host                  hostname?)
 (spec/def ::response-port                  port?)
-(spec/def ::action                         #{"add" "remove"})
+(spec/def ::action                         #{"add" "remove" "remove-regex"})
 (spec/def ::geoserver-workspace            non-empty-string?)
 (spec/def ::data-dir                       readable-directory?)
+(spec/def ::regex-pattern                  non-empty-string?)
 (spec/def ::geosync-server-request         (spec/and (spec/keys :req-un [::response-host
                                                                          ::response-port
-                                                                         ::action
-                                                                         ::geoserver-workspace]
-                                                                :opt-un [::data-dir])
-                                                     (fn [{:keys [action data-dir]}]
-                                                       (or (and (= action "add") (string? data-dir))
-                                                           (and (= action "remove") (nil? data-dir))))))
+                                                                         ::action]
+                                                                :opt-un [::data-dir
+                                                                         ::geoserver-workspace
+                                                                         ::regex-pattern])
+                                                     (fn [{:keys [action data-dir geoserver-workspace regex-pattern]}]
+                                                       (case action
+                                                         "add"          (and (string? data-dir)
+                                                                             (string? geoserver-workspace))
+                                                         "remove"       (string? geoserver-workspace)
+                                                         "remove-regex" (string? regex-pattern)))))
 (spec/def ::geosync-server-request-minimal (spec/keys :req-un [::response-host
                                                                ::response-port]))
 
@@ -48,11 +54,13 @@
 (defn process-requests!
   [{:keys [geosync-server-host geosync-server-port] :as config-params}]
   (go
-    (loop [{:keys [response-host response-port action geoserver-workspace data-dir] :as request} @(<! job-queue)]
+    (loop [{:keys [response-host response-port action geoserver-workspace data-dir regex-pattern] :as request} @(<! job-queue)]
       (log-str "Processing Request: " request)
       (let [config-params       (-> config-params
                                     (dissoc :geosync-server-host :geosync-server-port)
-                                    (assoc :geoserver-workspace geoserver-workspace :data-dir data-dir))
+                                    (assoc :geoserver-workspace geoserver-workspace
+                                           :data-dir            data-dir
+                                           :regex-pattern       regex-pattern))
             [status status-msg] (try
                                   (case action
                                     "add"
@@ -63,6 +71,11 @@
                                     "remove"
                                     (if (remove-workspace! config-params)
                                       [0 "GeoSync: Workspace removed."]
+                                      [1 "GeoSync: Errors encountered during workspace removal."])
+
+                                    "remove-regex"
+                                    (if (remove-regex-workspace! config-params)
+                                      [0 "GeoSync: Workspace(s) removed."]
                                       [1 "GeoSync: Errors encountered during workspace removal."]))
                                   (catch Exception e
                                     [1 (str "GeoSync: Error updating GeoServer: " (ex-message e))]))]
