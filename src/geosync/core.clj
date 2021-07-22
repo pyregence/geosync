@@ -457,15 +457,15 @@
 
 (defn remove-workspace!
   [{:keys [geoserver-workspace] :as config-params}]
-  (let [workspaces (get-existing-workspaces config-params)]
+  (let [workspaces (->> (get-existing-workspaces config-params)
+                        (map :name)
+                        (filter (fn [w] (re-matches (re-pattern geoserver-workspace) w))))]
     (log (str (count workspaces) " workspaces are queued to be removed."))
-    (->> workspaces
-         (map :name)
-         (filter (fn [w] (re-matches (re-pattern geoserver-workspace) w)))
-         (reduce (fn [acc cur]
-                   (->> (rest/delete-workspace cur true)
-                        (make-rest-request config-params)
-                        (:status)
-                        (success-code?)
-                        (and acc)))
-                 true))))
+    (reduce (fn [acc cur]
+              (->> (rest/delete-workspace cur true)
+                   (make-rest-request config-params)
+                   (:status)
+                   (success-code?)
+                   (and acc)))
+            true
+            workspaces)))
