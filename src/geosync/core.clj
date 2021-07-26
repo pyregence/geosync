@@ -1,14 +1,15 @@
 (ns geosync.core
   (:import java.io.File
            java.util.Properties)
-  (:require [clj-http.client    :as client]
-            [clojure.data.json  :as json]
-            [clojure.java.io    :as io]
-            [clojure.string     :as s]
-            [geosync.rest-api   :as rest]
-            [geosync.utils      :refer [nil-on-error]]
-            [triangulum.logging :refer [log log-str]]
-            [taoensso.tufte     :as tufte]))
+  (:require [clj-http.client     :as client]
+            [clojure.data.json   :as json]
+            [clojure.java.io     :as io]
+            [clojure.string      :as s]
+            [geosync.rest-api    :as rest]
+            [geosync.utils       :refer [nil-on-error]]
+            [triangulum.logging  :refer [log log-str]]
+            [triangulum.database :refer [call-sql set-pg-db!]]
+            [taoensso.tufte      :as tufte]))
 
 ;;===========================================================
 ;;
@@ -139,6 +140,14 @@
         (.setProperty attribute value)
         (.store writer nil)))))
 
+(defn clean-image-mosaic-folder [data-dir]
+  (doseq [file (file-seq (io/file data-dir))
+          :when (let [file-name (.getName file)]
+                  (not (or (.isDirectory file)
+                           (s/ends-with? file-name ".tif")
+                           (#{"datastore.properties" "timeregex.properties" "indexer.properties"} file-name))))]
+    (io/delete-file file)))
+
 (defn file-spec->layer-specs
   "Returns a sequence of one or more REST request specifications as
   tuples of [http-method uri-suffix http-body content-type] depending
@@ -169,6 +178,7 @@
 
       :imagemosaic (do (update-properties-file! (str file-url "/datastore.properties") "schema" geoserver-workspace)
                        (update-properties-file! (str file-url "/indexer.properties") "Name" store-name)
+                       (clean-image-mosaic-folder (s/replace file-url "file://" ""))
                        [(rest/create-coverage-store-image-mosaic geoserver-workspace store-name file-url)
                         (rest/update-coverage-store-image-mosaic geoserver-workspace store-name file-url)
                         (rest/create-coverage-image-mosaic geoserver-workspace store-name)
@@ -287,7 +297,10 @@
                                   (assoc :create-layer-group layer-group-specs))]
     (if ws-exists?
       rest-specs
-      (assoc rest-specs :create-workspace [(rest/create-workspace geoserver-workspace)]))))
+      (do
+        (when (contains? rest-specs :create-coverage-store-image-mosaic)
+          (call-sql "create_new_schema" geoserver-workspace))
+        (assoc rest-specs :create-workspace [(rest/create-workspace geoserver-workspace)])))))
 
 (defn get-store-type
   "Returns a string describing the class of data or coverage store
@@ -402,9 +415,14 @@
        (mapv (comp :status deref))))
 
 (defn add-directory-to-workspace-aux!
-  [{:keys [data-dir styles] :as config-params}]
+  [{:keys [data-dir styles geoserver-workspace] :as config-params}]
   (tufte/profile
    {:id :add-directory-to-workspace!}
+   ;; TODO, replace with config.edn when Triangulum is updated
+   (set-pg-db! {:dbtype   "postgresql"
+                :dbname   "geoserver"
+                :user     "geoserver"
+                :password "geoserver"})
    (let [file-specs          (tufte/p :file-specs
                                       (->> (load-file-paths data-dir)
                                            (file-paths->file-specs data-dir styles)))
@@ -437,6 +455,7 @@
          http-response-codes (into rest-response-codes wms-response-codes)
          num-success-codes   (count (filter success-code? http-response-codes))
          num-failure-codes   (- (count http-response-codes) num-success-codes)]
+     (call-sql "clear_connection" geoserver-workspace)
      (log-str "\nFinished updating GeoServer."
               "\nSuccessful requests: " num-success-codes
               "\nFailed requests: " num-failure-codes)
@@ -462,6 +481,7 @@
                         (filter (fn [w] (re-matches (re-pattern geoserver-workspace) w))))]
     (log (str (count workspaces) " workspaces are queued to be removed."))
     (reduce (fn [acc cur]
+              (call-sql "drop_existing_schema" cur)
               (->> (rest/delete-workspace cur true)
                    (make-rest-request config-params)
                    (:status)

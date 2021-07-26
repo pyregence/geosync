@@ -6,9 +6,10 @@
            org.clojure/data.json  {:mvn/version "2.0.1"}
            org.clojure/tools.cli  {:mvn/version "1.0.206"}
            sig-gis/triangulum     {:git/url "https://github.com/sig-gis/triangulum"
-                                   :sha     "3feea51ad546828cecc2bf96256534d4c0aad066"}
+                                   :sha     "0b3e8529ea03f9ef17f7ed421271c21b90d00e6e"}
            com.taoensso/tufte     {:mvn/version "2.2.0"}}
  :aliases {:run              {:main-opts ["-m" "geosync.cli"]}
+           :build-db         {:main-opts ["-m" "triangulum.build-db"]}
            :check-reflection {:main-opts ["-e" "(do,(set!,*warn-on-reflection*,true),nil)"
                                           "-e" "(require,'geosync.cli)"]}
            :check-deps       {:extra-deps {olical/depot {:mvn/version "1.8.4"}}
