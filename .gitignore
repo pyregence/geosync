@@ -1,7 +1,11 @@
+# Development sepecific files
 .DS_Store
 .cpcache
 .nrepl-port
 .rebel_readline_history
 .vscode
+
+# Deployment specific files
 logs
 target
+config.edn

@@ -13,6 +13,19 @@ layers, and layergroups for each file to a running GeoServer instance.
 - [[https://www.postgresql.org/download][Postgresql (version 12)]]
 - [[https://postgis.net/install][PostGIS (version 3)]]
 
+** Application Plugin Configuration
+
+Upon request, triangulum/config reads a file called config.edn
+in the toplevel directory of this repository, which contains various
+user-configurable system parameters. A sample file called
+config.default.edn is provided with this repository to get you
+started. To begin, simply copy it to config.edn. Then edit
+it according to the following sections.
+
+Please note that you must replace all values surrounded with angle
+brackets (e.g., "<api-key>") with actual values for the application to
+work correctly.
+
 ** Postgresql Database Setup
 
 *PostgreSQL* needs to be installed on the machine that will be hosting

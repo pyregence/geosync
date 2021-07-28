@@ -8,7 +8,7 @@
             [geosync.rest-api    :as rest]
             [geosync.utils       :refer [nil-on-error]]
             [triangulum.logging  :refer [log log-str]]
-            [triangulum.database :refer [call-sql set-pg-db!]]
+            [triangulum.database :refer [call-sql]]
             [taoensso.tufte      :as tufte]))
 
 ;;===========================================================
@@ -418,11 +418,6 @@
   [{:keys [data-dir styles geoserver-workspace] :as config-params}]
   (tufte/profile
    {:id :add-directory-to-workspace!}
-   ;; TODO, replace with config.edn when Triangulum is updated
-   (set-pg-db! {:dbtype   "postgresql"
-                :dbname   "geoserver"
-                :user     "geoserver"
-                :password "geoserver"})
    (let [file-specs          (tufte/p :file-specs
                                       (->> (load-file-paths data-dir)
                                            (file-paths->file-specs data-dir styles)))
