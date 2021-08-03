@@ -40,7 +40,7 @@
 
 (defonce job-queue-size (atom 0))
 
-(defonce job-queue (chan 100
+(defonce job-queue (chan 1000
                          (map (fn [x]
                                 (swap! job-queue-size inc)
                                 (delay (swap! job-queue-size dec) x)))))
