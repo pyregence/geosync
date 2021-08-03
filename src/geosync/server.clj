@@ -1,4 +1,6 @@
 (ns geosync.server
+  (:import  java.text.SimpleDateFormat
+            java.util.Date)
   (:require [clojure.core.async     :refer [<! >! chan go]]
             [clojure.data.json      :as json]
             [clojure.spec.alpha     :as spec]
@@ -99,6 +101,7 @@
                                    (json/write-str (merge request
                                                           {:status        status
                                                            :message       status-msg
+                                                           :timestamp     (.format (SimpleDateFormat. "MM/dd HH:mm:ss") (Date.))
                                                            :response-host geosync-server-host
                                                            :response-port geosync-server-port})
                                                    :key-fn (comp kebab->camel name)))))
