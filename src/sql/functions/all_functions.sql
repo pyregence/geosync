@@ -27,7 +27,7 @@ CREATE OR REPLACE FUNCTION clear_connection(_workspace text)
 
  DECLARE
  BEGIN
-    EXECUTE 'SELECT pg_terminate_backend(pid) from pg_stat_activity where query like
+    EXECUTE 'SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE query LIKE
       ''SELECT ST_AsText(ST_Force2D(ST_Envelope(ST_Extent("the_geom"::geometry)))) FROM%' || _workspace || '%''';
  END
 

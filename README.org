@@ -10,7 +10,7 @@ layers, and layergroups for each file to a running GeoServer instance.
 
 - [[https://jdk.java.net][Java Development Kit (version 11+)]]
 - [[https://clojure.org/guides/getting_started][Clojure CLI tools]]
-- [[https://www.postgresql.org/download][Postgresql (version 12)]]
+- [[https://www.postgreSQL.org/download][PostgreSQL (version 12)]]
 - [[https://postgis.net/install][PostGIS (version 3)]]
 
 ** Application Plugin Configuration
@@ -26,10 +26,10 @@ Please note that you must replace all values surrounded with angle
 brackets (e.g., "<api-key>") with actual values for the application to
 work correctly.
 
-** Postgresql Database Setup
+** PostgreSQL Database Setup
 
 *PostgreSQL* needs to be installed on the machine that will be hosting
-the GeoServer to support imageMosaic rasters. Once the Postgresql database
+the GeoServer to support ImageMosaic rasters. Once the PostgreSQL database
 server is running on your machine, you should navigate to the toplevel
 directory and run the database build command as follows:
 
@@ -44,23 +44,23 @@ GeoServer's data.
 
 *** Performance Settings
 
-If you want to improve the performance of your Postgresql server, one
+If you want to improve the performance of your PostgreSQL server, one
 way is to visit the [[https://pgtune.leopard.in.ua/][pgtune]] website
 and input your system settings. This will generate a set of configuration
-options that you can add to the postgresql.conf file in your system-specific
-Postgresql data directory.
+options that you can add to the postgreSQL.conf file in your system-specific
+PostgreSQL data directory.
 
 If you would like to keep these settings separate for your own
 reference, you can add them to a file called "performance.conf" that
-you should place in your Postgresql data directory. You can then
-import these settings into postgresql.conf by adding this line to the
+you should place in your PostgreSQL data directory. You can then
+import these settings into postgreSQL.conf by adding this line to the
 end of that file:
 
 #+begin_example
 include = 'performance.conf'
 #+end_example
 
-Note that the Postgresql server will need to be restarted for these
+Note that the PostgreSQL server will need to be restarted for these
 changes to take effect.
 
 ** Usage

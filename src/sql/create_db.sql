@@ -3,5 +3,4 @@ DROP ROLE IF EXISTS geoserver;
 CREATE ROLE geoserver WITH LOGIN CREATEDB PASSWORD 'geoserver';
 CREATE DATABASE geoserver WITH OWNER geoserver;
 \c geoserver
-CREATE EXTENSION pgcrypto;
 CREATE EXTENSION postgis;
