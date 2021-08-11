@@ -199,11 +199,18 @@
   (and (integer? x)
        (< 0 x 0x10000)))
 
+(defn auth?
+  [x]
+  (s/includes? x "?auth-token="))
+
 ;;===========================================================
 ;; Set Capabilities
 ;;===========================================================
 
+(defn parse-uri-token [uri]
+  (s/split uri #"\?auth-token="))
+
 (defn set-capabilities
-  [{:keys [set-capabilities-uri set-capabilities-token]}]
-  (client/get set-capabilities-uri
-              {:query-params {"auth-token" set-capabilities-token}}))
+  [{:keys [set-capabilities-uri]}]
+  (let [[uri token] (parse-uri-token set-capabilities-uri)]
+   (client/get uri {:query-params {"auth-token" token}})))

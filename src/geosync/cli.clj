@@ -14,7 +14,8 @@
                                         readable-directory?
                                         hostname?
                                         port?
-                                        set-capabilities]]))
+                                        set-capabilities
+                                        auth?]]))
 
 ;;===========================================================
 ;; Argument Validation
@@ -156,9 +157,8 @@
     :parse-fn #(Integer/parseInt %)
     :validate [port? "The provided --geosync-server-port must be an integer between 0 and 65536."]]
    ["-C" "--set-capabilitites-uri URL" "URI to call set-capabilities"
-    :validate [url? "The provided --set-capabilities-uri is not a valid URI"]]
-   ["-t" "--set-capabilitites-token TOK" "Token used to authenticate the set-capabilities-uri request"
-    :validate [string? "The provided --set-capabilities-token is not a string."]]])
+    :validate [url? "The provided --set-capabilities-uri is not a valid URI"
+               auth? "The provided --set-capabilities-uri is missing the query parameter auth-token"]]])
 
 (def program-banner
   (str "geosync: Load a nested directory tree of GeoTIFFs and Shapefiles into a running GeoServer instance.\n"
