@@ -13,7 +13,8 @@
                                         url?
                                         readable-directory?
                                         hostname?
-                                        port?]]))
+                                        port?
+                                        set-capabilities]]))
 
 ;;===========================================================
 ;; Argument Validation
@@ -153,7 +154,11 @@
     :validate [hostname? "The provided --geosync-server-host is invalid."]]
    ["-P" "--geosync-server-port PORT" "Server port to listen on for incoming requests"
     :parse-fn #(Integer/parseInt %)
-    :validate [port? "The provided --geosync-server-port must be an integer between 0 and 65536."]]])
+    :validate [port? "The provided --geosync-server-port must be an integer between 0 and 65536."]]
+   ["-C" "--set-capabilitites-uri URL" "URI to call set-capabilities"
+    :validate [url? "The provided --set-capabilities-uri is not a valid URI"]]
+   ["-t" "--set-capabilitites-token TOK" "Token used to authenticate the set-capabilities-uri request"
+    :validate [string? "The provided --set-capabilities-token is not a string."]]])
 
 (def program-banner
   (str "geosync: Load a nested directory tree of GeoTIFFs and Shapefiles into a running GeoServer instance.\n"
@@ -191,5 +196,6 @@
           :else
           (do
             (add-directory-to-workspace! config-params)
+            (set-capabilities config-params)
             (shutdown-agents)
             (flush)))))

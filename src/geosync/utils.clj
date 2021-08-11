@@ -2,6 +2,7 @@
   (:import java.io.File
            java.net.URL)
   (:require [clojure.edn        :as edn]
+            [clj-http.client    :as client]
             [clojure.java.io    :as io]
             [clojure.java.shell :refer [with-sh-dir sh]]
             [clojure.string     :as s]
@@ -197,3 +198,12 @@
   [x]
   (and (integer? x)
        (< 0 x 0x10000)))
+
+;;===========================================================
+;; Set Capabilities
+;;===========================================================
+
+(defn set-capabilities
+  [{:keys [set-capabilities-uri set-capabilities-token]}]
+  (client/get set-capabilities-uri
+              {:query-params {"auth-token" set-capabilities-token}}))

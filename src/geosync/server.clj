@@ -13,7 +13,8 @@
                                             hostname?
                                             port?
                                             non-empty-string?
-                                            readable-directory?]]
+                                            readable-directory?
+                                            set-capabilities]]
             [triangulum.logging     :refer [log-str]]))
 
 ;;===========================================================
@@ -69,6 +70,11 @@
                                   (catch Exception e
                                     [1 (str "GeoSync: Error updating GeoServer: " (ex-message e))]))]
         (log-str "-> " status-msg)
+        (when (zero? status)
+          (try
+            (set-capabilities config-params)
+            (catch Exception e
+              (log-str e))))
         (sockets/send-to-server! response-host
                                  response-port
                                  (json/write-str (merge request
