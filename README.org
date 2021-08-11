@@ -10,6 +10,58 @@ layers, and layergroups for each file to a running GeoServer instance.
 
 - [[https://jdk.java.net][Java Development Kit (version 11+)]]
 - [[https://clojure.org/guides/getting_started][Clojure CLI tools]]
+- [[https://www.postgresql.org/download][PostgreSQL (version 12)]]
+- [[https://postgis.net/install][PostGIS (version 3)]]
+
+** Application Plugin Configuration
+
+Upon request, triangulum/config reads a file called config.edn
+in the toplevel directory of this repository, which contains various
+user-configurable system parameters. A sample file called
+config.default.edn is provided with this repository to get you
+started. To begin, simply copy it to config.edn. Then edit
+it according to the following sections.
+
+Please note that you must replace all values surrounded with angle
+brackets (e.g., "<api-key>") with actual values for the application to
+work correctly.
+
+** PostgreSQL Database Setup
+
+*PostgreSQL* needs to be installed on the machine that will be hosting
+the GeoServer to support ImageMosaic rasters. Once the PostgreSQL database
+server is running on your machine, you should navigate to the toplevel
+directory and run the database build command as follows:
+
+#+begin_src sh
+clojure -M:build-db build-all -d geoserver
+#+end_src
+
+This will begin by creating a new database and role called *geoserver*
+and then add the postgis extension to it. Next, the script will populate
+the database with the functions that are necessary for storing and processing
+GeoServer's data.
+
+*** Performance Settings
+
+If you want to improve the performance of your PostgreSQL server, one
+way is to visit the [[https://pgtune.leopard.in.ua/][pgtune]] website
+and input your system settings. This will generate a set of configuration
+options that you can add to the postgresql.conf file in your system-specific
+PostgreSQL data directory.
+
+If you would like to keep these settings separate for your own
+reference, you can add them to a file called "performance.conf" that
+you should place in your PostgreSQL data directory. You can then
+import these settings into postgresql.conf by adding this line to the
+end of that file:
+
+#+begin_example
+include = 'performance.conf'
+#+end_example
+
+Note that the PostgreSQL server will need to be restarted for these
+changes to take effect.
 
 ** Usage
 
