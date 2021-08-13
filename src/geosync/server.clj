@@ -14,7 +14,7 @@
                                             port?
                                             non-empty-string?
                                             readable-directory?
-                                            set-capabilities]]
+                                            run-action-hooks!]]
             [triangulum.logging     :refer [log-str]]))
 
 ;;===========================================================
@@ -26,11 +26,13 @@
 (spec/def ::action                         #{"add" "remove"})
 (spec/def ::geoserver-workspace            non-empty-string?)
 (spec/def ::data-dir                       readable-directory?)
+(spec/def ::clj-args                       (spec/coll-of string?))
 (spec/def ::geosync-server-request         (spec/and (spec/keys :req-un [::response-host
                                                                          ::response-port
                                                                          ::action
                                                                          ::geoserver-workspace]
-                                                                :opt-un [::data-dir])
+                                                                :opt-un [::data-dir
+                                                                         ::clj-args])
                                                      (fn [{:keys [action data-dir]}]
                                                        (or (and (= action "add") (string? data-dir))
                                                            (and (= action "remove") (nil? data-dir))))))
@@ -48,33 +50,35 @@
                                 (swap! job-queue-size inc)
                                 (delay (swap! job-queue-size dec) x)))))
 
+(defmulti process-request! (fn [_ {:keys [action]}] (keyword action)))
+
+(defmethod process-request! :add
+  [config-params]
+  (if (add-directory-to-workspace! config-params)
+    [0 "GeoSync: Workspace updated."]
+    [1 "GeoSync: Errors encountered during layer registration."]))
+
+(defmethod process-request! :remove
+  [config-params _]
+  (if (remove-workspace! config-params)
+    [0 "GeoSync: Workspace(s) removed."]
+    [1 "GeoSync: Errors encountered during workspace removal."]))
+
 (defn process-requests!
-  [{:keys [geosync-server-host geosync-server-port] :as config-params}]
+  [{:keys [geosync-server-host geosync-server-port action-hooks] :as config-params}]
   (go
-    (loop [{:keys [response-host response-port action geoserver-workspace data-dir] :as request} @(<! job-queue)]
+    (loop [{:keys [response-host response-port geoserver-workspace data-dir] :as request} @(<! job-queue)]
       (log-str "Processing Request: " request)
       (let [config-params       (-> config-params
                                     (dissoc :geosync-server-host :geosync-server-port)
                                     (assoc :geoserver-workspace geoserver-workspace :data-dir data-dir))
             [status status-msg] (try
-                                  (case action
-                                    "add"
-                                    (if (add-directory-to-workspace! config-params)
-                                      [0 "GeoSync: Workspace updated."]
-                                      [1 "GeoSync: Errors encountered during layer registration."])
-
-                                    "remove"
-                                    (if (remove-workspace! config-params)
-                                      [0 "GeoSync: Workspace(s) removed."]
-                                      [1 "GeoSync: Errors encountered during workspace removal."]))
+                                  (run-action-hooks! action-hooks request :before)
+                                  (process-request! config-params request)
+                                  (run-action-hooks! action-hooks request :after)
                                   (catch Exception e
                                     [1 (str "GeoSync: Error updating GeoServer: " (ex-message e))]))]
         (log-str "-> " status-msg)
-        (when (zero? status)
-          (try
-            (set-capabilities config-params)
-            (catch Exception e
-              (log-str e))))
         (sockets/send-to-server! response-host
                                  response-port
                                  (json/write-str (merge request

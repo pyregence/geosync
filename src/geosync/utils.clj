@@ -6,7 +6,9 @@
             [clojure.java.io    :as io]
             [clojure.java.shell :refer [with-sh-dir sh]]
             [clojure.string     :as s]
-            [hiccup2.core       :refer [html]]))
+            [hiccup2.core       :refer [html]]
+            [triangulum.logging :refer [log-str]]
+            [clojure.data.json :as json]))
 
 ;;===========================================================
 ;;
@@ -207,10 +209,28 @@
 ;; Set Capabilities
 ;;===========================================================
 
-(defn parse-uri-token [uri]
-  (s/split uri #"\?auth-token="))
+(defn- replace-symbol [request index v]
+  (if (symbol? v)
+    (get-in request [:clj-args index] (keyword v))
+    v))
 
-(defn set-capabilities
-  [{:keys [set-capabilities-uri]}]
-  (let [[uri token] (parse-uri-token set-capabilities-uri)]
-   (client/get uri {:query-params {"auth-token" token}})))
+(defn- replace-symbols
+  [request v]
+  (if (vector? v)
+    (into [] (map-indexed (partial replace-symbol request)) v)
+    v))
+
+(defn process-query-params
+  [query-params request]
+  (reduce-kv (fn [acc k v]
+               (assoc acc (str k) (replace-symbols request v)))
+             {}
+             query-params))
+
+(defn run-action-hooks!
+  [action-hooks request selected-run-time]
+  (doseq [[_ _ url query-params] (filter (fn [[run-time action]]
+                                           (and (= run-time selected-run-time)
+                                                (= action (:action request))))
+                                         action-hooks)]
+    (client/get url {:query-params (process-query-params query-params request)})))
