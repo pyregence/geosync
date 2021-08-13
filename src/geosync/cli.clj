@@ -19,11 +19,11 @@
 ;; Argument Validation
 ;;===========================================================
 
-(spec/def ::action-runtime      #{:before :after})
-(spec/def ::clj-args            (spec/coll-of (spec/or symbol? string?)))
+(spec/def ::action-run-time      #{:before :after})
+(spec/def ::clj-args            (spec/coll-of (spec/or :sym symbol? :str string?)))
 (spec/def ::action-hook-params  (spec/keys :req-un [::auth-token ::clj-args]))
 (spec/def ::action-hook         (spec/tuple ::action-run-time ::server/action url? ::action-hook-params))
-(spec/def ::action-hooks        (spec/coll-of :action-hook))
+(spec/def ::action-hooks        (spec/coll-of ::action-hook))
 (spec/def ::geoserver-rest-uri  url?)
 (spec/def ::geoserver-username  non-empty-string?)
 (spec/def ::geoserver-password  non-empty-string?)

@@ -3,8 +3,8 @@
  :geoserver-password  "geoserver"
  :geoserver-workspace "demo"
  :action-hooks        [[:after  "add"    "https://pyrecast.org/clj/set-capabilities"              {:auth-token "some-token" :clj-args [geoserverWorkspace]}]
-                       [:before "remove" "https://pyrecast.org/clj/remove-workspace"              {:auth-token "some-token" :clj-args [geoserverWorkspace]}]
-                       [:after  "add"    "https://pyregence-dev.sig-gis.com/clj/set-capabilities" {:auth-token "some-token" :clj-args [geoserverWorkspace]}]
+                       [:before "remove" "https://pyrecast.org/clj/remove-workspace"              {:auth-token "some-token" :clj-args [geoserver-workspace]}]
+                       [:after  "add"    "https://pyregence-dev.sig-gis.com/clj/set-capabilities" {:auth-token "some-token" :clj-args ["geoserver_workspace"]}]
                        [:before "remove" "https://pyregence-dev-sig-gis.com/clj/remove-workspace" {:auth-token "some-token" :clj-args [geoserverWorkspace]}]]
  :data-dir            "/data"
  :styles              [{:layer-pattern "fire-area"                             :raster-style "fire-area" :vector-style "line-fire-area"}
