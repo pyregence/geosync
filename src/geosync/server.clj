@@ -26,7 +26,7 @@
 (spec/def ::action                         #{"add" "remove"})
 (spec/def ::geoserver-workspace            non-empty-string?)
 (spec/def ::data-dir                       readable-directory?)
-(spec/def ::clj-args                       (spec/coll-of string?))
+(spec/def ::clj-args                       (spec/coll-of symbol?))
 (spec/def ::geosync-server-request         (spec/and (spec/keys :req-un [::response-host
                                                                          ::response-port
                                                                          ::action
