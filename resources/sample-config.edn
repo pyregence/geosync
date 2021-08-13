@@ -7,10 +7,10 @@
                        [:after  "add"    "https://pyregence-dev.sig-gis.com/clj/set-capabilities" {:auth-token "some-token" :clj-args ["geoserver_workspace"]}]
                        [:before "remove" "https://pyregence-dev-sig-gis.com/clj/remove-workspace" {:auth-token "some-token" :clj-args [geoserverWorkspace]}]]
  :data-dir            "/data"
- :styles              [{:layer-pattern "fire-area"                             :raster-style "fire-area" :vector-style "line-fire-area"}
-                       {:layer-pattern "fire-volume"                           :raster-style "fire-volume" :vector-style "line-fire-volume"}
-                       {:layer-pattern "times-burned"                          :raster-style "times-burned" :vector-style "line-times-burned"}
-                       {:layer-pattern "impacted-structures"                   :raster-style "impacted-structures" :vector-style "line-impacted-structures"}]
+ :styles              [{:layer-pattern "fire-area"           :raster-style "fire-area"           :vector-style "line-fire-area"}
+                       {:layer-pattern "fire-volume"         :raster-style "fire-volume"         :vector-style "line-fire-volume"}
+                       {:layer-pattern "times-burned"        :raster-style "times-burned"        :vector-style "line-times-burned"}
+                       {:layer-pattern "impacted-structures" :raster-style "impacted-structures" :vector-style "line-impacted-structures"}]
  :layer-groups        [{:layer-pattern "elmfire_landfire_fire-area"            :name "elmfire_landfire_fire-area"}
                        {:layer-pattern "elmfire_landfire_fire-volume"          :name "elmfire_landfire_fire-volume"}
                        {:layer-pattern "elmfire_landfire_times-burned"         :name "elmfire_landfire_times-burned"}
