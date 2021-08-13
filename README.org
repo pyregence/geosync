@@ -79,14 +79,14 @@ geosync: Load a nested directory tree of GeoTIFFs and Shapefiles into a running 
 Copyright © 2020-2021 Spatial Informatics Group, LLC.
 
 Usage:
-  -c, --config-file EDN             Path to an EDN file containing a map of these parameters
-  -g, --geoserver-rest-uri URI      URI of your GeoServer's REST extensions
-  -u, --geoserver-username USER     GeoServer admin username
-  -p, --geoserver-password PASS     GeoServer admin password
-  -w, --geoserver-workspace WS      Workspace name to receive the new GeoServer layers
-  -d, --data-dir DIR                Path to the directory containing your GIS files
-  -h, --geosync-server-host HOST    Hostname to advertise in server responses
-  -P, --geosync-server-port PORT    Server port to listen on for incoming requests
+  -c, --config-file EDN           Path to an EDN file containing a map of these parameters
+  -g, --geoserver-rest-uri URI    URI of your GeoServer's REST extensions
+  -u, --geoserver-username USER   GeoServer admin username
+  -p, --geoserver-password PASS   GeoServer admin password
+  -w, --geoserver-workspace WS    Workspace name to receive the new GeoServer layers
+  -d, --data-dir DIR              Path to the directory containing your GIS files
+  -h, --geosync-server-host HOST  Hostname to advertise in server responses
+  -P, --geosync-server-port PORT  Server port to listen on for incoming requests
 #+end_example
 
 You can run GeoSync in one of three ways:
