@@ -2,13 +2,11 @@
   (:import java.io.File
            java.net.URL)
   (:require [clojure.edn        :as edn]
-            [clj-http.client    :as client]
             [clojure.java.io    :as io]
             [clojure.java.shell :refer [with-sh-dir sh]]
             [clojure.string     :as s]
             [hiccup2.core       :refer [html]]
-            [triangulum.logging :refer [log-str]]
-            [clojure.data.json :as json]))
+            [clojure.data.json  :as json]))
 
 ;;===========================================================
 ;;
@@ -200,37 +198,3 @@
   [x]
   (and (integer? x)
        (< 0 x 0x10000)))
-
-(defn auth?
-  [x]
-  (s/includes? x "?auth-token="))
-
-;;===========================================================
-;; Set Capabilities
-;;===========================================================
-
-(defn- replace-symbol [request index v]
-  (if (symbol? v)
-    (get-in request [:clj-args index] (keyword v))
-    v))
-
-(defn- replace-symbols
-  [request v]
-  (if (vector? v)
-    (into [] (map-indexed (partial replace-symbol request)) v)
-    v))
-
-(defn process-query-params
-  [query-params request]
-  (reduce-kv (fn [acc k v]
-               (assoc acc (str k) (replace-symbols request v)))
-             {}
-             query-params))
-
-(defn run-action-hooks!
-  [action-hooks request selected-run-time]
-  (doseq [[_ _ url query-params] (filter (fn [[run-time action]]
-                                           (and (= run-time selected-run-time)
-                                                (= action (:action request))))
-                                         action-hooks)]
-    (client/get url {:query-params (process-query-params query-params request)})))

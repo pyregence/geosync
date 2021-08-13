@@ -4,6 +4,7 @@
   (:require [clojure.core.async     :refer [<! >! chan go]]
             [clojure.data.json      :as json]
             [clojure.spec.alpha     :as spec]
+            [geosync.action-hooks   :refer [run-action-hooks!]]
             [geosync.core           :refer [add-directory-to-workspace!
                                             remove-workspace!]]
             [geosync.simple-sockets :as sockets]
@@ -13,8 +14,7 @@
                                             hostname?
                                             port?
                                             non-empty-string?
-                                            readable-directory?
-                                            run-action-hooks!]]
+                                            readable-directory?]]
             [triangulum.logging     :refer [log-str]]))
 
 ;;===========================================================
@@ -26,13 +26,11 @@
 (spec/def ::action                         #{"add" "remove"})
 (spec/def ::geoserver-workspace            non-empty-string?)
 (spec/def ::data-dir                       readable-directory?)
-(spec/def ::clj-args                       (spec/coll-of symbol?))
 (spec/def ::geosync-server-request         (spec/and (spec/keys :req-un [::response-host
                                                                          ::response-port
                                                                          ::action
                                                                          ::geoserver-workspace]
-                                                                :opt-un [::data-dir
-                                                                         ::clj-args])
+                                                                :opt-un [::data-dir])
                                                      (fn [{:keys [action data-dir]}]
                                                        (or (and (= action "add") (string? data-dir))
                                                            (and (= action "remove") (nil? data-dir))))))

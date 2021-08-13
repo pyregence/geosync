@@ -6,21 +6,24 @@
             [clojure.string     :as s]
             [clojure.tools.cli  :refer [parse-opts]]
             [geosync.core       :refer [add-directory-to-workspace!]]
-            [geosync.server     :refer [start-server!]]
+            [geosync.server     :refer [start-server!] :as server]
             [geosync.utils      :refer [nil-on-error
                                         throw-message
                                         non-empty-string?
                                         url?
                                         readable-directory?
                                         hostname?
-                                        port?
-                                        set-capabilities
-                                        auth?]]))
+                                        port?]]))
 
 ;;===========================================================
 ;; Argument Validation
 ;;===========================================================
 
+(spec/def ::action-runtime      #{:before :after})
+(spec/def ::clj-args            (spec/coll-of (s/or symbol? string?)))
+(spec/def ::action-hook-params  (spec/keys :req-un [::auth-token ::clj-args]))
+(spec/def ::action-hook         (spec/tuple ::action-run-time ::server/action url? ::action-hook-params))
+(spec/def ::action-hooks        (spec/coll-of :action-hook))
 (spec/def ::geoserver-rest-uri  url?)
 (spec/def ::geoserver-username  non-empty-string?)
 (spec/def ::geoserver-password  non-empty-string?)
@@ -54,7 +57,8 @@
                                                     ::geosync-server-host
                                                     ::geosync-server-port
                                                     ::styles
-                                                    ::layer-groups]))
+                                                    ::layer-groups
+                                                    ::action-hooks]))
 
 ;;===========================================================
 ;; Argument Processing
@@ -155,10 +159,7 @@
     :validate [hostname? "The provided --geosync-server-host is invalid."]]
    ["-P" "--geosync-server-port PORT" "Server port to listen on for incoming requests"
     :parse-fn #(Integer/parseInt %)
-    :validate [port? "The provided --geosync-server-port must be an integer between 0 and 65536."]]
-   ["-C" "--set-capabilitites-uri URL" "URI to call set-capabilities"
-    :validate [url? "The provided --set-capabilities-uri is not a valid URI"
-               auth? "The provided --set-capabilities-uri is missing the query parameter auth-token"]]])
+    :validate [port? "The provided --geosync-server-port must be an integer between 0 and 65536."]]])
 
 (def program-banner
   (str "geosync: Load a nested directory tree of GeoTIFFs and Shapefiles into a running GeoServer instance.\n"
@@ -196,6 +197,5 @@
           :else
           (do
             (add-directory-to-workspace! config-params)
-            (set-capabilities config-params)
             (shutdown-agents)
             (flush)))))
