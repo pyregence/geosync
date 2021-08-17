@@ -1,24 +1,21 @@
 (ns geosync.action-hooks
-  (:require [clj-http.client :as client]
-            [triangulum.logging :refer [log-str]]
-            [geosync.utils :refer [camel->kebab]]
-            [clojure.data.json :as json]))
-
-(defn- replace-symbol [request v]
-  (if (symbol? v)
-    (get request (keyword (camel->kebab (name v))))
-    v))
+  (:require [clj-http.client    :as client]
+            [geosync.utils      :refer [camel->kebab]]
+            [triangulum.logging :refer [log-str]]))
 
 (defn- replace-symbols
   [request v]
-  (if (vector? v)
-    (json/write-str (mapv (partial replace-symbol request) v))
-    v))
+  (cond (symbol? v) (-> v name camel->kebab keyword request)
+        (list? v)   (into () (map (partial replace-symbols request)) v)
+        (vector? v) (into [] (map (partial replace-symbols request)) v)
+        (map? v)    (into {} (map (fn [[k v]] [k (replace-symbols request v)])) v)
+        (set? v)    (into #{} (map (partial replace-symbols request)) v)
+        :else       v))
 
-(defn process-query-params
+(defn- process-query-params
   [query-params request]
   (reduce-kv (fn [acc k v]
-               (assoc acc (name k) (replace-symbols request v)))
+               (assoc acc k (replace-symbols request v)))
              {}
              query-params))
 
@@ -32,4 +29,4 @@
       (let [response (client/get url {:query-params (process-query-params query-params request)})]
         (log-str (:body response)))
       (catch Exception e
-        (log-str (ex-message e))))))
+        (log-str (:body (ex-message e)))))))

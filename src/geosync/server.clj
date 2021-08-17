@@ -51,7 +51,7 @@
 (defmulti process-request! (fn [_ {:keys [action]}] (keyword action)))
 
 (defmethod process-request! :add
-  [config-params]
+  [config-params _]
   (if (add-directory-to-workspace! config-params)
     [0 "GeoSync: Workspace updated."]
     [1 "GeoSync: Errors encountered during layer registration."]))
@@ -67,20 +67,21 @@
   (go
     (loop [{:keys [response-host response-port geoserver-workspace data-dir] :as request} @(<! job-queue)]
       (log-str "Processing Request: " request)
-      (let [config-params       (-> config-params
-                                    (dissoc :geosync-server-host :geosync-server-port)
-                                    (assoc :geoserver-workspace geoserver-workspace :data-dir data-dir))
-            [status status-msg] (try
-                                  (run-action-hooks! action-hooks request :before)
-                                  (process-request! config-params request)
-                                  (run-action-hooks! action-hooks request :after)
-                                  (catch Exception e
-                                    [1 (str "GeoSync: Error updating GeoServer: " (ex-message e))]))]
+      (let [config-params           (-> config-params
+                                        (dissoc :geosync-server-host :geosync-server-port)
+                                        (assoc :geoserver-workspace geoserver-workspace :data-dir data-dir))
+            [status-num status-msg] (try
+                                      (let [_      (run-action-hooks! action-hooks request :before)
+                                            status (process-request! config-params request)
+                                            _      (run-action-hooks! action-hooks request :after)]
+                                        status)
+                                      (catch Exception e
+                                        [1 (str "GeoSync: Error updating GeoServer: " (ex-message e))]))]
         (log-str "-> " status-msg)
         (sockets/send-to-server! response-host
                                  response-port
                                  (json/write-str (merge request
-                                                        {:status        status
+                                                        {:status        status-num
                                                          :message       status-msg
                                                          :response-host geosync-server-host
                                                          :response-port geosync-server-port})

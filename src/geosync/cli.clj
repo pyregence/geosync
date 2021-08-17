@@ -19,16 +19,14 @@
 ;; Argument Validation
 ;;===========================================================
 
-(spec/def ::action-run-time      #{:before :after})
-(spec/def ::clj-args            (spec/coll-of (spec/or :sym symbol? :str string?)))
-(spec/def ::action-hook-params  (spec/keys :req-un [::auth-token ::clj-args]))
-(spec/def ::action-hook         (spec/tuple ::action-run-time ::server/action url? ::action-hook-params))
-(spec/def ::action-hooks        (spec/coll-of ::action-hook))
+(spec/def ::action-run-time     #{:before :after})
 (spec/def ::geoserver-rest-uri  url?)
 (spec/def ::geoserver-username  non-empty-string?)
 (spec/def ::geoserver-password  non-empty-string?)
 (spec/def ::geoserver-workspace non-empty-string?)
 (spec/def ::data-dir            readable-directory?)
+(spec/def ::geosync-server-host hostname?)
+(spec/def ::geosync-server-port port?)
 (spec/def ::layer-pattern       non-empty-string?)
 (spec/def ::raster-style        non-empty-string?)
 (spec/def ::vector-style        non-empty-string?)
@@ -37,8 +35,9 @@
 (spec/def ::name                non-empty-string?)
 (spec/def ::layer-group         (spec/keys :req-un [::layer-pattern ::name]))
 (spec/def ::layer-groups        (spec/coll-of ::layer-group :kind vector? :distinct true))
-(spec/def ::geosync-server-host hostname?)
-(spec/def ::geosync-server-port port?)
+(spec/def ::action-hook-params  (spec/keys (spec/map-of keyword? any?)))
+(spec/def ::action-hook         (spec/tuple ::action-run-time ::server/action url? ::action-hook-params))
+(spec/def ::action-hooks        (spec/coll-of ::action-hook :kind vector? :distinct true))
 (spec/def ::geosync-config      (spec/keys :req-un [::geoserver-rest-uri
                                                     ::geoserver-username
                                                     ::geoserver-password
@@ -48,7 +47,8 @@
                                                      (and ::geosync-server-host
                                                           ::geosync-server-port))]
                                            :opt-un [::styles
-                                                    ::layer-groups]))
+                                                    ::layer-groups
+                                                    ::action-hooks]))
 (spec/def ::geosync-config-file (spec/keys :opt-un [::geoserver-rest-uri
                                                     ::geoserver-username
                                                     ::geoserver-password

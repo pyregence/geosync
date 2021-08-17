@@ -5,8 +5,7 @@
             [clojure.java.io    :as io]
             [clojure.java.shell :refer [with-sh-dir sh]]
             [clojure.string     :as s]
-            [hiccup2.core       :refer [html]]
-            [clojure.data.json  :as json]))
+            [hiccup2.core       :refer [html]]))
 
 ;;===========================================================
 ;;
