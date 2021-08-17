@@ -1,7 +1,7 @@
 (ns geosync.server
   (:import  java.text.SimpleDateFormat
             java.util.Date)
-  (:require [clojure.core.async     :refer [<! >! chan go alts!]]
+  (:require [clojure.core.async     :refer [>! chan go alts!]]
             [clojure.data.json      :as json]
             [clojure.spec.alpha     :as spec]
             [geosync.core           :refer [add-directory-to-workspace!
@@ -59,30 +59,29 @@
 (defn process-requests!
   [{:keys [geosync-server-host geosync-server-port] :as config-params}]
   (go
-    (loop [[val _] (alts! [job-queue stand-by-queue])]
-      (let [{:keys
-             [response-host
-              response-port
-              action
-              geoserver-workspace
-              data-dir] :as request} @val
-            _                        (log-str "Processing Request: " request)
-            config-params            (-> config-params
-                                         (dissoc :geosync-server-host :geosync-server-port)
-                                         (assoc :geoserver-workspace geoserver-workspace :data-dir data-dir))
-            [status status-msg]      (try
-                                       (case action
-                                         "add"
-                                         (if (add-directory-to-workspace! config-params)
-                                           [0 "GeoSync: Workspace updated."]
-                                           [1 "GeoSync: Errors encountered during layer registration."])
+    (loop [{:keys
+            [response-host
+             response-port
+             action
+             geoserver-workspace
+             data-dir] :as request} @(first (alts! [job-queue stand-by-queue]))]
+      (log-str "Processing Request: " request)
+      (let [config-params       (-> config-params
+                                    (dissoc :geosync-server-host :geosync-server-port)
+                                    (assoc :geoserver-workspace geoserver-workspace :data-dir data-dir))
+            [status status-msg] (try
+                                  (case action
+                                    "add"
+                                    (if (add-directory-to-workspace! config-params)
+                                      [0 "GeoSync: Workspace updated."]
+                                      [1 "GeoSync: Errors encountered during layer registration."])
 
-                                         "remove"
-                                         (if (remove-workspace! config-params)
-                                           [0 "GeoSync: Workspace(s) removed."]
-                                           [1 "GeoSync: Errors encountered during workspace removal."]))
-                                       (catch Exception e
-                                         [1 (str "GeoSync: Error updating GeoServer: " (ex-message e))]))]
+                                    "remove"
+                                    (if (remove-workspace! config-params)
+                                      [0 "GeoSync: Workspace(s) removed."]
+                                      [1 "GeoSync: Errors encountered during workspace removal."]))
+                                  (catch Exception e
+                                    [1 (str "GeoSync: Error updating GeoServer: " (ex-message e))]))]
         (log-str "-> " status-msg)
         (sockets/send-to-server! response-host
                                  response-port
@@ -92,7 +91,7 @@
                                                          :response-host geosync-server-host
                                                          :response-port geosync-server-port})
                                                  :key-fn (comp kebab->camel name))))
-      (recur @(<! job-queue)))))
+      (recur @(first (alts! [job-queue stand-by-queue]))))))
 
 (defn handler
   [geosync-server-host geosync-server-port request-msg]
@@ -101,11 +100,14 @@
     (if-let [request (nil-on-error (json/read-str request-msg :key-fn (comp keyword camel->kebab)))]
       (let [[status status-msg] (try
                                   (if (spec/valid? ::geosync-server-request request)
-                                    (do
-                                      (if (true? (:prioritize request))
+                                    (let [prioritize? (:prioritize request)]
+                                      (if prioritize?
                                         (>! job-queue request)
                                         (>! stand-by-queue request))
-                                      [2 (format "GeoSync: You are number %d in the queue." @job-queue-size)])
+                                      (let [queue-size (if prioritize?
+                                                         @job-queue-size
+                                                         (+ @job-queue-size @stand-by-queue-size))]
+                                        [2 (format "GeoSync: You are number %d in the queue." queue-size)]))
                                     [1 (str "GeoSync: Invalid request: " (spec/explain-str ::geosync-server-request request))])
                                   (catch AssertionError _
                                     [1 "GeoSync: Job queue limit exceeded! Dropping request!"])
