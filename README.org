@@ -224,38 +224,66 @@ here:
 
 https://docs.geoserver.org/latest/en/user/configuration/crshandling/customcrs.html
 
-** ImageMosaic
+** ImageMosaic Support
 
-Inorder for imagemosic to work properly three files are needed in these folders
-(datastore.properties, indexer.properties, and timeregex.properties). These are
-the minimum properties required prior to registration.
+In addition to registering individual GeoTIFFs and Shapefiles, GeoSync
+can also register a directory of GeoTIFFs as a single ImageMosaic
+layer. This can be particularly useful for timeseries rasters in which
+your data is stored as a directory of single-band GeoTIFFs with one
+file per timestep.
 
-datastore.properties
-#+begin_src
+In order for a directory to be detected as an ImageMosaic data source
+by GeoSync, it must include these three text files:
+
+- datastore.properties
+- indexer.properties
+- timeregex.properties
+
+The required contents of these files is provided in the following
+subsections.
+
+*** datastore.properties
+
+#+begin_example
 Estimated\ extends=true
 jndiRefevrenceName=java\:comp/env/jdbc/postgres
 validate\ connections=true
 Connection\ timeout=10
 SPI=org.geotools.data.postgis.PostgisNGJNDIDataStoreFactory
-#+end_src
+#+end_example
 
-Note that datatore.properties also need a schema property, but this will be
-inserted by geosync based on the cli config or, if in server-mode, the request.
+Note that datastore.properties also needs a schema property, but this
+will be inserted by GeoSync by using the geoserverWorkspace attribute
+from either config.edn (in script mode) or the JSON request (in server
+mode).
 
-indexer.properties
-#+begin_src
+*** indexer.properties
+
+#+begin_example
 TimeAttribute=ingestion
 Schema=*the_geom\:Polygon,location\:String,ingestion\:java.util.Date
 PropertyCollectors=TimestampFileNameExtractorSPI[timeregex](ingestion)
-#+end_src
+#+end_example
 
 Note that indexer.properties also needs a Name property, but this will be inserted
-by geosync based on the the directory structure.
+by GeoSync based on the the directory structure.
 
-timeregex.properties
-#+begin_src
+*** timeregex.properties
+
+#+begin_example
 regex=([0-9]{8}_[0-9]{6}),format=yyyyMMdd_HHmmss
-#+end_src
+#+end_example
+
+This regex must match the file naming convention used for all the
+timeseries GeoTIFFs in your ImageMosaic directory. The example given
+above would match files with the following names:
+
+- some_layer_20210801_120000
+- some_layer_20210801_130000
+- some_layer_20210801_140000
+
+If you use a different file naming convention for your timestamps,
+make sure to update timeregex.properties accordingly.
 
 ** License and Distribution
 
