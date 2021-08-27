@@ -64,7 +64,8 @@
              response-port
              action
              geoserver-workspace
-             data-dir] :as request} @(first (alts! [job-queue stand-by-queue]))]
+             data-dir] :as request} @(first (alts! [job-queue stand-by-queue]
+                                                   :priority true))]
       (log-str "Processing Request: " request)
       (let [config-params       (-> config-params
                                     (dissoc :geosync-server-host :geosync-server-port)
@@ -91,7 +92,8 @@
                                                          :response-host geosync-server-host
                                                          :response-port geosync-server-port})
                                                  :key-fn (comp kebab->camel name))))
-      (recur @(first (alts! [job-queue stand-by-queue]))))))
+      (recur @(first (alts! [job-queue stand-by-queue]
+                            :priority true))))))
 
 (defn handler
   [geosync-server-host geosync-server-port request-msg]
@@ -100,14 +102,12 @@
     (if-let [request (nil-on-error (json/read-str request-msg :key-fn (comp keyword camel->kebab)))]
       (let [[status status-msg] (try
                                   (if (spec/valid? ::geosync-server-request request)
-                                    (let [prioritize? (:prioritize request)]
-                                      (if prioritize?
-                                        (>! job-queue request)
-                                        (>! stand-by-queue request))
-                                      (let [queue-size (if prioritize?
-                                                         @job-queue-size
-                                                         (+ @job-queue-size @stand-by-queue-size))]
-                                        [2 (format "GeoSync: You are number %d in the queue." queue-size)]))
+                                    (let [queue-size (if (:prioritize request)
+                                                       (do (>! job-queue request)
+                                                           @job-queue-size)
+                                                       (do (>! stand-by-queue request)
+                                                           (+ @job-queue-size @stand-by-queue-size)))]
+                                      [2 (format "GeoSync: You are number %d in the queue." queue-size)])
                                     [1 (str "GeoSync: Invalid request: " (spec/explain-str ::geosync-server-request request))])
                                   (catch AssertionError _
                                     [1 "GeoSync: Job queue limit exceeded! Dropping request!"])
