@@ -77,7 +77,6 @@
     (loop [{:keys
             [response-host
              response-port
-             action
              geoserver-workspace
              data-dir] :as request} @(first (alts! [job-queue stand-by-queue]
                                                    :priority true))]
