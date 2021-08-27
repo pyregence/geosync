@@ -224,6 +224,39 @@ here:
 
 https://docs.geoserver.org/latest/en/user/configuration/crshandling/customcrs.html
 
+** ImageMosaic
+
+Inorder for imagemosic to work properly three files are needed in these folders
+(datastore.properties, indexer.properties, and timeregex.properties). These are
+the minimum properties required prior to registration.
+
+datastore.properties
+#+begin_src
+Estimated\ extends=true
+jndiRefevrenceName=java\:comp/env/jdbc/postgres
+validate\ connections=true
+Connection\ timeout=10
+SPI=org.geotools.data.postgis.PostgisNGJNDIDataStoreFactory
+#+end_src
+
+Note that datatore.properties also need a schema property, but this will be
+inserted by geosync based on the cli config or, if in server-mode, the request.
+
+indexer.properties
+#+begin_src
+TimeAttribute=ingestion
+Schema=*the_geom\:Polygon,location\:String,ingestion\:java.util.Date
+PropertyCollectors=TimestampFileNameExtractorSPI[timeregex](ingestion)
+#+end_src
+
+Note that indexer.properties also needs a Name property, but this will be inserted
+by geosync based on the the directory structure.
+
+timeregex.properties
+#+begin_src
+regex=([0-9]{8}_[0-9]{6}),format=yyyyMMdd_HHmmss
+#+end_src
+
 ** License and Distribution
 
 Copyright © 2020-2021 Spatial Informatics Group, LLC.
