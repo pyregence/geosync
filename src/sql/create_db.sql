@@ -1,6 +1,6 @@
-DROP DATABASE IF EXISTS geoserver;
+DROP DATABASE IF EXISTS :database;
 DROP ROLE IF EXISTS geoserver;
 CREATE ROLE geoserver WITH LOGIN CREATEDB PASSWORD 'geoserver';
-CREATE DATABASE geoserver WITH OWNER geoserver;
-\c geoserver
+CREATE DATABASE :database WITH OWNER geoserver;
+\c :database
 CREATE EXTENSION postgis;
