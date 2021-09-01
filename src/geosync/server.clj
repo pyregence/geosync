@@ -7,6 +7,7 @@
             [geosync.action-hooks   :refer [run-action-hooks!]]
             [geosync.core           :refer [add-directory-to-workspace!
                                             remove-workspace!]]
+            [geosync.file-watcher   :as file-watcher]
             [geosync.simple-sockets :as sockets]
             [geosync.utils          :refer [nil-on-error
                                             camel->kebab
@@ -15,7 +16,8 @@
                                             port?
                                             non-empty-string?
                                             readable-directory?]]
-            [triangulum.logging     :refer [log-str]]))
+            [triangulum.logging     :refer [log-str]]
+            [nextjournal.beholder :as beholder]))
 
 ;;===========================================================
 ;; Request Validation
@@ -134,12 +136,16 @@
                                                    :key-fn (comp kebab->camel name)))))
       (log-str "-> Invalid JSON"))))
 
+(declare watcher)
+
 (defn stop-server!
   []
-  (sockets/stop-server!))
+  (sockets/stop-server!)
+  (beholder/stop watcher))
 
 (defn start-server!
   [{:keys [geosync-server-host geosync-server-port] :as config-params}]
   (log-str "Running server on port " geosync-server-port ".")
+  (def watcher (file-watcher/start! config-params stand-by-queue))
   (sockets/start-server! geosync-server-port (partial handler geosync-server-host geosync-server-port))
   (process-requests! config-params))
