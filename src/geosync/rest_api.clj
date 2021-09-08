@@ -495,11 +495,11 @@
          [:description "GridSampleDimension[-Infinity,Infinity]"]]]
        [:requestSRS
         [:string "EPSG:4326"]
-        (if (not= proj-code "EPSG:4326")
+        (when (not= proj-code "EPSG:4326")
           [:string proj-code])]
        [:responseSRS
         [:string "EPSG:4326"]
-        (if (not= proj-code "EPSG:4326")
+        (when (not= proj-code "EPSG:4326")
           [:string proj-code])]
        [:enabled enabled?]])]))
 

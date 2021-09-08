@@ -81,11 +81,11 @@
                        (select-keys response [:status :reason-phrase])))
       response)
     (catch Exception e
-      (do (log-str (format "%6s %s%n               -> %s"
-                           http-method
-                           uri-suffix
-                           (select-keys (ex-data e) [:status :reason-phrase :body])))
-          (ex-data e)))))
+      (log-str (format "%6s %s%n               -> %s"
+                       http-method
+                       uri-suffix
+                       (select-keys (ex-data e) [:status :reason-phrase :body])))
+      (ex-data e))))
 
 ;; FIXME: Use an SSL keystore and remove insecure? param
 (defn make-rest-request-async
