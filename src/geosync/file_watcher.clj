@@ -1,8 +1,8 @@
 (ns geosync.file-watcher
-  (:require [clojure.core.async :refer [<! >! >!! go-loop timeout]]
+  (:require [clojure.core.async   :refer [<! >! >!! go-loop timeout]]
+            [clojure.string       :as s]
             [nextjournal.beholder :as beholder]
-            [triangulum.logging :refer [log-str]]
-            [clojure.string :as s]))
+            [triangulum.logging   :refer [log-str]]))
 
 ;;-----------------------------------------------------------------------------
 ;; Utils
@@ -14,7 +14,7 @@
   {:response-host "some.host"
    :response-port 1234})
 
-(defn count-down [{:keys [job-queue]} workspace request-args]
+(defn- count-down [{:keys [job-queue]} workspace request-args]
   (go-loop [seconds (get @event-in-progress workspace)]
     (if (> @seconds 0)
       (do (<! (timeout 1000))
@@ -32,7 +32,7 @@
    (start-counter config workspace nil))
 
   ([config workspace request-args]
-   (swap! event-in-progress assoc workspace (atom 10))
+   (reset-timer workspace)
    (count-down config workspace request-args)))
 
 ;;-----------------------------------------------------------------------------
@@ -44,7 +44,7 @@
 ;;known files that should be ignored.
 (def files-to-ignore #{"sample_image.dat" ".properties"})
 
-(defn parse-workspace
+(defn- parse-workspace
   [{:keys [dir workspace-regex]} path]
   (let [folder-regex (re-pattern (format "(?<=%s/)[\\w-]+" dir))
         folder-name  (re-find folder-regex path)]
@@ -53,9 +53,9 @@
               (s/replace "/" "_")
               (s/replace "_dev" ""))))) ;TODO remove when dev folders no longer needed
 
-(defn process-event
+(defn- process-event
   [{:keys [job-queue] :as config} event-type path]
-  (when (not (some #(s/includes? path %) files-to-ignore))
+  (when (not-any? #(s/includes? path %) files-to-ignore)
     (when-let [workspace (parse-workspace config path)]
       (log-str event-type ":" path)
       (case event-type
@@ -74,16 +74,14 @@
 
 (defn- handler [{:keys [dev] :as config}]
   (fn [{:keys [type path]}]
-    (let [path-str (.toString path)]
-      (cond ;TODO remove when dev folders are no longer needed
-        (and dev (s/includes? path-str "_dev"))
-        (process-event config type path-str)
-
-        (and (not dev) (not (s/includes? path-str "_dev")))
-        (process-event config type path-str)
-
-        :else nil))))
+    (let [path-str (.toString ^sun.nio.fs.UnixPath path)]
+      (when (or ;TODO remove when dev folders are no longer needed
+             (and dev (s/includes? path-str "_dev"))
+             (and (not dev) (not (s/includes? path-str "_dev"))))
+        (process-event config type path-str)))))
 
 (defn start! [{:keys [file-watcher]} job-queue]
   (when file-watcher
     (beholder/watch (handler (assoc file-watcher :job-queue job-queue)) (:dir file-watcher))))
+
+(def stop! beholder/stop)

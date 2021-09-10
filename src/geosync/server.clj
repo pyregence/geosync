@@ -16,8 +16,7 @@
                                             port?
                                             non-empty-string?
                                             readable-directory?]]
-            [triangulum.logging     :refer [log-str]]
-            [nextjournal.beholder :as beholder]))
+            [triangulum.logging     :refer [log-str]]))
 
 ;;===========================================================
 ;; Request Validation
@@ -136,16 +135,17 @@
                                                    :key-fn (comp kebab->camel name)))))
       (log-str "-> Invalid JSON"))))
 
-(declare watcher)
+(defonce watcher (atom nil))
 
 (defn stop-server!
   []
   (sockets/stop-server!)
-  (beholder/stop watcher))
+  (file-watcher/stop! @watcher)
+  (reset! watcher nil))
 
 (defn start-server!
   [{:keys [geosync-server-host geosync-server-port] :as config-params}]
   (log-str "Running server on port " geosync-server-port ".")
-  (def watcher (file-watcher/start! config-params stand-by-queue))
+  (reset! watcher (file-watcher/start! config-params stand-by-queue))
   (sockets/start-server! geosync-server-port (partial handler geosync-server-host geosync-server-port))
   (process-requests! config-params))
