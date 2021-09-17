@@ -7,13 +7,14 @@
             [clojure.tools.cli  :refer [parse-opts]]
             [geosync.core       :refer [add-directory-to-workspace!]]
             [geosync.server     :refer [start-server!] :as server]
-            [geosync.utils      :refer [nil-on-error
-                                        throw-message
+            [geosync.utils      :refer [hostname?
+                                        nil-on-error
                                         non-empty-string?
-                                        url?
+                                        port?
                                         readable-directory?
-                                        hostname?
-                                        port?]]))
+                                        throw-message
+                                        url?
+                                        writable-directory?]]))
 
 ;;===========================================================
 ;; Argument Validation
@@ -159,7 +160,9 @@
     :validate [hostname? "The provided --geosync-server-host is invalid."]]
    ["-P" "--geosync-server-port PORT" "Server port to listen on for incoming requests"
     :parse-fn #(Integer/parseInt %)
-    :validate [port? "The provided --geosync-server-port must be an integer between 0 and 65536."]]])
+    :validate [port? "The provided --geosync-server-port must be an integer between 0 and 65536."]]
+   ["-o" "--log-dir LOGS" "The path to log files"
+    :validate [writable-directory? "Directory does not exist or is not writable"]]])
 
 (def program-banner
   (str "geosync: Load a nested directory tree of GeoTIFFs and Shapefiles into a running GeoServer instance.\n"
