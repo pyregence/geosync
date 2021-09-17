@@ -285,6 +285,19 @@ above would match files with the following names:
 If you use a different file naming convention for your timestamps,
 make sure to update timeregex.properties accordingly.
 
+** File Watcher
+
+In server-mode, you may optionally specify a file path to be
+monitored. Any folders added or removed with a valid directory
+structure (specified in `workspace-regex` map) will be automatically
+registered or dergesitered from the geoserver. See `file-watcher`
+entry in [[file:resources/sample-config.edn][resources/sample-config.edn]] for an example. 
+
+Here's an explanation of it's confgiuration:
+- dir: A readable directory
+- workspace-regex: a map of folder names to the regexes for parsing
+                   the workspace from the file path.
+
 ** License and Distribution
 
 Copyright © 2020-2021 Spatial Informatics Group, LLC.

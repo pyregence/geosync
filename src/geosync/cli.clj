@@ -38,6 +38,11 @@
 (spec/def ::action-hook-params  (spec/map-of keyword? any?))
 (spec/def ::action-hook         (spec/tuple ::action-run-time ::server/action url? ::action-hook-params))
 (spec/def ::action-hooks        (spec/coll-of ::action-hook :kind vector? :distinct true))
+(spec/def ::dir                 readable-directory?)
+(spec/def ::workspace-regex     (spec/map-of string? string?))
+(spec/def ::file-watcher        (spec/keys :req-un [::dir
+                                                    ::workspace-regex]
+                                           :opt-un [::dev]))
 (spec/def ::geosync-config      (spec/keys :req-un [::geoserver-rest-uri
                                                     ::geoserver-username
                                                     ::geoserver-password
@@ -58,7 +63,8 @@
                                                     ::geosync-server-port
                                                     ::styles
                                                     ::layer-groups
-                                                    ::action-hooks]))
+                                                    ::action-hooks
+                                                    ::file-watcher]))
 
 ;;===========================================================
 ;; Argument Processing
