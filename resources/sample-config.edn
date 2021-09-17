@@ -8,9 +8,9 @@
                        [:before "remove" "https://pyregence-dev-sig-gis.com/clj/remove-workspace" {:auth-token "some-token" :clj-args [geoserverWorkspace]}]]
  :file-watcher        {:dev             true
                        :dir             "/some/directory/to/watch"
-                       :workspace-regex {"fire_spread_forecast"  #"(?<=/)fire_spread_forecast/[\w-]+/\d{8}_\d{6}"
-                                         "fire_weather_forecast" #"(?<=/)fire_weather_forecast/\d{8}_\d{2}"
-                                         "fire_detections"       #"(?<=/)fire_detections/[\w]+"}}
+                       :workspace-regex {"fire_spread_forecast"  "(?<=/)fire_spread_forecast/[\w-]+/\d{8}_\d{6}"
+                                         "fire_weather_forecast" "(?<=/)fire_weather_forecast/\d{8}_\d{2}"
+                                         "fire_detections"       "(?<=/)fire_detections/[\w]+"}}
  :data-dir            "/data"
  :styles              [{:layer-pattern "fire-area"           :raster-style "fire-area"           :vector-style "line-fire-area"}
                        {:layer-pattern "fire-volume"         :raster-style "fire-volume"         :vector-style "line-fire-volume"}

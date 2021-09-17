@@ -119,6 +119,16 @@
                                             "&CRS=EPSG:4326"
                                             "&BBOX=-180.0,-90.0,180.0,90.0")))))
 
+(defn add-file-watcher-params
+  [{:keys [file-watcher] :as config-params}]
+  (assoc config-params
+         :file-watcher (update file-watcher
+                               :workspace-regex
+                               #(reduce-kv (fn [acc k v]
+                                             (assoc acc k (re-pattern v)))
+                                           {}
+                                           %))))
+
 (defn process-options
   [options]
   (let [config-file-params  (read-config-params (:config-file options))
@@ -137,7 +147,9 @@
                               (spec/explain-str ::geosync-config config-params)))
 
           :else
-          (add-derived-params config-params))))
+          (-> config-params
+              add-derived-params
+              add-file-watcher-params))))
 
 ;;===========================================================
 ;; User Interface
@@ -173,7 +185,7 @@
         ;;  :arguments A vector of unprocessed arguments
         ;;  :summary   A string containing a minimal options summary
         ;;  :errors    A vector of error message strings thrown during parsing; nil when no errors exist
-        config-params (try
+        config-params                              (try
                         (process-options options)
                         (catch Exception e
                           (ex-message e)))]
