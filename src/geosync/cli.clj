@@ -161,8 +161,8 @@
    ["-P" "--geosync-server-port PORT" "Server port to listen on for incoming requests"
     :parse-fn #(Integer/parseInt %)
     :validate [port? "The provided --geosync-server-port must be an integer between 0 and 65536."]]
-   ["-o" "--log-dir LOGS" "The path to log files"
-    :validate [writable-directory? "Directory does not exist or is not writable"]]])
+   ["-o" "--log-dir PATH" "Path to log files"
+    :validate [writable-directory? "Directory does not exist or is not writable."]]])
 
 (def program-banner
   (str "geosync: Load a nested directory tree of GeoTIFFs and Shapefiles into a running GeoServer instance.\n"
