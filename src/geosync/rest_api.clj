@@ -155,10 +155,14 @@
       [:entry {:key "memory mapped buffer"} true]
       [:entry {:key "cache and reuse memory maps"} true]]])])
 
-(defn delete-data-store [workspace store]
-  ["DELETE"
-   (str "/workspaces/" workspace "/datastores/" store)
-   nil])
+(defn delete-data-store
+  ([workspace store]
+   (delete-data-store workspace store false))
+
+  ([workspace store recurse?]
+   ["DELETE"
+    (str "/workspaces/" workspace "/datastores/" store "?recurse=" recurse?)
+    nil]))
 
 ;;=================================================================================
 ;;
@@ -211,10 +215,14 @@
    file-url
    "text/plain"])
 
-(defn delete-coverage-store [workspace store]
-  ["DELETE"
-   (str "/workspaces/" workspace "/coveragestores/" store)
-   nil])
+(defn delete-coverage-store
+  ([workspace store]
+   (delete-coverage-store workspace store false))
+
+  ([workspace store recurse?]
+   ["DELETE"
+    (str "/workspaces/" workspace "/coveragestores/" store "?recurse=" recurse?)
+    nil]))
 
 ;;=================================================================================
 ;;

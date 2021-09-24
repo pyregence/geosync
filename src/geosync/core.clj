@@ -484,3 +484,16 @@
                    (and acc)))
             true
             workspaces)))
+
+(defn remove-layer!
+  [{:keys [geoserver-workspace geoserver-layer] :as config-params}]
+  (when (workspace-exists? config-params)
+    (reduce (fn [acc f]
+              (->> (f geoserver-workspace geoserver-layer true)
+                   (make-rest-request config-params)
+                   (:status)
+                   (success-code?)
+                   (or acc)))
+            false
+            [rest/delete-data-store
+             rest/delete-coverage-store])))
