@@ -778,3 +778,28 @@
    ["DELETE"
     (str "/workspaces/" workspace "/styles/" style)
     nil]))
+
+;;=================================================================================
+;;
+;; GeoWebCache (http://docs.geoserver.org/latest/en/api/#1.0.0/gwclayers.yaml)
+;;
+;;=================================================================================
+
+(defn update-cached-layer [layer time-regex]
+  ["PUT"
+   (str "../gwc/rest/layers/" layer)
+   (xml
+    [:layer
+     [:name layer]
+     [:enabled true]
+     [:inMemoryCached true]
+     [:parameterFilters
+      [:styleParameterFilter
+       [:key "STYLES"]
+       [:defaultValue ""]]
+      [:regexParameterFilter
+       [:key "TIME"]
+       [:defaultValue ""]
+       [:regex (str time-regex)]
+       [:normalize
+        [:locale ""]]]]])])

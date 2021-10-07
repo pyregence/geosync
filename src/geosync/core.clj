@@ -183,7 +183,8 @@
                         (rest/update-coverage-store-image-mosaic geoserver-workspace store-name file-url)
                         (rest/create-coverage-image-mosaic geoserver-workspace store-name)
                         (when style
-                          (rest/update-layer-style geoserver-workspace store-name style :raster))])
+                          (rest/update-layer-style geoserver-workspace store-name style :raster))
+                        (rest/update-cached-layer store-name #"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$")])
 
       (throw (ex-info "Unsupported store type detected."
                       {:store-type store-type :file-url file-url})))))
@@ -277,6 +278,7 @@
                 "external.geotiff"     :create-coverage-via-put
                 "external.shp"         :create-feature-type-via-put
                 "/coveragestores/"     :update-coverage-store
+                "/gwc/rest/layers/"    :update-cached-layer
                 "/layers/"             :update-layer-style)
      "DELETE" (condp #(s/includes? %2 %1) uri-suffix
                 "/layers/"             :delete-layer
@@ -443,7 +445,8 @@
                                                :delete-layer
                                                :delete-feature-type
                                                :update-layer-style
-                                               :create-layer-group])))
+                                               :create-layer-group
+                                               :update-cached-layer])))
          wms-response-codes  (tufte/p :wms-requests
                                       (client/with-async-connection-pool {:insecure? true}
                                         (make-parallel-wms-requests config-params wms-specs)))
