@@ -163,6 +163,31 @@
                                (Integer/parseInt val)
                                (catch Exception _ (int default))))))
 
+(defn start-with [s start]
+  (if-not (s/starts-with? s start)
+    (str start s)
+    s))
+
+(defn end-with [s end]
+  (if-not (s/ends-with? s end)
+    (str s end)
+    s))
+
+(def ^:private hostname-path-regex #"(https?:\/\/[^/]+)(.*)")
+
+(defn url-path [root-url path]
+  (let [[_ hostname root-path] (re-find hostname-path-regex root-url)]
+    (->> (s/split (str root-path (start-with path "/")) #"/")
+         (remove empty?)
+         (reduce (fn [acc s]
+                   (if (= ".." s)
+                     (rest acc)
+                     (conj acc s)))
+                 '())
+         (reverse)
+         (s/join "/")
+         (str (end-with hostname "/")))))
+
 ;;===========================================================
 ;; Spec Predicates
 ;;===========================================================

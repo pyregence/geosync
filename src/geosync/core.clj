@@ -6,7 +6,7 @@
             [clojure.java.io     :as io]
             [clojure.string      :as s]
             [geosync.rest-api    :as rest]
-            [geosync.utils       :refer [nil-on-error]]
+            [geosync.utils       :refer [nil-on-error url-path]]
             [triangulum.logging  :refer [log log-str]]
             [triangulum.database :refer [call-sql]]
             [taoensso.tufte      :as tufte]))
@@ -56,6 +56,10 @@
                  (not (:indexed? %)))
            file-specs))
 
+(defn file-specs->gwc-specs
+  [file-specs]
+  (filterv #(= :imagemosaic (:store-type %)) file-specs))
+
 ;;===========================================================
 ;;
 ;; Files -> REST Requests
@@ -68,7 +72,7 @@
 (defn make-rest-request
   [{:keys [geoserver-rest-uri geoserver-rest-headers]} [http-method uri-suffix http-body content-type]]
   (try
-    (let [response (client/request {:url       (str geoserver-rest-uri uri-suffix)
+    (let [response (client/request {:url       (url-path geoserver-rest-uri uri-suffix)
                                     :method    http-method
                                     :headers   (if content-type
                                                  (assoc geoserver-rest-headers "Content-Type" content-type)
@@ -91,7 +95,7 @@
 (defn make-rest-request-async
   [{:keys [geoserver-rest-uri geoserver-rest-headers]} [http-method uri-suffix http-body content-type]]
   (let [result (promise)]
-    (client/request {:url       (str geoserver-rest-uri uri-suffix)
+    (client/request {:url       (url-path geoserver-rest-uri uri-suffix)
                      :method    http-method
                      :headers   (if content-type
                                   (assoc geoserver-rest-headers "Content-Type" content-type)
@@ -183,8 +187,7 @@
                         (rest/update-coverage-store-image-mosaic geoserver-workspace store-name file-url)
                         (rest/create-coverage-image-mosaic geoserver-workspace store-name)
                         (when style
-                          (rest/update-layer-style geoserver-workspace store-name style :raster))
-                        (rest/update-cached-layer store-name #"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$")])
+                          (rest/update-layer-style geoserver-workspace store-name style :raster)) ])
 
       (throw (ex-info "Unsupported store type detected."
                       {:store-type store-type :file-url file-url})))))
@@ -220,6 +223,14 @@
     (:layer %)
     (map :name %)
     (set %)))
+
+(defn get-existing-gwc-layer
+  [{:keys [geoserver-workspace] :as config-params} store-name]
+  (as-> (rest/get-cached-layer geoserver-workspace store-name) %
+    (make-rest-request config-params %)
+    (:body %)
+    (json/read-str % :key-fn keyword)
+    (:GeoServerLayer %)))
 
 (defn get-existing-coverage-stores
   [{:keys [geoserver-workspace] :as config-params}]
@@ -416,6 +427,21 @@
        (mapv #(create-feature-type-spatial-index-async config-params %))
        (mapv (comp :status deref))))
 
+(defn update-gwc-time-param-filters
+  [{:keys [geoserver-workspace] :as config-params} {:keys [store-name]}]
+  (let [{:keys [gridSubsets]} (get-existing-gwc-layer config-params store-name)]
+    (rest/update-cached-layer geoserver-workspace
+                              store-name
+                              #"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$"
+                              gridSubsets)))
+
+(defn make-parallel-gwc-requests
+  [config-params gwc-specs]
+  (->> gwc-specs
+       (mapv #(update-gwc-time-param-filters config-params %))
+       (mapv #(make-rest-request-async config-params %))
+       (mapv (comp :status deref))))
+
 (defn add-directory-to-workspace-aux!
   [{:keys [data-dir styles geoserver-workspace] :as config-params}]
   (tufte/profile
@@ -427,6 +453,8 @@
                                       (file-specs->rest-specs config-params file-specs))
          wms-specs           (tufte/p :wms-specs
                                       (file-specs->wms-specs file-specs))
+         gwc-specs           (tufte/p :gwc-specs
+                                      (file-specs->gwc-specs file-specs))
          rest-response-codes (tufte/p :rest-requests
                                       (client/with-async-connection-pool {:insecure? true}
                                         (into []
@@ -445,12 +473,14 @@
                                                :delete-layer
                                                :delete-feature-type
                                                :update-layer-style
-                                               :create-layer-group
-                                               :update-cached-layer])))
+                                               :create-layer-group])))
          wms-response-codes  (tufte/p :wms-requests
                                       (client/with-async-connection-pool {:insecure? true}
                                         (make-parallel-wms-requests config-params wms-specs)))
-         http-response-codes (into rest-response-codes wms-response-codes)
+         gwc-response-codes  (tufte/p :gwc-requests
+                                      (client/with-async-connection-pool {:insecure? true}
+                                        (make-parallel-gwc-requests config-params gwc-specs)))
+         http-response-codes (into [] (concat rest-response-codes wms-response-codes gwc-response-codes))
          num-success-codes   (count (filter success-code? http-response-codes))
          num-failure-codes   (- (count http-response-codes) num-success-codes)]
      (call-sql "clear_connection" geoserver-workspace)
