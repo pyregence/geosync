@@ -187,7 +187,7 @@
                         (rest/update-coverage-store-image-mosaic geoserver-workspace store-name file-url)
                         (rest/create-coverage-image-mosaic geoserver-workspace store-name)
                         (when style
-                          (rest/update-layer-style geoserver-workspace store-name style :raster)) ])
+                          (rest/update-layer-style geoserver-workspace store-name style :raster))])
 
       (throw (ex-info "Unsupported store type detected."
                       {:store-type store-type :file-url file-url})))))
@@ -457,23 +457,22 @@
                                       (file-specs->gwc-specs file-specs))
          rest-response-codes (tufte/p :rest-requests
                                       (client/with-async-connection-pool {:insecure? true}
-                                        (into []
-                                              (mapcat (fn [spec-type]
-                                                        (->> (get rest-specs spec-type)
-                                                             (make-parallel-rest-requests config-params))))
-                                              [:create-workspace
-                                               :create-coverage-store-image-mosaic
-                                               :update-coverage-store
-                                               :update-coverage-store-image-mosaic
-                                               :create-coverage
-                                               :create-coverage-via-put
-                                               :create-data-store
-                                               :create-feature-type-via-put
-                                               :create-feature-type-alias
-                                               :delete-layer
-                                               :delete-feature-type
-                                               :update-layer-style
-                                               :create-layer-group])))
+                                        (mapcat (fn [spec-type]
+                                                  (->> (get rest-specs spec-type)
+                                                       (make-parallel-rest-requests config-params))))
+                                        [:create-workspace
+                                         :create-coverage-store-image-mosaic
+                                         :update-coverage-store
+                                         :update-coverage-store-image-mosaic
+                                         :create-coverage
+                                         :create-coverage-via-put
+                                         :create-data-store
+                                         :create-feature-type-via-put
+                                         :create-feature-type-alias
+                                         :delete-layer
+                                         :delete-feature-type
+                                         :update-layer-style
+                                         :create-layer-group]))
          wms-response-codes  (tufte/p :wms-requests
                                       (client/with-async-connection-pool {:insecure? true}
                                         (make-parallel-wms-requests config-params wms-specs)))

@@ -175,14 +175,21 @@
 
 (def ^:private hostname-path-regex #"(https?:\/\/[^/]+)(.*)")
 
-(defn url-path [root-url path]
+(defn url-path
+  "Resolves a `root-url` with a `path`, which can include '..' as a way to remove
+   previous entries.
+
+   Usage example:
+   `(url-path \"http://geoserver.app/rest\" \"/../gwc/rest/layer/layername.xml\")`
+   returns `\"http://geoserver.app/gwc/rest/layer/layername.xml\"`"
+  [root-url path]
   (let [[_ hostname root-path] (re-find hostname-path-regex root-url)]
     (->> (s/split (str root-path (start-with path "/")) #"/")
          (remove empty?)
-         (reduce (fn [acc s]
-                   (if (= ".." s)
+         (reduce (fn [acc cur]
+                   (if (= ".." cur)
                      (rest acc)
-                     (conj acc s)))
+                     (conj acc cur)))
                  '())
          (reverse)
          (s/join "/")
