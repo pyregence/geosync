@@ -189,7 +189,7 @@
          (reduce (fn [acc cur]
                    (if (= ".." cur)
                      (rest acc)
-                     (conj acc cur)))
+                     (cons cur acc)))
                  '())
          (reverse)
          (s/join "/")
