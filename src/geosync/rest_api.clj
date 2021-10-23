@@ -778,3 +778,52 @@
    ["DELETE"
     (str "/workspaces/" workspace "/styles/" style)
     nil]))
+
+;;=================================================================================
+;;
+;; GeoWebCache (http://docs.geoserver.org/latest/en/api/#1.0.0/gwclayers.yaml)
+;;
+;;=================================================================================
+
+(defn get-cached-layer [workspace layer]
+  ["GET"
+   (str "/../gwc/rest/layers/" workspace ":" layer)
+   nil])
+
+;;FIXME: gridsubsets comes from the existing gwc layer. Figure out a way to
+;;avoid re-writing the gridsubsets when performing a PUT update.
+(defn update-cached-layer [workspace layer time-regex gridsubsets]
+  ["PUT"
+   (str "/../gwc/rest/layers/" workspace ":" layer ".xml")
+   (xml
+    [:GeoServerLayer
+     [:name (str workspace ":" layer)]
+     [:enabled true]
+     [:inMemoryCached true]
+     [:mimeFormats
+      [:string "image/png"]
+      [:string "image/jpeg"]]
+     [:metaWidthHeight
+      [:int 4]
+      [:int 4]]
+     [:expireCache 0]
+     [:expireClients 0]
+     [:gutter 0]
+     [:gridSubsets
+      (for [{:keys [extent gridSetName]} gridsubsets]
+        [:gridSubset
+         [:gridSetName gridSetName]
+         [:extent
+          [:coords (for [coord (:coords extent)]
+                     [:double coord])]]])]
+     [:parameterFilters
+      [:styleParameterFilter
+       [:key "STYLES"]
+       [:defaultValue ""]]
+      [:regexParameterFilter
+       [:key "TIME"]
+       [:defaultValue ""]
+       [:regex (str time-regex)]
+       [:normalize
+        [:locale ""]]]]])
+   "application/xml"])
