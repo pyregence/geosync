@@ -6,6 +6,7 @@
             [clojure.spec.alpha     :as spec]
             [geosync.action-hooks   :refer [run-action-hooks!]]
             [geosync.core           :refer [add-directory-to-workspace!
+                                            remove-layer!
                                             remove-workspace!]]
             [geosync.file-watcher   :as file-watcher]
             [geosync.simple-sockets :as sockets]
@@ -33,6 +34,7 @@
                                                                          ::action
                                                                          ::geoserver-workspace]
                                                                 :opt-un [::data-dir
+                                                                         ::geoserver-layer
                                                                          ::prioritize])
                                                      (fn [{:keys [action data-dir]}]
                                                        (or (and (= action "add") (string? data-dir))
@@ -67,10 +69,14 @@
     [1 "GeoSync: Errors encountered during layer registration."]))
 
 (defmethod process-request! :remove
-  [config-params _]
-  (if (remove-workspace! config-params)
-    [0 "GeoSync: Workspace(s) removed."]
-    [1 "GeoSync: Errors encountered during workspace removal."]))
+  [{:keys [geoserver-layer] :as config-params} _]
+  (if geoserver-layer
+    (if (remove-layer! config-params)
+      [0 "GeoSync: Layer removed."]
+      [1 "GeoSync: Errors encountered during layer removal."])
+    (if (remove-workspace! config-params)
+      [0 "GeoSync: Workspace(s) removed."]
+      [1 "GeoSync: Errors encountered during workspace removal."])))
 
 (defn process-requests!
   [{:keys [geosync-server-host geosync-server-port action-hooks] :as config-params}]
@@ -79,15 +85,18 @@
             [response-host
              response-port
              geoserver-workspace
+             geoserver-layer
              data-dir] :as request} @(first (alts! [job-queue stand-by-queue]
                                                    :priority true))]
       (log-str "Processing Request: " request)
       (let [config-params           (-> config-params
                                         (dissoc :geosync-server-host :geosync-server-port)
-                                        (assoc :geoserver-workspace geoserver-workspace :data-dir data-dir))
+                                        (assoc :geoserver-workspace geoserver-workspace
+                                               :geoserver-layer     geoserver-layer
+                                               :data-dir            data-dir))
             [status-num status-msg] (try
                                       (let [_      (run-action-hooks! action-hooks request :before)
-                                            status (process-request! config-params request)
+                                            status (process-request! config-params)
                                             _      (run-action-hooks! action-hooks request :after)]
                                         status)
                                       (catch Exception e

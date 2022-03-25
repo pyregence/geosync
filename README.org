@@ -154,6 +154,19 @@ is provided, all workspaces matching the regex will be deleted.
  "responsePort":       5555}
 #+end_src
 
+1. Remove a single layer and it's associated store under a Workspace from Geoserver
+
+Both ~geoserverWorkspace~ and ~geoserverLayer~ are plain texts that must
+match the exact entries in Geoserver.
+
+#+begin_src js
+{"action":             "remove",
+ "geoserverWorkspace": "demo",
+ "geoserverLayer":     "demo-layer",
+ "responseHost":       "my.server.org",
+ "responsePort":       5555}
+#+end_src
+
 Because GeoServer updates can take awhile to complete, these requests
 are processed asynchronously. This means that the network connection
 will be closed as soon as the incoming request is read from the
