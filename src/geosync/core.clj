@@ -347,12 +347,10 @@
 
 (defn get-style
   [file-path store-type styles]
-  (let [cleaned-file-path (if (s/ends-with? file-path "/datastore.properties")
-                            (s/replace file-path "/datastore.properties" "")
-                            file-path)]
+  (let [store-name (file-path->store-name file-path)]
     (first
      (keep (fn [{:keys [layer-pattern raster-style vector-style]}]
-             (when (s/includes? cleaned-file-path layer-pattern)
+             (when (s/includes? store-name layer-pattern)
                (case store-type
                  :geotiff     raster-style
                  :shapefile   vector-style
