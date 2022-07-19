@@ -457,22 +457,23 @@
                                       (file-specs->gwc-specs file-specs))
          rest-response-codes (tufte/p :rest-requests
                                       (client/with-async-connection-pool {:insecure? true}
-                                        (mapcat (fn [spec-type]
-                                                  (->> (get rest-specs spec-type)
-                                                       (make-parallel-rest-requests config-params))))
-                                        [:create-workspace
-                                         :create-coverage-store-image-mosaic
-                                         :update-coverage-store
-                                         :update-coverage-store-image-mosaic
-                                         :create-coverage
-                                         :create-coverage-via-put
-                                         :create-data-store
-                                         :create-feature-type-via-put
-                                         :create-feature-type-alias
-                                         :delete-layer
-                                         :delete-feature-type
-                                         :update-layer-style
-                                         :create-layer-group]))
+                                        (into []
+                                              (mapcat (fn [spec-type]
+                                                        (->> (get rest-specs spec-type)
+                                                             (make-parallel-rest-requests config-params))))
+                                              [:create-workspace
+                                               :create-coverage-store-image-mosaic
+                                               :update-coverage-store
+                                               :update-coverage-store-image-mosaic
+                                               :create-coverage
+                                               :create-coverage-via-put
+                                               :create-data-store
+                                               :create-feature-type-via-put
+                                               :create-feature-type-alias
+                                               :delete-layer
+                                               :delete-feature-type
+                                               :update-layer-style
+                                               :create-layer-group])))
          wms-response-codes  (tufte/p :wms-requests
                                       (client/with-async-connection-pool {:insecure? true}
                                         (make-parallel-wms-requests config-params wms-specs)))
