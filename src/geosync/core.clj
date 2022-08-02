@@ -1,7 +1,8 @@
 (ns geosync.core
   (:import java.io.File
-           java.util.Properties
-           java.util.concurrent.TimeoutException)
+           java.net.SocketTimeoutException
+           java.util.concurrent.TimeoutException
+           java.util.Properties)
   (:require [clj-http.client     :as client]
             [clojure.data.json   :as json]
             [clojure.java.io     :as io]
@@ -19,6 +20,10 @@
 ;;===========================================================
 
 (def timeout-ms 1000)
+
+(defn timeout? [e]
+  (or (instance? TimeoutException e)
+      (instance? SocketTimeoutException e)))
 
 (defn create-feature-type-spatial-index
   [{:keys [geoserver-wms-uri geoserver-workspace]} {:keys [store-name]}]
@@ -39,7 +44,7 @@
       (let [layer-name (str geoserver-workspace ":" store-name)]
         (log-str (format "GetFeatureInfo %s%n               -> %s"
                          layer-name
-                         (if (instance? TimeoutException e)
+                         (if (timeout? e)
                            (str "Timeout Error: Your request took longer than " (quot timeout-ms 1000) " seconds.")
                            (select-keys (ex-data e) [:status :reason-phrase :body]))))
         (ex-data e)))))
@@ -62,7 +67,7 @@
                     (fn [error]
                       (log-str (format "GetFeatureInfo %s%n               -> %s"
                                        layer-name
-                                       (if (instance? TimeoutException error)
+                                       (if (timeout? error)
                                          (str "Timeout Error: Your request took longer than " (quot timeout-ms 1000) " seconds.")
                                          (select-keys (ex-data error) [:status :reason-phrase :body]))))
                       (deliver result (ex-data error))))
@@ -108,7 +113,7 @@
       (log-str (format "%6s %s%n               -> %s"
                        http-method
                        uri-suffix
-                       (if (instance? TimeoutException e)
+                       (if (timeout? e)
                          (str "Timeout Error: Your request took longer than " (quot timeout-ms 1000) " seconds.")
                          (select-keys (ex-data e) [:status :reason-phrase :body]))))
       (ex-data e))))
@@ -137,7 +142,7 @@
                       (log-str (format "%6s %s%n               -> %s"
                                        http-method
                                        uri-suffix
-                                       (if (instance? TimeoutException error)
+                                       (if (timeout? error)
                                          (str "Timeout Error: Your request took longer than " (quot timeout-ms 1000) " seconds.")
                                          (select-keys (ex-data error) [:status :reason-phrase :body]))))
                       (deliver result (ex-data error))))
