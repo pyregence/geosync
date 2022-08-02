@@ -93,6 +93,8 @@
                        (select-keys response [:status :reason-phrase])))
       response)
     (catch Exception e
+      (log-str "Ex-data e: " (ex-data e))
+      (log-str "e: " e)
       (log-str (format "%6s %s%n               -> %s"
                        http-method
                        uri-suffix
