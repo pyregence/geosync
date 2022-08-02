@@ -137,7 +137,7 @@
                       (log-str (format "%6s %s%n               -> %s"
                                        http-method
                                        uri-suffix
-                                       (if (instance? TimeoutException e)
+                                       (if (instance? TimeoutException error)
                                          (str "Timeout Error: Your request took longer than " (quot timeout-ms 1000) " seconds.")
                                          (select-keys (ex-data error) [:status :reason-phrase :body]))))
                       (deliver result (ex-data error))))
