@@ -17,15 +17,19 @@
 ;;
 ;;===========================================================
 
+(def timeout-ms 1000)
+
 (defn create-feature-type-spatial-index
   [{:keys [geoserver-wms-uri geoserver-workspace]} {:keys [store-name]}]
   (try
     (let [layer-name (str geoserver-workspace ":" store-name)
-          response   (client/request {:url       (str geoserver-wms-uri
-                                                      "&LAYERS=" layer-name
-                                                      "&QUERY_LAYERS=" layer-name)
-                                      :method    "GET"
-                                      :insecure? true})]
+          response   (client/request {:url                (str geoserver-wms-uri
+                                                               "&LAYERS=" layer-name
+                                                               "&QUERY_LAYERS=" layer-name)
+                                      :method             "GET"
+                                      :insecure?          true
+                                      :socket-timeout     timeout-ms
+                                      :connection-timeout timeout-ms})]
       (log-str "GetFeatureInfo " layer-name " -> " (select-keys response [:status :reason-phrase]))
       response)
     (catch Exception e
@@ -37,10 +41,12 @@
   [{:keys [geoserver-wms-uri geoserver-workspace]} {:keys [store-name]}]
   (let [layer-name (str geoserver-workspace ":" store-name)
         result     (promise)]
-    (client/request {:url       (str geoserver-wms-uri "&LAYERS=" layer-name "&QUERY_LAYERS=" layer-name)
-                     :method    "GET"
-                     :insecure? true
-                     :async?    true}
+    (client/request {:url                (str geoserver-wms-uri "&LAYERS=" layer-name "&QUERY_LAYERS=" layer-name)
+                     :method             "GET"
+                     :insecure?          true
+                     :async?             true
+                     :socket-timeout     timeout-ms
+                     :connection-timeout timeout-ms}
                     (fn [response]
                       (log-str "GetFeatureInfo " layer-name " -> " (select-keys response [:status :reason-phrase]))
                       (deliver result response))
@@ -72,13 +78,15 @@
 (defn make-rest-request
   [{:keys [geoserver-rest-uri geoserver-rest-headers]} [http-method uri-suffix http-body content-type]]
   (try
-    (let [response (client/request {:url       (url-path geoserver-rest-uri uri-suffix)
-                                    :method    http-method
-                                    :headers   (if content-type
-                                                 (assoc geoserver-rest-headers "Content-Type" content-type)
-                                                 geoserver-rest-headers)
-                                    :body      http-body
-                                    :insecure? true})]
+    (let [response (client/request {:url                (url-path geoserver-rest-uri uri-suffix)
+                                    :method             http-method
+                                    :headers            (if content-type
+                                                          (assoc geoserver-rest-headers "Content-Type" content-type)
+                                                          geoserver-rest-headers)
+                                    :body               http-body
+                                    :insecure?          true
+                                    :socket-timeout     timeout-ms
+                                    :connection-timeout timeout-ms})]
       (log-str (format "%6s %s%n               -> %s"
                        http-method
                        uri-suffix
@@ -95,14 +103,16 @@
 (defn make-rest-request-async
   [{:keys [geoserver-rest-uri geoserver-rest-headers]} [http-method uri-suffix http-body content-type]]
   (let [result (promise)]
-    (client/request {:url       (url-path geoserver-rest-uri uri-suffix)
-                     :method    http-method
-                     :headers   (if content-type
-                                  (assoc geoserver-rest-headers "Content-Type" content-type)
-                                  geoserver-rest-headers)
-                     :body      http-body
-                     :insecure? true
-                     :async?    true}
+    (client/request {:url                (url-path geoserver-rest-uri uri-suffix)
+                     :method             http-method
+                     :headers            (if content-type
+                                           (assoc geoserver-rest-headers "Content-Type" content-type)
+                                           geoserver-rest-headers)
+                     :body               http-body
+                     :insecure?          true
+                     :async?             true
+                     :socket-timeout     timeout-ms
+                     :connection-timeout timeout-ms}
                     (fn [response]
                       (log-str (format "%6s %s%n               -> %s"
                                        http-method
