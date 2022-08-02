@@ -1,6 +1,7 @@
 (ns geosync.core
   (:import java.io.File
-           java.util.Properties)
+           java.util.Properties
+           java.util.concurrent.TimeoutException)
   (:require [clj-http.client     :as client]
             [clojure.data.json   :as json]
             [clojure.java.io     :as io]
@@ -30,11 +31,17 @@
                                       :insecure?          true
                                       :socket-timeout     timeout-ms
                                       :connection-timeout timeout-ms})]
-      (log-str "GetFeatureInfo " layer-name " -> " (select-keys response [:status :reason-phrase]))
+      (log-str (format "GetFeatureInfo %s%n               -> %s"
+                       layer-name
+                       (select-keys response [:status :reason-phrase])))
       response)
     (catch Exception e
       (let [layer-name (str geoserver-workspace ":" store-name)]
-        (log-str "GetFeatureInfo " layer-name " -> " (select-keys (ex-data e) [:status :reason-phrase :body]))
+        (log-str (format "GetFeatureInfo %s%n               -> %s"
+                         layer-name
+                         (if (instance? TimeoutException e)
+                           (str "Timeout Error: Your request took longer than " (quot timeout-ms 1000) " seconds.")
+                           (select-keys (ex-data e) [:status :reason-phrase :body]))))
         (ex-data e)))))
 
 (defn create-feature-type-spatial-index-async
@@ -48,11 +55,16 @@
                      :socket-timeout     timeout-ms
                      :connection-timeout timeout-ms}
                     (fn [response]
-                      (log-str "GetFeatureInfo " layer-name " -> " (select-keys response [:status :reason-phrase]))
+                      (log-str (format "GetFeatureInfo %s%n               -> %s"
+                                       layer-name
+                                       (select-keys response [:status :reason-phrase])))
                       (deliver result response))
                     (fn [error]
-                      (log-str "GetFeatureInfo " layer-name " -> " (select-keys (ex-data error)
-                                                                                [:status :reason-phrase :body]))
+                      (log-str (format "GetFeatureInfo %s%n               -> %s"
+                                       layer-name
+                                       (if (instance? TimeoutException error)
+                                         (str "Timeout Error: Your request took longer than " (quot timeout-ms 1000) " seconds.")
+                                         (select-keys (ex-data error) [:status :reason-phrase :body]))))
                       (deliver result (ex-data error))))
     result))
 
@@ -93,12 +105,12 @@
                        (select-keys response [:status :reason-phrase])))
       response)
     (catch Exception e
-      (log-str "Ex-data e: " (ex-data e))
-      (log-str "e: " e)
       (log-str (format "%6s %s%n               -> %s"
                        http-method
                        uri-suffix
-                       (select-keys (ex-data e) [:status :reason-phrase :body])))
+                       (if (instance? TimeoutException e)
+                         (str "Timeout Error: Your request took longer than " (quot timeout-ms 1000) " seconds.")
+                         (select-keys (ex-data e) [:status :reason-phrase :body]))))
       (ex-data e))))
 
 ;; FIXME: Use an SSL keystore and remove insecure? param
@@ -125,7 +137,9 @@
                       (log-str (format "%6s %s%n               -> %s"
                                        http-method
                                        uri-suffix
-                                       (select-keys (ex-data error) [:status :reason-phrase :body])))
+                                       (if (instance? TimeoutException e)
+                                         (str "Timeout Error: Your request took longer than " (quot timeout-ms 1000) " seconds.")
+                                         (select-keys (ex-data error) [:status :reason-phrase :body]))))
                       (deliver result (ex-data error))))
     result))
 
