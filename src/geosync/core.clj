@@ -19,7 +19,7 @@
 ;;
 ;;===========================================================
 
-(def timeout-ms 1000)
+(def timeout-ms (* 10 60 1000)) ; 10 minutes
 
 (defn timeout? [e]
   (or (instance? TimeoutException e)
