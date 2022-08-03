@@ -1,7 +1,5 @@
 (ns geosync.core
   (:import java.io.File
-           java.net.SocketTimeoutException
-           java.util.concurrent.TimeoutException
            java.util.Properties)
   (:require [clj-http.client     :as client]
             [clojure.data.json   :as json]
@@ -19,57 +17,36 @@
 ;;
 ;;===========================================================
 
-(def timeout-ms (* 10 60 1000)) ; 10 minutes
-
-(defn timeout? [e]
-  (or (instance? TimeoutException e)
-      (instance? SocketTimeoutException e)))
-
 (defn create-feature-type-spatial-index
   [{:keys [geoserver-wms-uri geoserver-workspace]} {:keys [store-name]}]
   (try
     (let [layer-name (str geoserver-workspace ":" store-name)
-          response   (client/request {:url                (str geoserver-wms-uri
-                                                               "&LAYERS=" layer-name
-                                                               "&QUERY_LAYERS=" layer-name)
-                                      :method             "GET"
-                                      :insecure?          true
-                                      :socket-timeout     timeout-ms
-                                      :connection-timeout timeout-ms})]
-      (log-str (format "GetFeatureInfo %s%n               -> %s"
-                       layer-name
-                       (select-keys response [:status :reason-phrase])))
+          response   (client/request {:url       (str geoserver-wms-uri
+                                                      "&LAYERS=" layer-name
+                                                      "&QUERY_LAYERS=" layer-name)
+                                      :method    "GET"
+                                      :insecure? true})]
+      (log-str "GetFeatureInfo " layer-name " -> " (select-keys response [:status :reason-phrase]))
       response)
     (catch Exception e
       (let [layer-name (str geoserver-workspace ":" store-name)]
-        (log-str (format "GetFeatureInfo %s%n               -> %s"
-                         layer-name
-                         (if (timeout? e)
-                           (str "Timeout Error: Your request took longer than " (quot timeout-ms 1000) " seconds.")
-                           (select-keys (ex-data e) [:status :reason-phrase :body]))))
+        (log-str "GetFeatureInfo " layer-name " -> " (select-keys (ex-data e) [:status :reason-phrase :body]))
         (ex-data e)))))
 
 (defn create-feature-type-spatial-index-async
   [{:keys [geoserver-wms-uri geoserver-workspace]} {:keys [store-name]}]
   (let [layer-name (str geoserver-workspace ":" store-name)
         result     (promise)]
-    (client/request {:url                (str geoserver-wms-uri "&LAYERS=" layer-name "&QUERY_LAYERS=" layer-name)
-                     :method             "GET"
-                     :insecure?          true
-                     :async?             true
-                     :socket-timeout     timeout-ms
-                     :connection-timeout timeout-ms}
+    (client/request {:url       (str geoserver-wms-uri "&LAYERS=" layer-name "&QUERY_LAYERS=" layer-name)
+                     :method    "GET"
+                     :insecure? true
+                     :async?    true}
                     (fn [response]
-                      (log-str (format "GetFeatureInfo %s%n               -> %s"
-                                       layer-name
-                                       (select-keys response [:status :reason-phrase])))
+                      (log-str "GetFeatureInfo " layer-name " -> " (select-keys response [:status :reason-phrase]))
                       (deliver result response))
                     (fn [error]
-                      (log-str (format "GetFeatureInfo %s%n               -> %s"
-                                       layer-name
-                                       (if (timeout? error)
-                                         (str "Timeout Error: Your request took longer than " (quot timeout-ms 1000) " seconds.")
-                                         (select-keys (ex-data error) [:status :reason-phrase :body]))))
+                      (log-str "GetFeatureInfo " layer-name " -> " (select-keys (ex-data error)
+                                                                                [:status :reason-phrase :body]))
                       (deliver result (ex-data error))))
     result))
 
@@ -95,15 +72,13 @@
 (defn make-rest-request
   [{:keys [geoserver-rest-uri geoserver-rest-headers]} [http-method uri-suffix http-body content-type]]
   (try
-    (let [response (client/request {:url                (url-path geoserver-rest-uri uri-suffix)
-                                    :method             http-method
-                                    :headers            (if content-type
-                                                          (assoc geoserver-rest-headers "Content-Type" content-type)
-                                                          geoserver-rest-headers)
-                                    :body               http-body
-                                    :insecure?          true
-                                    :socket-timeout     timeout-ms
-                                    :connection-timeout timeout-ms})]
+    (let [response (client/request {:url       (url-path geoserver-rest-uri uri-suffix)
+                                    :method    http-method
+                                    :headers   (if content-type
+                                                 (assoc geoserver-rest-headers "Content-Type" content-type)
+                                                 geoserver-rest-headers)
+                                    :body      http-body
+                                    :insecure? true})]
       (log-str (format "%6s %s%n               -> %s"
                        http-method
                        uri-suffix
@@ -113,25 +88,21 @@
       (log-str (format "%6s %s%n               -> %s"
                        http-method
                        uri-suffix
-                       (if (timeout? e)
-                         (str "Timeout Error: Your request took longer than " (quot timeout-ms 1000) " seconds.")
-                         (select-keys (ex-data e) [:status :reason-phrase :body]))))
+                       (select-keys (ex-data e) [:status :reason-phrase :body])))
       (ex-data e))))
 
 ;; FIXME: Use an SSL keystore and remove insecure? param
 (defn make-rest-request-async
   [{:keys [geoserver-rest-uri geoserver-rest-headers]} [http-method uri-suffix http-body content-type]]
   (let [result (promise)]
-    (client/request {:url                (url-path geoserver-rest-uri uri-suffix)
-                     :method             http-method
-                     :headers            (if content-type
-                                           (assoc geoserver-rest-headers "Content-Type" content-type)
-                                           geoserver-rest-headers)
-                     :body               http-body
-                     :insecure?          true
-                     :async?             true
-                     :socket-timeout     timeout-ms
-                     :connection-timeout timeout-ms}
+    (client/request {:url       (url-path geoserver-rest-uri uri-suffix)
+                     :method    http-method
+                     :headers   (if content-type
+                                  (assoc geoserver-rest-headers "Content-Type" content-type)
+                                  geoserver-rest-headers)
+                     :body      http-body
+                     :insecure? true
+                     :async?    true}
                     (fn [response]
                       (log-str (format "%6s %s%n               -> %s"
                                        http-method
@@ -142,9 +113,7 @@
                       (log-str (format "%6s %s%n               -> %s"
                                        http-method
                                        uri-suffix
-                                       (if (timeout? error)
-                                         (str "Timeout Error: Your request took longer than " (quot timeout-ms 1000) " seconds.")
-                                         (select-keys (ex-data error) [:status :reason-phrase :body]))))
+                                       (select-keys (ex-data error) [:status :reason-phrase :body])))
                       (deliver result (ex-data error))))
     result))
 
