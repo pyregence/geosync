@@ -149,21 +149,38 @@
     result))
 
 (defn file-specs->layer-group-specs
-  [{:keys [geoserver-workspace layer-groups]} existing-layer-groups file-specs]
-  (let [layer-names (mapv #(str geoserver-workspace ":" (:store-name %)) file-specs)]
+  [{:keys [geoserver-workspace layer-groups]} existing-stores existing-layer-groups file-specs]
+  (let [store-names     (map :store-name file-specs)
+        old-layer-names (->> store-names
+                             (filter #(contains? existing-stores %))
+                             (mapv #(str geoserver-workspace ":" %)))
+        new-layer-names (->> store-names
+                             (remove #(contains? existing-stores %))
+                             (mapv #(str geoserver-workspace ":" %)))]
     (into []
-          (comp (remove #(contains? existing-layer-groups (:name %)))
-                (keep (fn [{:keys [layer-pattern name]}]
-                        (when-let [matching-layers (seq (filterv #(s/includes? % layer-pattern)
-                                                                 layer-names))]
-                          (rest/create-layer-group geoserver-workspace
-                                                   name
-                                                   "SINGLE"
-                                                   name
-                                                   ""
-                                                   []
-                                                   matching-layers
-                                                   [])))))
+          (keep (fn [{:keys [layer-pattern name]}]
+                  (when-let [new-matching-layers (seq (filterv #(s/includes? % layer-pattern)
+                                                               new-layer-names))]
+                    (if (contains? existing-layer-groups name)
+                      (let [old-matching-layers (seq (filterv #(s/includes? % layer-pattern)
+                                                              old-layer-names))]
+                        (rest/update-layer-group geoserver-workspace
+                                                 name
+                                                 "SINGLE"
+                                                 name
+                                                 ""
+                                                 ""
+                                                 []
+                                                 (sort (concat old-matching-layers new-matching-layers))
+                                                 []))
+                      (rest/create-layer-group geoserver-workspace
+                                               name
+                                               "SINGLE"
+                                               name
+                                               ""
+                                               []
+                                               (sort new-matching-layers)
+                                               [])))))
           layer-groups)))
 
 (defn update-properties-file!
@@ -336,7 +353,7 @@
         existing-stores       (if ws-exists? (get-existing-stores config-params) #{})
         existing-layer-groups (if ws-exists? (get-existing-layer-groups config-params) #{})
         layer-specs           (file-specs->layer-specs config-params existing-stores file-specs)
-        layer-group-specs     (file-specs->layer-group-specs config-params existing-layer-groups file-specs)
+        layer-group-specs     (file-specs->layer-group-specs config-params existing-stores existing-layer-groups file-specs)
         rest-specs            (-> (group-by get-spec-type layer-specs)
                                   (assoc :create-layer-group layer-group-specs))]
     (if ws-exists?
