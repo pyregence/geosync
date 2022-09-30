@@ -2,10 +2,10 @@
  :geoserver-username  "admin"
  :geoserver-password  "geoserver"
  :geoserver-workspace "demo"
- :action-hooks        [[:after  "add"    "https://pyrecast.org/clj/set-capabilities"              {:auth-token "some-token" :clj-args [geoserverWorkspace]}]
-                       [:before "remove" "https://pyrecast.org/clj/remove-workspace"              {:auth-token "some-token" :clj-args [geoserver-workspace]}]
-                       [:after  "add"    "https://pyregence-dev.sig-gis.com/clj/set-capabilities" {:auth-token "some-token" :clj-args ["geoserver_workspace"]}]
-                       [:before "remove" "https://pyregence-dev-sig-gis.com/clj/remove-workspace" {:auth-token "some-token" :clj-args [geoserverWorkspace]}]]
+ :action-hooks        [[:after  "add"    "https://pyrecast.org/clj/set-capabilities"              {:auth-token "some-token" :clj-args [[{"geoserver-key" "trinity" "workspace-name" geoserverWorkspace}]]}]
+                       [:before "remove" "https://pyrecast.org/clj/remove-workspace"              {:auth-token "some-token" :clj-args [[{"geoserver-key" "trinity" "workspace-name" geoserverWorkspace}]]}]
+                       [:after  "add"    "https://pyregence-dev.sig-gis.com/clj/set-capabilities" {:auth-token "some-token" :clj-args [[{"geoserver-key" "trinity" "workspace-name" geoserverWorkspace}]]}]
+                       [:before "remove" "https://pyregence-dev-sig-gis.com/clj/remove-workspace" {:auth-token "some-token" :clj-args [[{"geoserver-key" "trinity" "workspace-name" geoserverWorkspace}]]}]]
  :file-watcher        {:dev             true
                        :dir             "/some/directory/to/watch"
                        :workspace-regex {"fire_spread_forecast"  #"(?<=/)fire_spread_forecast/[\w-]+/\d{8}_\d{6}"
