@@ -185,10 +185,10 @@
         ;;  :arguments A vector of unprocessed arguments
         ;;  :summary   A string containing a minimal options summary
         ;;  :errors    A vector of error message strings thrown during parsing; nil when no errors exist
-        config-params                              (try
-                        (process-options options)
-                        (catch Exception e
-                          (ex-message e)))]
+        config-params (try
+                       (process-options options)
+                       (catch Exception e
+                         (ex-message e)))]
     (cond (seq errors)
           (do
             (run! println errors)
