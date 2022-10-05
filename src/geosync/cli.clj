@@ -121,13 +121,11 @@
 
 (defn add-file-watcher-params
   [{:keys [file-watcher] :as config-params}]
-  (assoc config-params
-         :file-watcher (update file-watcher
-                               :workspace-regex
-                               #(reduce-kv (fn [acc k v]
-                                             (assoc acc k (re-pattern v)))
-                                           {}
-                                           %))))
+  (if file-watcher
+    (update-in config-params
+              [:file-watcher :workspace-regex]
+              #(reduce-kv (fn [acc k v] (assoc acc k (re-pattern v))) {} %))
+    config-params))
 
 (defn process-options
   [options]
