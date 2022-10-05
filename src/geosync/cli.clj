@@ -119,6 +119,14 @@
                                             "&CRS=EPSG:4326"
                                             "&BBOX=-180.0,-90.0,180.0,90.0")))))
 
+(defn add-file-watcher-params
+  [{:keys [file-watcher] :as config-params}]
+  (if file-watcher
+    (update-in config-params
+              [:file-watcher :workspace-regex]
+              #(reduce-kv (fn [acc k v] (assoc acc k (re-pattern v))) {} %))
+    config-params))
+
 (defn process-options
   [options]
   (let [config-file-params  (read-config-params (:config-file options))
@@ -137,7 +145,9 @@
                               (spec/explain-str ::geosync-config config-params)))
 
           :else
-          (add-derived-params config-params))))
+          (-> config-params
+              add-derived-params
+              add-file-watcher-params))))
 
 ;;===========================================================
 ;; User Interface
