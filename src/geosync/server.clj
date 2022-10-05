@@ -28,17 +28,17 @@
 (spec/def ::geoserver-workspace            non-empty-string?)
 (spec/def ::data-dir                       readable-directory?)
 (spec/def ::prioritize                     boolean?)
-(spec/def ::geosync-server-request         (spec/and (spec/keys :req-un [::response-host
-                                                                         ::response-port
-                                                                         ::action
+(spec/def ::geosync-server-request         (spec/and (spec/keys :req-un [::action
                                                                          ::geoserver-workspace]
-                                                                :opt-un [::data-dir
+                                                                :opt-un [::response-host
+                                                                         ::response-port
+                                                                         ::data-dir
                                                                          ::prioritize])
                                                      (fn [{:keys [action data-dir]}]
                                                        (or (and (= action "add") (string? data-dir))
                                                            (and (= action "remove") (nil? data-dir))))))
-(spec/def ::geosync-server-request-minimal (spec/keys :req-un [::response-host
-                                                               ::response-port]))
+(spec/def ::geosync-server-response-minimal (spec/keys :req-un [::response-host
+                                                                ::response-port]))
 
 ;;===========================================================
 ;; Server and Handler Functions
@@ -93,16 +93,17 @@
                                       (catch Exception e
                                         [1 (str "GeoSync: Error updating GeoServer: " (ex-message e))]))]
         (log-str "-> " status-msg)
-        (sockets/send-to-server! response-host
-                                 response-port
-                                 (json/write-str (merge request
-                                                        {:status        status-num
-                                                         :message       status-msg
-                                                         :response-host geosync-server-host
-                                                         :response-port geosync-server-port})
-                                                 :key-fn (comp kebab->camel name))))
-      (recur @(first (alts! [job-queue stand-by-queue]
-                            :priority true))))))
+        (when (spec/valid? ::geosync-server-response-minimal request)
+          (sockets/send-to-server! response-host
+                                   response-port
+                                   (json/write-str (merge request
+                                                          {:status        status-num
+                                                           :message       status-msg
+                                                           :response-host geosync-server-host
+                                                           :response-port geosync-server-port})
+                                                   :key-fn (comp kebab->camel name))))
+        (recur @(first (alts! [job-queue stand-by-queue]
+                              :priority true)))))))
 
 (defn handler
   [geosync-server-host geosync-server-port request-msg]
@@ -123,7 +124,7 @@
                                   (catch Exception e
                                     [1 (str "GeoSync: Request validation error: " (ex-message e))]))]
         (log-str "-> " status-msg)
-        (when (spec/valid? ::geosync-server-request-minimal request)
+        (when (spec/valid? ::geosync-server-response-minimal request)
           (sockets/send-to-server! (:response-host request)
                                    (:response-port request)
                                    (json/write-str (merge request

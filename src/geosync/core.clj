@@ -1,12 +1,14 @@
 (ns geosync.core
   (:import java.io.File
+           java.net.SocketTimeoutException
+           java.util.concurrent.TimeoutException
            java.util.Properties)
   (:require [clj-http.client     :as client]
             [clojure.data.json   :as json]
             [clojure.java.io     :as io]
             [clojure.string      :as s]
             [geosync.rest-api    :as rest]
-            [geosync.utils       :refer [nil-on-error]]
+            [geosync.utils       :refer [nil-on-error url-path]]
             [triangulum.logging  :refer [log log-str]]
             [triangulum.database :refer [call-sql]]
             [taoensso.tufte      :as tufte]))
@@ -17,36 +19,57 @@
 ;;
 ;;===========================================================
 
+(def timeout-ms (* 10 60 1000)) ; 10 minutes
+
+(defn timeout? [e]
+  (or (instance? TimeoutException e)
+      (instance? SocketTimeoutException e)))
+
 (defn create-feature-type-spatial-index
   [{:keys [geoserver-wms-uri geoserver-workspace]} {:keys [store-name]}]
   (try
     (let [layer-name (str geoserver-workspace ":" store-name)
-          response   (client/request {:url       (str geoserver-wms-uri
-                                                      "&LAYERS=" layer-name
-                                                      "&QUERY_LAYERS=" layer-name)
-                                      :method    "GET"
-                                      :insecure? true})]
-      (log-str "GetFeatureInfo " layer-name " -> " (select-keys response [:status :reason-phrase]))
+          response   (client/request {:url                (str geoserver-wms-uri
+                                                               "&LAYERS=" layer-name
+                                                               "&QUERY_LAYERS=" layer-name)
+                                      :method             "GET"
+                                      :insecure?          true
+                                      :socket-timeout     timeout-ms
+                                      :connection-timeout timeout-ms})]
+      (log-str (format "GetFeatureInfo %s%n               -> %s"
+                       layer-name
+                       (select-keys response [:status :reason-phrase])))
       response)
     (catch Exception e
       (let [layer-name (str geoserver-workspace ":" store-name)]
-        (log-str "GetFeatureInfo " layer-name " -> " (select-keys (ex-data e) [:status :reason-phrase :body]))
+        (log-str (format "GetFeatureInfo %s%n               -> %s"
+                         layer-name
+                         (if (timeout? e)
+                           (str "Timeout Error: Your request took longer than " (quot timeout-ms 1000) " seconds.")
+                           (select-keys (ex-data e) [:status :reason-phrase :body]))))
         (ex-data e)))))
 
 (defn create-feature-type-spatial-index-async
   [{:keys [geoserver-wms-uri geoserver-workspace]} {:keys [store-name]}]
   (let [layer-name (str geoserver-workspace ":" store-name)
         result     (promise)]
-    (client/request {:url       (str geoserver-wms-uri "&LAYERS=" layer-name "&QUERY_LAYERS=" layer-name)
-                     :method    "GET"
-                     :insecure? true
-                     :async?    true}
+    (client/request {:url                (str geoserver-wms-uri "&LAYERS=" layer-name "&QUERY_LAYERS=" layer-name)
+                     :method             "GET"
+                     :insecure?          true
+                     :async?             true
+                     :socket-timeout     timeout-ms
+                     :connection-timeout timeout-ms}
                     (fn [response]
-                      (log-str "GetFeatureInfo " layer-name " -> " (select-keys response [:status :reason-phrase]))
+                      (log-str (format "GetFeatureInfo %s%n               -> %s"
+                                       layer-name
+                                       (select-keys response [:status :reason-phrase])))
                       (deliver result response))
                     (fn [error]
-                      (log-str "GetFeatureInfo " layer-name " -> " (select-keys (ex-data error)
-                                                                                [:status :reason-phrase :body]))
+                      (log-str (format "GetFeatureInfo %s%n               -> %s"
+                                       layer-name
+                                       (if (timeout? error)
+                                         (str "Timeout Error: Your request took longer than " (quot timeout-ms 1000) " seconds.")
+                                         (select-keys (ex-data error) [:status :reason-phrase :body]))))
                       (deliver result (ex-data error))))
     result))
 
@@ -55,6 +78,10 @@
   (filterv #(and (= :shapefile (:store-type %))
                  (not (:indexed? %)))
            file-specs))
+
+(defn file-specs->gwc-specs
+  [file-specs]
+  (filterv #(= :imagemosaic (:store-type %)) file-specs))
 
 ;;===========================================================
 ;;
@@ -68,13 +95,15 @@
 (defn make-rest-request
   [{:keys [geoserver-rest-uri geoserver-rest-headers]} [http-method uri-suffix http-body content-type]]
   (try
-    (let [response (client/request {:url       (str geoserver-rest-uri uri-suffix)
-                                    :method    http-method
-                                    :headers   (if content-type
-                                                 (assoc geoserver-rest-headers "Content-Type" content-type)
-                                                 geoserver-rest-headers)
-                                    :body      http-body
-                                    :insecure? true})]
+    (let [response (client/request {:url                (url-path geoserver-rest-uri uri-suffix)
+                                    :method             http-method
+                                    :headers            (if content-type
+                                                          (assoc geoserver-rest-headers "Content-Type" content-type)
+                                                          geoserver-rest-headers)
+                                    :body               http-body
+                                    :insecure?          true
+                                    :socket-timeout     timeout-ms
+                                    :connection-timeout timeout-ms})]
       (log-str (format "%6s %s%n               -> %s"
                        http-method
                        uri-suffix
@@ -84,21 +113,25 @@
       (log-str (format "%6s %s%n               -> %s"
                        http-method
                        uri-suffix
-                       (select-keys (ex-data e) [:status :reason-phrase :body])))
+                       (if (timeout? e)
+                         (str "Timeout Error: Your request took longer than " (quot timeout-ms 1000) " seconds.")
+                         (select-keys (ex-data e) [:status :reason-phrase :body]))))
       (ex-data e))))
 
 ;; FIXME: Use an SSL keystore and remove insecure? param
 (defn make-rest-request-async
   [{:keys [geoserver-rest-uri geoserver-rest-headers]} [http-method uri-suffix http-body content-type]]
   (let [result (promise)]
-    (client/request {:url       (str geoserver-rest-uri uri-suffix)
-                     :method    http-method
-                     :headers   (if content-type
-                                  (assoc geoserver-rest-headers "Content-Type" content-type)
-                                  geoserver-rest-headers)
-                     :body      http-body
-                     :insecure? true
-                     :async?    true}
+    (client/request {:url                (url-path geoserver-rest-uri uri-suffix)
+                     :method             http-method
+                     :headers            (if content-type
+                                           (assoc geoserver-rest-headers "Content-Type" content-type)
+                                           geoserver-rest-headers)
+                     :body               http-body
+                     :insecure?          true
+                     :async?             true
+                     :socket-timeout     timeout-ms
+                     :connection-timeout timeout-ms}
                     (fn [response]
                       (log-str (format "%6s %s%n               -> %s"
                                        http-method
@@ -109,26 +142,45 @@
                       (log-str (format "%6s %s%n               -> %s"
                                        http-method
                                        uri-suffix
-                                       (select-keys (ex-data error) [:status :reason-phrase :body])))
+                                       (if (timeout? error)
+                                         (str "Timeout Error: Your request took longer than " (quot timeout-ms 1000) " seconds.")
+                                         (select-keys (ex-data error) [:status :reason-phrase :body]))))
                       (deliver result (ex-data error))))
     result))
 
 (defn file-specs->layer-group-specs
-  [{:keys [geoserver-workspace layer-groups]} existing-layer-groups file-specs]
-  (let [layer-names (mapv #(str geoserver-workspace ":" (:store-name %)) file-specs)]
+  [{:keys [geoserver-workspace layer-groups]} existing-stores existing-layer-groups file-specs]
+  (let [store-names     (map :store-name file-specs)
+        old-layer-names (->> store-names
+                             (filter #(contains? existing-stores %))
+                             (mapv #(str geoserver-workspace ":" %)))
+        new-layer-names (->> store-names
+                             (remove #(contains? existing-stores %))
+                             (mapv #(str geoserver-workspace ":" %)))]
     (into []
-          (comp (remove #(contains? existing-layer-groups (:name %)))
-                (keep (fn [{:keys [layer-pattern name]}]
-                        (when-let [matching-layers (seq (filterv #(s/includes? % layer-pattern)
-                                                                 layer-names))]
-                          (rest/create-layer-group geoserver-workspace
-                                                   name
-                                                   "SINGLE"
-                                                   name
-                                                   ""
-                                                   []
-                                                   matching-layers
-                                                   [])))))
+          (keep (fn [{:keys [layer-pattern name]}]
+                  (when-let [new-matching-layers (seq (filterv #(s/includes? % layer-pattern)
+                                                               new-layer-names))]
+                    (if (contains? existing-layer-groups name)
+                      (let [old-matching-layers (seq (filterv #(s/includes? % layer-pattern)
+                                                              old-layer-names))]
+                        (rest/update-layer-group geoserver-workspace
+                                                 name
+                                                 "SINGLE"
+                                                 name
+                                                 ""
+                                                 ""
+                                                 []
+                                                 (sort (concat old-matching-layers new-matching-layers))
+                                                 []))
+                      (rest/create-layer-group geoserver-workspace
+                                               name
+                                               "SINGLE"
+                                               name
+                                               ""
+                                               []
+                                               (sort new-matching-layers)
+                                               [])))))
           layer-groups)))
 
 (defn update-properties-file!
@@ -220,6 +272,14 @@
     (map :name %)
     (set %)))
 
+(defn get-existing-gwc-layer
+  [{:keys [geoserver-workspace] :as config-params} store-name]
+  (as-> (rest/get-cached-layer geoserver-workspace store-name) %
+    (make-rest-request config-params %)
+    (:body %)
+    (json/read-str % :key-fn keyword)
+    (:GeoServerLayer %)))
+
 (defn get-existing-coverage-stores
   [{:keys [geoserver-workspace] :as config-params}]
   (as-> (rest/get-coverage-stores geoserver-workspace) %
@@ -277,6 +337,7 @@
                 "external.geotiff"     :create-coverage-via-put
                 "external.shp"         :create-feature-type-via-put
                 "/coveragestores/"     :update-coverage-store
+                "/gwc/rest/layers/"    :update-cached-layer
                 "/layers/"             :update-layer-style)
      "DELETE" (condp #(s/includes? %2 %1) uri-suffix
                 "/layers/"             :delete-layer
@@ -292,7 +353,7 @@
         existing-stores       (if ws-exists? (get-existing-stores config-params) #{})
         existing-layer-groups (if ws-exists? (get-existing-layer-groups config-params) #{})
         layer-specs           (file-specs->layer-specs config-params existing-stores file-specs)
-        layer-group-specs     (file-specs->layer-group-specs config-params existing-layer-groups file-specs)
+        layer-group-specs     (file-specs->layer-group-specs config-params existing-stores existing-layer-groups file-specs)
         rest-specs            (-> (group-by get-spec-type layer-specs)
                                   (assoc :create-layer-group layer-group-specs))]
     (if ws-exists?
@@ -414,6 +475,21 @@
        (mapv #(create-feature-type-spatial-index-async config-params %))
        (mapv (comp :status deref))))
 
+(defn update-gwc-time-param-filters
+  [{:keys [geoserver-workspace] :as config-params} {:keys [store-name]}]
+  (let [{:keys [gridSubsets]} (get-existing-gwc-layer config-params store-name)]
+    (rest/update-cached-layer geoserver-workspace
+                              store-name
+                              #"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$"
+                              gridSubsets)))
+
+(defn make-parallel-gwc-requests
+  [config-params gwc-specs]
+  (->> gwc-specs
+       (mapv #(update-gwc-time-param-filters config-params %))
+       (mapv #(make-rest-request-async config-params %))
+       (mapv (comp :status deref))))
+
 (defn add-directory-to-workspace-aux!
   [{:keys [data-dir styles geoserver-workspace] :as config-params}]
   (tufte/profile
@@ -425,6 +501,8 @@
                                       (file-specs->rest-specs config-params file-specs))
          wms-specs           (tufte/p :wms-specs
                                       (file-specs->wms-specs file-specs))
+         gwc-specs           (tufte/p :gwc-specs
+                                      (file-specs->gwc-specs file-specs))
          rest-response-codes (tufte/p :rest-requests
                                       (client/with-async-connection-pool {:insecure? true}
                                         (into []
@@ -447,7 +525,10 @@
          wms-response-codes  (tufte/p :wms-requests
                                       (client/with-async-connection-pool {:insecure? true}
                                         (make-parallel-wms-requests config-params wms-specs)))
-         http-response-codes (into rest-response-codes wms-response-codes)
+         gwc-response-codes  (tufte/p :gwc-requests
+                                      (client/with-async-connection-pool {:insecure? true}
+                                        (make-parallel-gwc-requests config-params gwc-specs)))
+         http-response-codes (into [] (concat rest-response-codes wms-response-codes gwc-response-codes))
          num-success-codes   (count (filter success-code? http-response-codes))
          num-failure-codes   (- (count http-response-codes) num-success-codes)]
      (call-sql "clear_connection" geoserver-workspace)
