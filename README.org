@@ -289,14 +289,14 @@ make sure to update timeregex.properties accordingly.
 
 In server-mode, you may optionally specify a file path to be
 monitored. Any folders added or removed with a valid directory
-structure (specified in `workspace-regex` map) will be automatically
-registered or dergesitered from the geoserver. See `file-watcher`
-entry in [[file:resources/sample-config.edn][resources/sample-config.edn]] for an example. 
+structure (as specified in the `workspace-regex` map) will be automatically
+registered or dergesitered from the GeoServer. See the `file-watcher`
+entry in [[file:resources/sample-config.edn][resources/sample-config.edn]] for an example.
 
-Here's an explanation of it's confgiuration:
-- dir: A readable directory
-- workspace-regex: a map of folder names to the regexes for parsing
-                   the workspace from the file path.
+Here's an explanation of the ~:file-watcher~ confgiuration:
+- ~dir~: A path to a readable directory.
+- ~workspace-regex~: A map of folder names to regexes. The regexes are used to
+                     parse the appropriate workspace name from the file path.
 
 ** License and Distribution
 

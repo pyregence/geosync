@@ -41,8 +41,7 @@
 (spec/def ::dir                 readable-directory?)
 (spec/def ::workspace-regex     (spec/map-of string? string?))
 (spec/def ::file-watcher        (spec/keys :req-un [::dir
-                                                    ::workspace-regex]
-                                           :opt-un [::dev]))
+                                                    ::workspace-regex]))
 (spec/def ::geosync-config      (spec/keys :req-un [::geoserver-rest-uri
                                                     ::geoserver-username
                                                     ::geoserver-password
