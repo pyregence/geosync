@@ -72,13 +72,10 @@
                                 (start-counter config workspace)))
         nil))))
 
-(defn- handler [{:keys [dev] :as config}]
+(defn- handler [config]
   (fn [{:keys [type path]}]
     (let [path-str (.toString ^sun.nio.fs.UnixPath path)]
-      (when (or ;TODO remove when dev folders are no longer needed
-             (and dev (s/includes? path-str "_dev"))
-             (and (not dev) (not (s/includes? path-str "_dev"))))
-        (process-event config type path-str)))))
+      (process-event config type path-str))))
 
 (defn start! [{:keys [file-watcher]} job-queue]
   (when file-watcher
