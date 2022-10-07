@@ -16,7 +16,7 @@
                                             port?
                                             non-empty-string?
                                             readable-directory?]]
-            [triangulum.logging     :refer [log-str]]))
+            [triangulum.logging     :refer [log-str set-log-path!]]))
 
 ;;===========================================================
 ;; Request Validation
@@ -145,7 +145,10 @@
   (reset! watcher nil))
 
 (defn start-server!
-  [{:keys [geosync-server-host geosync-server-port] :as config-params}]
+  [{:keys [geosync-server-host geosync-server-port log-dir] :as config-params}]
+  (when log-dir
+    (log-str "You've specified " log-dir " as your logging directory. All future logs will be redirected there.")
+    (set-log-path! log-dir))
   (log-str "Running server on port " geosync-server-port ".")
   (reset! watcher (file-watcher/start! config-params stand-by-queue))
   (sockets/start-server! geosync-server-port (partial handler geosync-server-host geosync-server-port))

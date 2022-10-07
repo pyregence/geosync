@@ -216,6 +216,13 @@
          (.canRead directory)
          (.isDirectory directory))))
 
+(defn writable-directory?
+  [x]
+  (when-let [^File directory (nil-on-error (io/file x))]
+    (and (.exists directory)
+         (.canWrite directory)
+         (.isDirectory directory))))
+
 ;; TODO: Make this stricter with a regex
 (defn hostname?
   [x]

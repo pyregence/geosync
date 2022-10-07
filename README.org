@@ -87,6 +87,7 @@ Usage:
   -d, --data-dir DIR              Path to the directory containing your GIS files
   -h, --geosync-server-host HOST  Hostname to advertise in server responses
   -P, --geosync-server-port PORT  Server port to listen on for incoming requests
+  -o, --log-dir PATH              Path to log files
 #+end_example
 
 You can run GeoSync in one of three ways:
