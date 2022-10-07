@@ -164,11 +164,11 @@
                     (if (contains? existing-layer-groups name)
                       (let [old-matching-layers (seq (filterv #(s/includes? % layer-pattern)
                                                               old-layer-names))]
-                        (rest/update-layer-group geoserver-workspace
+                        (rest/delete-layer-group geoserver-workspace name)
+                        (rest/create-layer-group geoserver-workspace
                                                  name
                                                  "SINGLE"
                                                  name
-                                                 ""
                                                  ""
                                                  []
                                                  (sort (concat old-matching-layers new-matching-layers))
