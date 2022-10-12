@@ -136,13 +136,10 @@
                                                    :key-fn (comp kebab->camel name)))))
       (log-str "-> Invalid JSON"))))
 
-(defonce watcher (atom nil))
-
 (defn stop-server!
   []
   (sockets/stop-server!)
-  (file-watcher/stop! @watcher)
-  (reset! watcher nil))
+  (file-watcher/stop!))
 
 (defn start-server!
   [{:keys [geosync-server-host geosync-server-port file-watcher log-dir] :as config-params}]
@@ -154,5 +151,5 @@
   (process-requests! config-params)
   (when file-watcher
     (log-str "Initializing file watcher...")
-    (reset! watcher (file-watcher/start! config-params stand-by-queue))
+    (file-watcher/start! config-params stand-by-queue)
     (log-str "File watcher has been initialized.")))

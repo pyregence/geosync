@@ -1,5 +1,6 @@
 {:paths   ["src" "resources"]
  :deps    {clj-http/clj-http            {:mvn/version "3.12.3"}
+           com.taoensso/tufte           {:mvn/version "2.2.0"}
            hiccup/hiccup                {:mvn/version "2.0.0-alpha2"}
            io.methvin/directory-watcher {:mvn/version "0.15.0"}
            org.clojure/clojure          {:mvn/version "1.10.3"}
@@ -7,13 +8,13 @@
            org.clojure/data.json        {:mvn/version "2.0.1"}
            org.clojure/tools.cli        {:mvn/version "1.0.206"}
            sig-gis/triangulum           {:git/url "https://github.com/sig-gis/triangulum"
-                                         :sha     "67c22ef318c8c42626186872ada4a4436c6bd405"}
-           com.taoensso/tufte           {:mvn/version "2.2.0"}}
- :aliases {:run              {:main-opts ["-m" "geosync.cli"]}
-           :build-db         {:main-opts ["-m" "triangulum.build-db"]}
+                                         :sha     "67c22ef318c8c42626186872ada4a4436c6bd405"}}
+ :aliases {:build-db         {:main-opts ["-m" "triangulum.build-db"]}
+           :check-deps       {:extra-deps {olical/depot {:mvn/version "1.8.4"}}
+                              :main-opts  ["-m" "depot.outdated.main"]}
            :check-reflection {:main-opts ["-e" "(do,(set!,*warn-on-reflection*,true),nil)"
                                           "-e" "(require,'geosync.cli)"]}
            :rebel            {:extra-deps {com.bhauman/rebel-readline {:mvn/version "0.1.4"}}
                               :main-opts  ["-m" "rebel-readline.main"]}
-           :check-deps       {:extra-deps {olical/depot {:mvn/version "1.8.4"}}
-                              :main-opts  ["-m" "depot.outdated.main"]}}}
+           :run              {:main-opts ["-m" "geosync.cli"]}}}
+           

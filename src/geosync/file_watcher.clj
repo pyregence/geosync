@@ -92,6 +92,8 @@
 ;; Main
 ;;-----------------------------------------------------------------------------
 
+(defonce watcher (atom nil))
+
 ;;FIXME some files are created and then deleted during the registration process.
 ;;The deletion triggers the deregistration of the workspace. These are some
 ;;known files that should be ignored.
@@ -136,6 +138,10 @@
       (process-event config type path-str))))
 
 (defn start! [{:keys [file-watcher] :as _config} job-queue]
-  (watch (handler (assoc file-watcher :job-queue job-queue)) (:dir file-watcher)))
+  (reset! watcher
+          (watch (handler (assoc file-watcher :job-queue job-queue))
+                 (:dir file-watcher))))
 
-(def stop! stop)
+(defn stop! []
+  (stop @watcher)
+  (reset! watcher nil))
