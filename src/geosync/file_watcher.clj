@@ -14,7 +14,7 @@
   {:response-host "some.host"
    :response-port 1234})
 
-(defn- count-down [{:keys [job-queue]} workspace request-args]
+(defn- count-down [{:keys [job-queue] :as _config} workspace request-args]
   (go-loop [seconds (get @event-in-progress workspace)]
     (if (> @seconds 0)
       (do (<! (timeout 1000))
@@ -47,7 +47,7 @@
 (defn- parse-workspace
   "Based on the :dir and :folder-name->regex keys from the config file
    and the path of the current file, a GeoServer workspace string is returned."
-  [{:keys [dir folder-name->regex]} path]
+  [{:keys [dir folder-name->regex] :as _config} path]
   (let [folder-regex (re-pattern (format "(?<=%s/)[\\w-]+" dir))
         folder-name  (re-find folder-regex path)]
     (when-let [regex (get folder-name->regex folder-name)]
@@ -58,9 +58,9 @@
 (defn- process-event
   [{:keys [job-queue] :as config} event-type path]
   (when (not-any? #(s/includes? path %) files-to-ignore)
-    ; If no workspace is found then no action will be taken.
-    ; Any folder that you wish an action to be taken for **must**
-    ; be included as a key in the folder-name->regex config map.
+    ;; If no workspace is found then no action will be taken.
+    ;; Any folder that you wish an action to be taken for **must**
+    ;; be included as a key in the folder-name->regex config map.
     (when-let [workspace (parse-workspace config path)]
       (log-str "A " event-type " event on " path " has been detected.")
       (case event-type
@@ -82,7 +82,7 @@
     (let [path-str (.toString ^java.nio.file.Path path)]
       (process-event config type path-str))))
 
-(defn start! [{:keys [file-watcher]} job-queue]
+(defn start! [{:keys [file-watcher] :as _config} job-queue]
   (when file-watcher
     (beholder/watch (handler (assoc file-watcher :job-queue job-queue)) (:dir file-watcher))))
 
