@@ -45,19 +45,24 @@
 (def files-to-ignore #{"sample_image.dat" ".properties"})
 
 (defn- parse-workspace
-  [{:keys [dir workspace-regex]} path]
+  "Based on the :dir and :folder-name->regex keys from the config file
+   and the path of the current file, a GeoServer workspace string is returned."
+  [{:keys [dir folder-name->regex]} path]
   (let [folder-regex (re-pattern (format "(?<=%s/)[\\w-]+" dir))
         folder-name  (re-find folder-regex path)]
-    (when-let [regex (get workspace-regex folder-name)]
+    (when-let [regex (get folder-name->regex folder-name)]
       (some-> (re-find regex path)
-              (s/replace "/" "_")
-              (s/replace "_dev" ""))))) ;TODO remove when dev folders no longer needed
+              (s/replace "_" "-")
+              (s/replace "/" "_")))))
 
 (defn- process-event
   [{:keys [job-queue] :as config} event-type path]
   (when (not-any? #(s/includes? path %) files-to-ignore)
+    ; If no workspace is found then no action will be taken.
+    ; Any folder that you wish an action to be taken for **must**
+    ; be included as a key in the folder-name->regex config map.
     (when-let [workspace (parse-workspace config path)]
-      (log-str event-type ":" path)
+      (log-str "A " event-type " event on " path " has been detected.")
       (case event-type
         (:create :modify) (if (get @event-in-progress workspace)
                             (reset-timer workspace)
@@ -74,7 +79,7 @@
 
 (defn- handler [config]
   (fn [{:keys [type path]}]
-    (let [path-str (.toString ^sun.nio.fs.UnixPath path)]
+    (let [path-str (.toString ^java.nio.file.Path path)]
       (process-event config type path-str))))
 
 (defn start! [{:keys [file-watcher]} job-queue]

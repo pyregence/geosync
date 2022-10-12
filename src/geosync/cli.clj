@@ -40,9 +40,9 @@
 (spec/def ::action-hook         (spec/tuple ::action-run-time ::server/action url? ::action-hook-params))
 (spec/def ::action-hooks        (spec/coll-of ::action-hook :kind vector? :distinct true))
 (spec/def ::dir                 readable-directory?)
-(spec/def ::workspace-regex     (spec/map-of string? string?))
+(spec/def ::folder-name->regex  (spec/map-of string? string?))
 (spec/def ::file-watcher        (spec/keys :req-un [::dir
-                                                    ::workspace-regex]))
+                                                    ::folder-name->regex]))
 (spec/def ::geosync-config      (spec/keys :req-un [::geoserver-rest-uri
                                                     ::geoserver-username
                                                     ::geoserver-password
@@ -129,7 +129,7 @@
   [{:keys [file-watcher] :as config-params}]
   (if file-watcher
     (update-in config-params
-              [:file-watcher :workspace-regex]
+              [:file-watcher :folder-name->regex]
               #(reduce-kv (fn [acc k v] (assoc acc k (re-pattern v))) {} %))
     config-params))
 
