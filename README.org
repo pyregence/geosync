@@ -290,18 +290,20 @@ make sure to update timeregex.properties accordingly.
 
 In server-mode, you may optionally specify a file path to be
 monitored. Any folders added or removed with a valid directory
-structure (as specified in the `workspace-regex` map) will be automatically
+structure (as specified in the `folder-name->regex` map) will be automatically
 registered or dergesitered from the GeoServer. See the `file-watcher`
 entry in [[file:resources/sample-config.edn][resources/sample-config.edn]] for an example.
 
 Here's an explanation of the ~:file-watcher~ confgiuration:
 - ~dir~: A path to a readable directory.
-- ~workspace-regex~: A map of folder names to regexes. The regexes are used to
-                     parse the appropriate workspace name from the file path.
+- ~folder-name->regex~: A map of folder names to regexes. The regexes are used to
+                        parse the appropriate workspace name from the file path.
+                        Note that for any folder name not included in this map no
+                        action will be taken (even if the file watcher detects an event).
 
 ** License and Distribution
 
-Copyright © 2020-2021 Spatial Informatics Group, LLC.
+Copyright © 2020-2022 Spatial Informatics Group, LLC.
 
 GeoSync is distributed by Spatial Informatics Group, LLC. under the
 terms of the Eclipse Public License version 2.0 (EPLv2). See
