@@ -1,8 +1,61 @@
 (ns geosync.file-watcher
-  (:require [clojure.core.async   :refer [<! >! >!! go-loop timeout]]
-            [clojure.string       :as s]
-            [nextjournal.beholder :as beholder]
-            [triangulum.logging   :refer [log-str]]))
+  (:require [clojure.core.async :refer [<! >! >!! go-loop timeout]]
+            [clojure.string     :as s]
+            [triangulum.logging :refer [log-str]])
+  (:import java.nio.file.Paths
+           (io.methvin.watcher DirectoryChangeEvent
+                               DirectoryChangeEvent$EventType
+                               DirectoryChangeListener
+                               DirectoryWatcher)
+           io.methvin.watcher.hashing.FileHasher))
+
+;;-----------------------------------------------------------------------------
+;; From https://github.com/nextjournal/beholder/blob/main/src/nextjournal/beholder.clj
+;;-----------------------------------------------------------------------------
+
+(defn- fn->listener ^DirectoryChangeListener [f]
+  (reify
+    DirectoryChangeListener
+    (onEvent [this e]
+      (let [path (.path ^DirectoryChangeEvent e)]
+        (condp = (. ^DirectoryChangeEvent e eventType)
+          DirectoryChangeEvent$EventType/CREATE   (f {:type :create :path path})
+          DirectoryChangeEvent$EventType/MODIFY   (f {:type :modify :path path})
+          DirectoryChangeEvent$EventType/DELETE   (f {:type :delete :path path})
+          DirectoryChangeEvent$EventType/OVERFLOW (f {:type :overflow :path path}))))))
+
+(defn- to-path [& args]
+  (Paths/get ^String (first args) (into-array String (rest args))))
+
+(defn- create
+  "Creates a watcher taking a callback function `cb` that will be invoked
+  whenever a file in one of the `paths` chages.
+  Not meant to be called directly but use `watch` or `watch-blocking` instead."
+  [cb paths]
+  (-> (DirectoryWatcher/builder)
+      (.paths (map to-path paths))
+      (.listener (fn->listener cb))
+      (.fileHasher FileHasher/LAST_MODIFIED_TIME)
+      (.build)))
+
+(defn watch
+  "Creates a directory watcher that will invoke the callback function `cb` whenever
+  a file event in one of the `paths` occurs. Watching will happen asynchronously.
+  Returns a directory watcher that can be passed to `stop` to stop the watch."
+  [cb & paths]
+  (doto (create cb paths)
+    (.watchAsync)))
+
+(defn watch-blocking
+  "Blocking version of `watch`."
+  [cb & paths]
+  (doto (create cb paths)
+    (.watch)))
+
+(defn stop
+  "Stops the watch for a given `watcher`."
+  [^DirectoryWatcher watcher]
+  (.close watcher))
 
 ;;-----------------------------------------------------------------------------
 ;; Utils
@@ -83,7 +136,6 @@
       (process-event config type path-str))))
 
 (defn start! [{:keys [file-watcher] :as _config} job-queue]
-  (when file-watcher
-    (beholder/watch (handler (assoc file-watcher :job-queue job-queue)) (:dir file-watcher))))
+  (watch (handler (assoc file-watcher :job-queue job-queue)) (:dir file-watcher)))
 
-(def stop! beholder/stop)
+(def stop! stop)
