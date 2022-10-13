@@ -150,6 +150,4 @@
   (sockets/start-server! geosync-server-port (partial handler geosync-server-host geosync-server-port))
   (process-requests! config-params)
   (when file-watcher
-    (log-str "Initializing file watcher...")
-    (file-watcher/start! config-params stand-by-queue)
-    (log-str "File watcher has been initialized.")))
+    (file-watcher/start! config-params stand-by-queue)))

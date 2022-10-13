@@ -35,6 +35,8 @@
   (-> (DirectoryWatcher/builder)
       (.paths (map to-path paths))
       (.listener (fn->listener cb))
+      ;; (.fileHashing false) ;; Uncomment this (and comment out the line below) if the file watcher is slow to initialize.
+                              ;; This will turn off file hashing (which is used to prevent duplicate events).
       (.fileHasher FileHasher/LAST_MODIFIED_TIME)
       (.build)))
 
@@ -133,16 +135,20 @@
                                 (start-counter config workspace)))
         nil))))
 
-(defn- handler [config]
+(defn- make-handler [config]
   (fn [{:keys [type path]}]
     (let [path-str (.toString ^java.nio.file.Path path)]
       (process-event config type path-str))))
 
 (defn start! [{:keys [file-watcher] :as _config} job-queue]
-  (reset! watcher
-          (watch (handler (assoc file-watcher :job-queue job-queue))
-                 (:dir file-watcher))))
+  (future
+    (log-str "Initializing file watcher...")
+    (reset! watcher
+           (watch (make-handler (assoc file-watcher :job-queue job-queue))
+                  (:dir file-watcher)))
+    (log-str "File watcher has been initialized.")))
 
 (defn stop! []
   (stop @watcher)
-  (reset! watcher nil))
+  (reset! watcher nil)
+  (log-str "File watcher has been stopped."))

@@ -192,7 +192,10 @@
         (.setProperty attribute value)
         (.store writer nil)))))
 
-(defn clean-image-mosaic-folder [data-dir]
+(defn clean-image-mosaic-folder
+  "GeoServer likes to add extra config files to an ImageMosaic directory.
+   This function deletes them (and keeps the files we care about)."
+  [data-dir]
   (doseq [file (file-seq (io/file data-dir))
           :when (let [file-name (.getName file)]
                   (not (or (.isDirectory file)
