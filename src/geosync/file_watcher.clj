@@ -106,9 +106,10 @@
   (let [folder-regex (re-pattern (format "(?<=%s/)[\\w-]+" dir))
         folder-name  (re-find folder-regex path)]
     (when-let [regex (get folder-name->regex folder-name)]
-      (some-> (re-find regex path)
-              (s/replace "_" "-")
-              (s/replace "/" "_")))))
+      (let [init-workspace       (re-find regex path)
+            [forecast timestamp] (s/split init-workspace #"/")
+            cleaned-forecast     (s/replace forecast "_" "-")]
+        (s/join "_" [cleaned-forecast timestamp])))))
 
 (defn- process-event
   [{:keys [job-queue] :as config} event-type path]
