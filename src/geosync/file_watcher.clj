@@ -1,63 +1,104 @@
 (ns geosync.file-watcher
   (:require [clojure.core.async :refer [<! >! >!! go-loop timeout]]
+            [clojure.java.io    :as io]
             [clojure.string     :as s]
             [triangulum.logging :refer [log-str]])
-  (:import java.nio.file.Paths
-           (io.methvin.watcher DirectoryChangeEvent
-                               DirectoryChangeEvent$EventType
-                               DirectoryChangeListener
-                               DirectoryWatcher)
-           io.methvin.watcher.hashing.FileHasher))
+  (:import java.io.File
+           (java.nio.file Path
+                          Files
+                          FileSystems
+                          LinkOption
+                          StandardWatchEventKinds
+                          WatchEvent
+                          WatchKey
+                          WatchService)))
 
 ;;-----------------------------------------------------------------------------
-;; From https://github.com/nextjournal/beholder/blob/main/src/nextjournal/beholder.clj
+;; Custom file watcher adapted from https://docs.oracle.com/javase/tutorial/essential/io/examples/WatchDir.java
+;; and https://docs.oracle.com/javase/tutorial/essential/io/notification.html
 ;;-----------------------------------------------------------------------------
 
-(defn- fn->listener ^DirectoryChangeListener [f]
-  (reify
-    DirectoryChangeListener
-    (onEvent [this e]
-      (let [path (.path ^DirectoryChangeEvent e)]
-        (condp = (. ^DirectoryChangeEvent e eventType)
-          DirectoryChangeEvent$EventType/CREATE   (f {:type :create :path path})
-          DirectoryChangeEvent$EventType/MODIFY   (f {:type :modify :path path})
-          DirectoryChangeEvent$EventType/DELETE   (f {:type :delete :path path})
-          DirectoryChangeEvent$EventType/OVERFLOW (f {:type :overflow :path path}))))))
+(defn create-watcher
+  "Creates a new WatchService object."
+  []
+  (.newWatchService (FileSystems/getDefault)))
 
-(defn- to-path [& args]
-  (Paths/get ^String (first args) (into-array String (rest args))))
+(defn register-directories
+  "Registers the given directory and all of its sub-directories with the provided
+   WatchService object. Returns a hash map of watch keys to paths in order
+   to keep track of the paths that the watcher is watching."
+  [^WatchService watcher root-dir]
+  (let [sub-dirs    (->> (io/file root-dir)
+                         (file-seq)
+                         (filter #(.isDirectory ^File %))
+                         (map #(.toPath ^File %)))
+        event-kinds (into-array [StandardWatchEventKinds/ENTRY_CREATE
+                                 StandardWatchEventKinds/ENTRY_DELETE
+                                 StandardWatchEventKinds/ENTRY_MODIFY])]
+    (reduce (fn [acc ^Path dir]
+              (let [watch-key (.register dir watcher event-kinds)]
+                (assoc acc watch-key dir)))
+            {}
+            sub-dirs)))
 
-(defn- create
-  "Creates a watcher taking a callback function `cb` that will be invoked
-  whenever a file in one of the `paths` chages.
-  Not meant to be called directly but use `watch` or `watch-blocking` instead."
-  [cb paths]
-  (-> (DirectoryWatcher/builder)
-      (.paths (map to-path paths))
-      (.listener (fn->listener cb))
-      ;; (.fileHashing false) ;; Uncomment this (and comment out the line below) if the file watcher is slow to initialize.
-                              ;; This will turn off file hashing (which is used to prevent duplicate events).
-      (.fileHasher FileHasher/LAST_MODIFIED_TIME)
-      (.build)))
+(defn process-events!
+  "Processes all events for keys queued to the watcher. The handler function
+   will be invoked whenever a file in one the paths added to watch-keys by
+   register-directories is created, deleted, or modified.
+   Note that this must occur in a child thread."
+  [handler ^WatchService watcher watch-keys]
+  (when (seq watch-keys)
+    (let [^WatchKey watch-key (.take watcher)
+          ^Path     watch-dir (get watch-keys watch-key)]
+      (recur handler
+             watcher
+             (try (reduce (fn [acc ^WatchEvent event]
+                            (let [kind (.kind event)
+                                  path (->> event
+                                            (.context)
+                                            (.resolve watch-dir))]
+                              (handler {:path path
+                                        :type (condp = kind
+                                                StandardWatchEventKinds/ENTRY_CREATE :create
+                                                StandardWatchEventKinds/ENTRY_MODIFY :modify
+                                                StandardWatchEventKinds/ENTRY_DELETE :delete
+                                                StandardWatchEventKinds/OVERFLOW     :overflow
+                                                nil)})
+                              (when-not (.reset watch-key)
+                                (dissoc watch-keys watch-key))
+                              (cond
+                                (and (= kind StandardWatchEventKinds/ENTRY_CREATE)
+                                     (Files/isDirectory path (into-array [LinkOption/NOFOLLOW_LINKS])))
+                                (merge watch-keys (register-directories watcher path))
 
-(defn watch
-  "Creates a directory watcher that will invoke the callback function `cb` whenever
-  a file event in one of the `paths` occurs. Watching will happen asynchronously.
-  Returns a directory watcher that can be passed to `stop` to stop the watch."
-  [cb & paths]
-  (doto (create cb paths)
-    (.watchAsync)))
+                                (and (= kind StandardWatchEventKinds/ENTRY_DELETE)
+                                     (Files/isDirectory path (into-array [LinkOption/NOFOLLOW_LINKS])))
+                                (dissoc watch-keys watch-key)
 
-(defn watch-blocking
-  "Blocking version of `watch`."
-  [cb & paths]
-  (doto (create cb paths)
-    (.watch)))
+                                :else
+                                watch-keys)))
+                          watch-keys
+                          (.pollEvents watch-key))
+                  (catch Exception e
+                    (log-str "Exception: " e)))))))
 
-(defn stop
-  "Stops the watch for a given `watcher`."
-  [^DirectoryWatcher watcher]
-  (.close watcher))
+(defn run-file-watcher!
+  "The entry point for the file watcher. Takes a handler function and a dir.
+   The handler function is invoked on any create, modify, or delete event
+   on any one of the sub-dirs to the provided dir. The handler function should
+   take one argument, a map of {:path path :type type} where the path is the path
+   of the file in question and the type is the kind of event observed."
+  [handler dir]
+  (try
+    (let [_            (log-str "Initializing file watcher...")
+          watcher      (create-watcher)
+          watch-keys   (register-directories watcher dir)
+          _            (log-str "Done registering directories for " dir)
+          watch-thread (future (process-events! handler watcher watch-keys))
+          _            (log-str "File watcher has been initialized.")]
+      watch-thread)
+    (catch Exception e
+      (log-str "Exception: " e))))
 
 ;;-----------------------------------------------------------------------------
 ;; Utils
@@ -107,33 +148,38 @@
   [{:keys [dir folder-name->regex] :as _config} path]
   (let [folder-regex (re-pattern (format "(?<=%s/)[\\w-]+" dir))
         folder-name  (re-find folder-regex path)]
-    (when-let [regex (get folder-name->regex folder-name)]
-      (let [init-workspace       (re-find regex path)
-            [forecast timestamp] (s/split init-workspace #"/")
-            cleaned-forecast     (s/replace forecast "_" "-")]
-        (s/join "_" [cleaned-forecast timestamp])))))
+    (when-let [init-workspace (some-> folder-name
+                                      (folder-name->regex)
+                                      (re-find path))]
+      (let [[forecast & sub-dirs] (s/split init-workspace #"/")
+            cleaned-forecast      (s/replace forecast "_" "-")]
+        {:data-dir  (.getPath (io/file dir init-workspace))
+         :workspace (s/join "_" (cons cleaned-forecast sub-dirs))}))))
 
 (defn- process-event
   [{:keys [job-queue] :as config} event-type path]
-  (when (not-any? #(s/includes? path %) files-to-ignore)
-    ;; If no workspace is found then no action will be taken.
-    ;; Any folder that you wish an action to be taken for **must**
-    ;; be included as a key in the folder-name->regex config map.
-    (when-let [workspace (parse-workspace config path)]
-      (log-str "A " event-type " event on " path " has been detected.")
-      (case event-type
-        (:create :modify) (if (get @event-in-progress workspace)
-                            (reset-timer workspace)
-                            (start-counter config workspace {:action              "add"
-                                                             :geoserver-workspace workspace
-                                                             :data-dir            path}))
-        :delete           (if (get @event-in-progress workspace)
-                            (reset-timer workspace)
-                            (do (>!! job-queue (assoc request-minimum
-                                                      :action              "remove"
-                                                      :geoserver-workspace workspace))
-                                (start-counter config workspace)))
-        nil))))
+  (try
+    (when (not-any? #(s/includes? path %) files-to-ignore)
+      ;; If no workspace is found then no action will be taken.
+      ;; Any folder that you wish an action to be taken for **must**
+      ;; be included as a key in the folder-name->regex config map.
+      (when-let [{:keys [workspace data-dir]} (parse-workspace config path)]
+        (log-str "A " event-type " event on " path " has been detected.")
+        (case event-type
+          (:create :modify) (if (get @event-in-progress workspace)
+                              (reset-timer workspace)
+                              (start-counter config workspace {:action              "add"
+                                                               :geoserver-workspace workspace
+                                                               :data-dir            data-dir}))
+          :delete           (if (get @event-in-progress workspace)
+                              (reset-timer workspace)
+                              (do (>!! job-queue (assoc request-minimum
+                                                        :action              "remove"
+                                                        :geoserver-workspace workspace))
+                                  (start-counter config workspace)))
+          nil)))
+    (catch Exception e
+      (log-str "Exception: " e))))
 
 (defn- make-handler [config]
   (fn [{:keys [type path]}]
@@ -141,14 +187,10 @@
       (process-event config type path-str))))
 
 (defn start! [{:keys [file-watcher] :as _config} job-queue]
-  (future
-    (log-str "Initializing file watcher...")
-    (reset! watcher
-           (watch (make-handler (assoc file-watcher :job-queue job-queue))
-                  (:dir file-watcher)))
-    (log-str "File watcher has been initialized.")))
+  (let [handler-fn (make-handler (assoc file-watcher :job-queue job-queue))]
+    (reset! watcher (run-file-watcher! handler-fn (:dir file-watcher)))))
 
 (defn stop! []
-  (stop @watcher)
+  (future-cancel @watcher)
   (reset! watcher nil)
   (log-str "File watcher has been stopped."))

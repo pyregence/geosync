@@ -42,6 +42,13 @@ and then add the postgis extension to it. Next, the script will populate
 the database with the functions that are necessary for storing and processing
 GeoServer's data.
 
+It's important to note that when you are dealing with ImageMosaic workspaces,
+you must make sure to use GeoSync to deregister them. The GeoServer web UI gives
+you an option to deregister workspaces using its interface, but due to the
+ImageMosaic data stored in GeoSync's Postgres database, you must use GeoSync
+to deregister any ImageMosaic workspaces in order to make sure the database is
+updated properly.
+
 *** Performance Settings
 
 If you want to improve the performance of your PostgreSQL server, one
@@ -300,6 +307,23 @@ Here's an explanation of the ~:file-watcher~ confgiuration:
                         parse the appropriate workspace name from the file path.
                         Note that for any folder name not included in this map no
                         action will be taken (even if the file watcher detects an event).
+
+Note that depending on the number of files you are attempting to watch,
+you will likely have to increase your ~inotify~ limit. You can find your current
+~inotify~ limit by running ~cat /proc/sys/fs/inotify/max_user_watches~. To set
+a new limit temporarily, run:
+
+#+begin_src sh
+$ sudo sysctl fs.inotify.max_user_watches=<number-of-files>
+$ sudo sysctl -p
+#+end_src
+
+To make this limit permanent, run:
+
+#+begin_src sh
+$ echo fs.inotify.max_user_watches=<number-of-files> | sudo tee -a /etc/sysctl.conf
+$ sudo sysctl -p
+#+end_src
 
 ** License and Distribution
 
