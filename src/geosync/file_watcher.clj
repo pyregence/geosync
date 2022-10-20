@@ -41,6 +41,10 @@
             {}
             sub-dirs)))
 
+(defn directory? [path]
+  (let [^LinkOption nofollow-links (into-array [LinkOption/NOFOLLOW_LINKS])]
+    (Files/isDirectory path nofollow-links)))
+
 (defn process-events!
   "Processes all events for keys queued to the watcher. The handler function
    will be invoked whenever a file in one the paths added to watch-keys by
@@ -53,10 +57,21 @@
       (recur handler
              watcher
              (try (reduce (fn [acc ^WatchEvent event]
-                            (let [kind (.kind event)
-                                  path (->> event
-                                            (.context)
-                                            (.resolve watch-dir))]
+                            (let [kind               (.kind event)
+                                  path               (->> event
+                                                          (.context)
+                                                          (.resolve watch-dir))
+                                  updated-watch-keys (cond
+                                                       (and (= kind StandardWatchEventKinds/ENTRY_CREATE)
+                                                            (directory? path))
+                                                       (merge watch-keys (register-directories watcher path))
+
+                                                       (and (= kind StandardWatchEventKinds/ENTRY_DELETE)
+                                                            (directory? path))
+                                                       (dissoc watch-keys watch-key)
+
+                                                       :else
+                                                       watch-keys)]
                               (handler {:path path
                                         :type (condp = kind
                                                 StandardWatchEventKinds/ENTRY_CREATE :create
@@ -64,23 +79,13 @@
                                                 StandardWatchEventKinds/ENTRY_DELETE :delete
                                                 StandardWatchEventKinds/OVERFLOW     :overflow
                                                 nil)})
-                              (when-not (.reset watch-key)
-                                (dissoc watch-keys watch-key))
-                              (cond
-                                (and (= kind StandardWatchEventKinds/ENTRY_CREATE)
-                                     (Files/isDirectory path (into-array [LinkOption/NOFOLLOW_LINKS])))
-                                (merge watch-keys (register-directories watcher path))
-
-                                (and (= kind StandardWatchEventKinds/ENTRY_DELETE)
-                                     (Files/isDirectory path (into-array [LinkOption/NOFOLLOW_LINKS])))
-                                (dissoc watch-keys watch-key)
-
-                                :else
-                                watch-keys)))
+                              (if (.reset watch-key)
+                                watch-keys
+                                (dissoc updated-watch-keys watch-key))))
                           watch-keys
                           (.pollEvents watch-key))
-                  (catch Exception e
-                    (log-str "Exception: " e)))))))
+               (catch Exception e
+                 (log-str "Exception: " e)))))))
 
 (defn run-file-watcher!
   "The entry point for the file watcher. Takes a handler function and a dir.

@@ -314,15 +314,15 @@ you will likely have to increase your ~inotify~ limit. You can find your current
 a new limit temporarily, run:
 
 #+begin_src sh
-$ sudo sysctl fs.inotify.max_user_watches=<number-of-files>
-$ sudo sysctl -p
+sudo sysctl fs.inotify.max_user_watches=$NUMBER_OF_FILES
+sudo sysctl -p
 #+end_src
 
 To make this limit permanent, run:
 
 #+begin_src sh
-$ echo fs.inotify.max_user_watches=<number-of-files> | sudo tee -a /etc/sysctl.conf
-$ sudo sysctl -p
+echo fs.inotify.max_user_watches=$NUMBER_OF_FILES | sudo tee -a /etc/sysctl.conf
+sudo sysctl -p
 #+end_src
 
 ** License and Distribution
