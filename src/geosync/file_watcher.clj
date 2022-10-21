@@ -41,9 +41,10 @@
             {}
             sub-dirs)))
 
+(def nofollow-links (into-array [LinkOption/NOFOLLOW_LINKS]))
+
 (defn directory? [path]
-  (let [^LinkOption nofollow-links (into-array [LinkOption/NOFOLLOW_LINKS])]
-    (Files/isDirectory path nofollow-links)))
+  (Files/isDirectory path nofollow-links))
 
 (defn process-events!
   "Processes all events for keys queued to the watcher. The handler function
@@ -80,7 +81,7 @@
                                                 StandardWatchEventKinds/OVERFLOW     :overflow
                                                 nil)})
                               (if (.reset watch-key)
-                                watch-keys
+                                updated-watch-keys
                                 (dissoc updated-watch-keys watch-key))))
                           watch-keys
                           (.pollEvents watch-key))
