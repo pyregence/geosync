@@ -570,7 +570,7 @@
       [:opaque opaque?]])]))
 
 (defn update-layer-style
-  ([layer style layer-type]
+  ([layer styles layer-type]
    ["PUT"
     (str "/layers/" layer)
     (xml
@@ -581,8 +581,14 @@
                :raster "RASTER"
                nil)]
       [:defaultStyle
-       [:name style]]])])
-  ([workspace layer style layer-type]
+       [:name (if (coll? styles)
+                (first styles)
+                styles)]]
+      (when (coll? styles)
+        [:styles
+         (map (fn [s] [:style [:name s]]) styles)])])])
+
+  ([workspace layer styles layer-type]
    ["PUT"
     (str "/workspaces/" workspace "/layers/" layer)
     (xml
@@ -593,7 +599,12 @@
                :raster "RASTER"
                nil)]
       [:defaultStyle
-       [:name style]]])]))
+       [:name (if (coll? styles)
+                (first styles)
+                styles)]]
+      (when (coll? styles)
+        [:styles
+         (map (fn [s] [:style [:name s]]) styles)])])]))
 
 (defn delete-layer
   ([layer]
