@@ -60,7 +60,7 @@
              (try (reduce (fn [acc ^WatchEvent event]
                             (let [kind               (.kind event)
                                   path               (->> event
-                                                          (.context)
+                                                          ^Path (.context)
                                                           (.resolve watch-dir))
                                   updated-watch-keys (cond
                                                        (and (= kind StandardWatchEventKinds/ENTRY_CREATE)

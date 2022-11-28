@@ -188,7 +188,7 @@
   (let [props (with-open [reader (io/reader file-path)]
                 (doto (Properties.) (.load reader)))]
     (with-open [writer (io/writer file-path)]
-      (doto props
+      (doto ^Properties props
         (.setProperty attribute value)
         (.store writer nil)))))
 
@@ -196,7 +196,7 @@
   "GeoServer likes to add extra config files to an ImageMosaic directory.
    This function deletes them (and keeps the files we care about)."
   [data-dir]
-  (doseq [file (file-seq (io/file data-dir))
+  (doseq [^File file (file-seq (io/file data-dir))
           :when (let [file-name (.getName file)]
                   (not (or (.isDirectory file)
                            (s/ends-with? file-name ".tif")
