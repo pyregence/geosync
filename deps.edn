@@ -8,7 +8,9 @@
            org.clojure/tools.cli        {:mvn/version "1.0.206"}
            sig-gis/triangulum           {:git/url "https://github.com/sig-gis/triangulum"
                                          :sha     "67c22ef318c8c42626186872ada4a4436c6bd405"}}
- :aliases {:build-db         {:main-opts ["-m" "triangulum.build-db"]}
+ :aliases {:build            {:deps       {io.github.clojure/tools.build {:git/tag "v0.8.2" :git/sha "ba1a2bf"}}
+                              :ns-default build}
+           :build-db         {:main-opts ["-m" "triangulum.build-db"]}
            :check-deps       {:extra-deps {olical/depot {:mvn/version "1.8.4"}}
                               :main-opts  ["-m" "depot.outdated.main"]}
            :check-reflection {:main-opts ["-e" "(do,(set!,*warn-on-reflection*,true),nil)"

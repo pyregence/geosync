@@ -1,4 +1,5 @@
 (ns geosync.cli
+  (:gen-class)
   (:import java.util.Base64)
   (:require [clojure.edn        :as edn]
             [clojure.java.io    :as io]
@@ -182,7 +183,7 @@
 
 (def program-banner
   (str "geosync: Load a nested directory tree of GeoTIFFs and Shapefiles into a running GeoServer instance.\n"
-       "Copyright © 2020-2022 Spatial Informatics Group, LLC.\n"))
+       "Copyright © 2020-2023 Spatial Informatics Group, LLC.\n"))
 
 (defn -main
   [& args]
