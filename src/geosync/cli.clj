@@ -74,7 +74,7 @@
 
 (defn encode-str
   [s]
-  (.encodeToString (Base64/getUrlEncoder) (.getBytes ^String s)))
+  (.encodeToString (Base64/getEncoder) (.getBytes ^String s)))
 
 (defn all-required-keys? [config-params]
   (and (every? config-params [:geoserver-rest-uri :geoserver-username :geoserver-password])
