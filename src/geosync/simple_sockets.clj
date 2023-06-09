@@ -35,7 +35,7 @@
 
 (defn- accept-connections! [^ServerSocket server-socket handler]
   (while @global-server-thread
-    (when-let [socket (nil-on-error (.accept server-socket))]
+    (when-let [^Socket socket (nil-on-error (.accept server-socket))]
       (try
         (->> (read-socket! socket)
              (handler))

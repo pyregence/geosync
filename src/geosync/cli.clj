@@ -1,4 +1,5 @@
 (ns geosync.cli
+  (:gen-class)
   (:import java.util.Base64)
   (:require [clojure.edn        :as edn]
             [clojure.java.io    :as io]
@@ -6,14 +7,15 @@
             [clojure.string     :as s]
             [clojure.tools.cli  :refer [parse-opts]]
             [geosync.core       :refer [add-directory-to-workspace!]]
-            [geosync.server     :refer [start-server!]]
-            [geosync.utils      :refer [nil-on-error
-                                        throw-message
+            [geosync.server     :refer [start-server!] :as server]
+            [geosync.utils      :refer [hostname?
+                                        nil-on-error
                                         non-empty-string?
-                                        url?
+                                        port?
                                         readable-directory?
-                                        hostname?
-                                        port?]]))
+                                        throw-message
+                                        url?
+                                        writable-directory?]]))
 
 ;;===========================================================
 ;; Argument Validation
@@ -24,6 +26,8 @@
 (spec/def ::geoserver-password  non-empty-string?)
 (spec/def ::geoserver-workspace non-empty-string?)
 (spec/def ::data-dir            readable-directory?)
+(spec/def ::geosync-server-host hostname?)
+(spec/def ::geosync-server-port port?)
 (spec/def ::layer-pattern       non-empty-string?)
 (spec/def ::style-vector        (spec/coll-of non-empty-string? :kind vector? :distinct true))
 (spec/def ::raster-style        (spec/or :style non-empty-string? :styles ::style-vector))
@@ -33,8 +37,14 @@
 (spec/def ::name                non-empty-string?)
 (spec/def ::layer-group         (spec/keys :req-un [::layer-pattern ::name]))
 (spec/def ::layer-groups        (spec/coll-of ::layer-group :kind vector? :distinct true))
-(spec/def ::geosync-server-host hostname?)
-(spec/def ::geosync-server-port port?)
+(spec/def ::action-run-time     #{:before :after})
+(spec/def ::action-hook-params  (spec/map-of keyword? any?))
+(spec/def ::action-hook         (spec/tuple ::action-run-time ::server/action url? ::action-hook-params))
+(spec/def ::action-hooks        (spec/coll-of ::action-hook :kind vector? :distinct true))
+(spec/def ::dir                 readable-directory?)
+(spec/def ::folder-name->regex  (spec/map-of string? string?))
+(spec/def ::file-watcher        (spec/keys :req-un [::dir
+                                                    ::folder-name->regex]))
 (spec/def ::geosync-config      (spec/keys :req-un [::geoserver-rest-uri
                                                     ::geoserver-username
                                                     ::geoserver-password
@@ -44,7 +54,8 @@
                                                      (and ::geosync-server-host
                                                           ::geosync-server-port))]
                                            :opt-un [::styles
-                                                    ::layer-groups]))
+                                                    ::layer-groups
+                                                    ::action-hooks]))
 (spec/def ::geosync-config-file (spec/keys :opt-un [::geoserver-rest-uri
                                                     ::geoserver-username
                                                     ::geoserver-password
@@ -53,7 +64,9 @@
                                                     ::geosync-server-host
                                                     ::geosync-server-port
                                                     ::styles
-                                                    ::layer-groups]))
+                                                    ::layer-groups
+                                                    ::action-hooks
+                                                    ::file-watcher]))
 
 ;;===========================================================
 ;; Argument Processing
@@ -61,7 +74,7 @@
 
 (defn encode-str
   [s]
-  (.encodeToString (Base64/getUrlEncoder) (.getBytes ^String s)))
+  (.encodeToString (Base64/getEncoder) (.getBytes ^String s)))
 
 (defn all-required-keys? [config-params]
   (and (every? config-params [:geoserver-rest-uri :geoserver-username :geoserver-password])
@@ -114,6 +127,14 @@
                                             "&CRS=EPSG:4326"
                                             "&BBOX=-180.0,-90.0,180.0,90.0")))))
 
+(defn add-file-watcher-params
+  [{:keys [file-watcher] :as config-params}]
+  (if file-watcher
+    (update-in config-params
+              [:file-watcher :folder-name->regex]
+              #(reduce-kv (fn [acc k v] (assoc acc k (re-pattern v))) {} %))
+    config-params))
+
 (defn process-options
   [options]
   (let [config-file-params  (read-config-params (:config-file options))
@@ -132,7 +153,9 @@
                               (spec/explain-str ::geosync-config config-params)))
 
           :else
-          (add-derived-params config-params))))
+          (-> config-params
+              add-derived-params
+              add-file-watcher-params))))
 
 ;;===========================================================
 ;; User Interface
@@ -154,11 +177,13 @@
     :validate [hostname? "The provided --geosync-server-host is invalid."]]
    ["-P" "--geosync-server-port PORT" "Server port to listen on for incoming requests"
     :parse-fn #(Integer/parseInt %)
-    :validate [port? "The provided --geosync-server-port must be an integer between 0 and 65536."]]])
+    :validate [port? "The provided --geosync-server-port must be an integer between 0 and 65536."]]
+   ["-o" "--log-dir PATH" "Path to log files"
+    :validate [writable-directory? "Directory does not exist or is not writable."]]])
 
 (def program-banner
   (str "geosync: Load a nested directory tree of GeoTIFFs and Shapefiles into a running GeoServer instance.\n"
-       "Copyright © 2020-2021 Spatial Informatics Group, LLC.\n"))
+       "Copyright © 2020-2023 Spatial Informatics Group, LLC.\n"))
 
 (defn -main
   [& args]

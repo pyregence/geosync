@@ -163,6 +163,38 @@
                                (Integer/parseInt val)
                                (catch Exception _ (int default))))))
 
+(defn start-with [s start]
+  (if-not (s/starts-with? s start)
+    (str start s)
+    s))
+
+(defn end-with [s end]
+  (if-not (s/ends-with? s end)
+    (str s end)
+    s))
+
+(def ^:private hostname-path-regex #"(https?:\/\/[^/]+)(.*)")
+
+(defn url-path
+  "Resolves a `root-url` with a `path`, which can include '..' as a way to remove
+   previous entries.
+
+   Usage example:
+   `(url-path \"http://geoserver.app/rest\" \"/../gwc/rest/layer/layername.xml\")`
+   returns `\"http://geoserver.app/gwc/rest/layer/layername.xml\"`"
+  [root-url path]
+  (let [[_ hostname root-path] (re-find hostname-path-regex root-url)]
+    (->> (s/split (str root-path (start-with path "/")) #"/")
+         (remove empty?)
+         (reduce (fn [acc cur]
+                   (if (= ".." cur)
+                     (rest acc)
+                     (cons cur acc)))
+                 '())
+         (reverse)
+         (s/join "/")
+         (str (end-with hostname "/")))))
+
 ;;===========================================================
 ;; Spec Predicates
 ;;===========================================================
@@ -182,6 +214,13 @@
   (when-let [^File directory (nil-on-error (io/file x))]
     (and (.exists directory)
          (.canRead directory)
+         (.isDirectory directory))))
+
+(defn writable-directory?
+  [x]
+  (when-let [^File directory (nil-on-error (io/file x))]
+    (and (.exists directory)
+         (.canWrite directory)
          (.isDirectory directory))))
 
 ;; TODO: Make this stricter with a regex

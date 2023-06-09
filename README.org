@@ -42,6 +42,13 @@ and then add the postgis extension to it. Next, the script will populate
 the database with the functions that are necessary for storing and processing
 GeoServer's data.
 
+It's important to note that when you are dealing with ImageMosaic workspaces,
+you must make sure to use GeoSync to deregister them. The GeoServer web UI gives
+you an option to deregister workspaces using its interface, but due to the
+ImageMosaic data stored in GeoSync's Postgres database, you must use GeoSync
+to deregister any ImageMosaic workspaces in order to make sure the database is
+updated properly.
+
 *** Performance Settings
 
 If you want to improve the performance of your PostgreSQL server, one
@@ -87,6 +94,7 @@ Usage:
   -d, --data-dir DIR              Path to the directory containing your GIS files
   -h, --geosync-server-host HOST  Hostname to advertise in server responses
   -P, --geosync-server-port PORT  Server port to listen on for incoming requests
+  -o, --log-dir PATH              Path to log files
 #+end_example
 
 You can run GeoSync in one of three ways:
@@ -224,9 +232,110 @@ here:
 
 https://docs.geoserver.org/latest/en/user/configuration/crshandling/customcrs.html
 
+** ImageMosaic Support
+
+In addition to registering individual GeoTIFFs and Shapefiles, GeoSync
+can also register a directory of GeoTIFFs as a single ImageMosaic
+layer. This can be particularly useful for timeseries rasters in which
+your data is stored as a directory of single-band GeoTIFFs with one
+file per timestep.
+
+In order for a directory to be detected as an ImageMosaic data source
+by GeoSync, it must include these three text files:
+
+- datastore.properties
+- indexer.properties
+- timeregex.properties
+
+The required contents of these files is provided in the following
+subsections.
+
+*** datastore.properties
+
+#+begin_example
+Estimated\ extends=true
+jndiRefevrenceName=java\:comp/env/jdbc/postgres
+validate\ connections=true
+Connection\ timeout=10
+SPI=org.geotools.data.postgis.PostgisNGJNDIDataStoreFactory
+#+end_example
+
+Note that datastore.properties also needs a schema property, but this
+will be inserted by GeoSync by using the geoserverWorkspace attribute
+from either config.edn (in script mode) or the JSON request (in server
+mode).
+
+*** indexer.properties
+
+#+begin_example
+TimeAttribute=ingestion
+Schema=*the_geom\:Polygon,location\:String,ingestion\:java.util.Date
+PropertyCollectors=TimestampFileNameExtractorSPI[timeregex](ingestion)
+#+end_example
+
+Note that indexer.properties also needs a Name property, but this will be inserted
+by GeoSync based on the the directory structure.
+
+*** timeregex.properties
+
+#+begin_example
+regex=([0-9]{8}_[0-9]{6}),format=yyyyMMdd_HHmmss
+#+end_example
+
+This regex must match the file naming convention used for all the
+timeseries GeoTIFFs in your ImageMosaic directory. The example given
+above would match files with the following names:
+
+- some_layer_20210801_120000
+- some_layer_20210801_130000
+- some_layer_20210801_140000
+
+If you use a different file naming convention for your timestamps,
+make sure to update timeregex.properties accordingly.
+
+** File Watcher
+
+In server-mode, you may optionally specify a file path to be
+monitored. Any folders added or removed with a valid directory
+structure (as specified in the `folder-name->regex` map) will be automatically
+registered or dergesitered from the GeoServer. See the `file-watcher`
+entry in [[file:resources/sample-config.edn][resources/sample-config.edn]] for an example.
+
+Here's an explanation of the ~:file-watcher~ confgiuration:
+- ~dir~: A path to a readable directory.
+- ~folder-name->regex~: A map of folder names to regexes. The regexes are used to
+                        parse the appropriate workspace name from the file path.
+                        Note that for any folder name not included in this map no
+                        action will be taken (even if the file watcher detects an event).
+
+Note that depending on the number of files you are attempting to watch,
+you will likely have to increase your ~inotify~ limit. You can find your current
+~inotify~ limit by running ~cat /proc/sys/fs/inotify/max_user_watches~. To set
+a new limit temporarily, run:
+
+#+begin_src sh
+sudo sysctl fs.inotify.max_user_watches=$NUMBER_OF_FILES
+sudo sysctl -p
+#+end_src
+
+To make this limit permanent, run:
+
+#+begin_src sh
+echo fs.inotify.max_user_watches=$NUMBER_OF_FILES | sudo tee -a /etc/sysctl.conf
+sudo sysctl -p
+#+end_src
+
+** Uber-JAR
+
+To build GeoSync as an Uber-JAR (to the ~target~) directory, run the following:
+
+#+begin_src sh
+clojure -T:build uberjar
+#+end_src
+
 ** License and Distribution
 
-Copyright © 2020-2022 Spatial Informatics Group, LLC.
+Copyright © 2020-2023 Spatial Informatics Group, LLC.
 
 GeoSync is distributed by Spatial Informatics Group, LLC. under the
 terms of the Eclipse Public License version 2.0 (EPLv2). See

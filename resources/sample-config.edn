@@ -2,7 +2,16 @@
  :geoserver-username  "admin"
  :geoserver-password  "geoserver"
  :geoserver-workspace "demo"
+ :action-hooks        [[:after  "add"    "https://pyrecast.org/clj/set-capabilities"              {:auth-token "some-token" :clj-args [[{"geoserver-key" "trinity" "workspace-name" geoserverWorkspace}]]}]
+                       [:before "remove" "https://pyrecast.org/clj/remove-workspace"              {:auth-token "some-token" :clj-args [[{"geoserver-key" "trinity" "workspace-name" geoserverWorkspace}]]}]
+                       [:after  "add"    "https://pyregence-dev.sig-gis.com/clj/set-capabilities" {:auth-token "some-token" :clj-args [[{"geoserver-key" "trinity" "workspace-name" geoserverWorkspace}]]}]
+                       [:before "remove" "https://pyregence-dev-sig-gis.com/clj/remove-workspace" {:auth-token "some-token" :clj-args [[{"geoserver-key" "trinity" "workspace-name" geoserverWorkspace}]]}]]
+ :file-watcher        {:dir                "/some/directory/to/watch"
+                       :folder-name->regex {"fire_spread_forecast"  "(?<=/)fire_spread_forecast/[\\w-]+/\\d{8}_\\d{6}"
+                                            "fire_weather_forecast" "(?<=/)fire_weather_forecast/\\d{8}_\\d{2}"
+                                            "fire_detections"       "(?<=/)fire_detections/[\\w]+"}}
  :data-dir            "/data"
+ :log-dir             "logs"
  :styles              [{:layer-pattern "fire-area"           :raster-style "fire-area"           :vector-style "line-fire-area"}
                        {:layer-pattern "fire-volume"         :raster-style "fire-volume"         :vector-style "line-fire-volume"}
                        {:layer-pattern "times-burned"        :raster-style "times-burned"        :vector-style "line-times-burned"}
