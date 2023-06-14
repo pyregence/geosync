@@ -83,7 +83,7 @@ This will print out the following usage message:
 
 #+begin_example
 geosync: Load a nested directory tree of GeoTIFFs and Shapefiles into a running GeoServer instance.
-Copyright © 2020-2021 Spatial Informatics Group, LLC.
+Copyright © 2020-2023 Spatial Informatics Group, LLC.
 
 Usage:
   -c, --config-file EDN           Path to an EDN file containing a map of these parameters
@@ -92,6 +92,7 @@ Usage:
   -p, --geoserver-password PASS   GeoServer admin password
   -w, --geoserver-workspace WS    Workspace name to receive the new GeoServer layers
   -d, --data-dir DIR              Path to the directory containing your GIS files
+  -a, --action ACTION             GeoServer action: either "add" or "remove". Required in CLI mode.
   -h, --geosync-server-host HOST  Hostname to advertise in server responses
   -P, --geosync-server-port PORT  Server port to listen on for incoming requests
   -o, --log-dir PATH              Path to log files
@@ -102,8 +103,11 @@ You can run GeoSync in one of three ways:
 1. Pass all options (except -c) on the command line.
 
    #+begin_src sh
-   # Script mode: Load a single directory tree into a GeoServer workspace and exit
-   clojure -M:run -g http://localhost:8080/geoserver/rest -u admin -p geoserver -w demo -d /data
+   # Script mode: Load (add) a single directory tree into a GeoServer workspace and exit
+   clojure -M:run -g http://localhost:8080/geoserver/rest -u admin -p geoserver -w demo -d /data -a "add"
+
+  # Script mode: Remove a single workspace from GeoServer and exit
+  clojure -M:run -g http://localhost:8080/geoserver/rest -u admin -p geoserver -w demo -a "remove"
 
    # Server mode: Listen on a port for JSON requests (see section "Server Mode" below for more info)
    clojure -M:run -g http://localhost:8080/geoserver/rest -u admin -p geoserver -h geosync.mydomain.org -P 31337

@@ -6,7 +6,8 @@
             [clojure.spec.alpha :as spec]
             [clojure.string     :as s]
             [clojure.tools.cli  :refer [parse-opts]]
-            [geosync.core       :refer [add-directory-to-workspace!]]
+            [geosync.core       :refer [add-directory-to-workspace!
+                                        remove-workspace!]]
             [geosync.server     :refer [start-server!] :as server]
             [geosync.utils      :refer [hostname?
                                         nil-on-error
@@ -37,6 +38,7 @@
 (spec/def ::name                non-empty-string?)
 (spec/def ::layer-group         (spec/keys :req-un [::layer-pattern ::name]))
 (spec/def ::layer-groups        (spec/coll-of ::layer-group :kind vector? :distinct true))
+(spec/def ::action              #{"add" "remove"})
 (spec/def ::action-run-time     #{:before :after})
 (spec/def ::action-hook-params  (spec/map-of keyword? any?))
 (spec/def ::action-hook         (spec/tuple ::action-run-time ::server/action url? ::action-hook-params))
@@ -45,17 +47,27 @@
 (spec/def ::folder-name->regex  (spec/map-of string? string?))
 (spec/def ::file-watcher        (spec/keys :req-un [::dir
                                                     ::folder-name->regex]))
-(spec/def ::geosync-config      (spec/keys :req-un [::geoserver-rest-uri
-                                                    ::geoserver-username
-                                                    ::geoserver-password
-                                                    (or
-                                                     (and ::geoserver-workspace
-                                                          ::data-dir)
-                                                     (and ::geosync-server-host
-                                                          ::geosync-server-port))]
-                                           :opt-un [::styles
-                                                    ::layer-groups
-                                                    ::action-hooks]))
+(spec/def ::geosync-config      (spec/and (spec/keys :req-un [::geoserver-rest-uri
+                                                              ::geoserver-username
+                                                              ::geoserver-password
+                                                              (or
+                                                               ;; CLI mode
+                                                               (and ::geoserver-workspace
+                                                                    ::action)
+                                                               ;; Server mode
+                                                               (and ::geosync-server-host
+                                                                    ::geosync-server-port))]
+                                                     :opt-un [::data-dir
+                                                              ::styles
+                                                              ::layer-groups
+                                                              ::action-hooks])
+                                          (fn [{:keys [action data-dir geosync-server-host geosync-server-port]}]
+                                            ;; Server mode
+                                            (if (and geosync-server-host geosync-server-port)
+                                              true
+                                              ;; CLI mode
+                                              (or (and (= action "add") (string? data-dir))
+                                                  (and (= action "remove") (nil? data-dir)))))))
 (spec/def ::geosync-config-file (spec/keys :opt-un [::geoserver-rest-uri
                                                     ::geoserver-username
                                                     ::geoserver-password
@@ -78,7 +90,7 @@
 
 (defn all-required-keys? [config-params]
   (and (every? config-params [:geoserver-rest-uri :geoserver-username :geoserver-password])
-       (or (every? config-params [:geoserver-workspace :data-dir])
+       (or (every? config-params [:geoserver-workspace :action])
            (every? config-params [:geosync-server-host :geosync-server-port]))))
 
 (defn read-config-params
@@ -144,7 +156,7 @@
           (throw-message (str "These parameters are always required (but may be included in --config-file):\n"
                               "  --geoserver-rest-uri --geoserver-username --geoserver-password\n"
                               "For command-line mode, please include:\n"
-                              "  --geoserver-workspace --data-dir\n"
+                              "  --geoserver-workspace --action\n"
                               "For server mode, please include:\n"
                               "  --geosync-server-host --geosync-server-port\n"))
 
@@ -173,6 +185,7 @@
    ["-d" "--data-dir DIR" "Path to the directory containing your GIS files"
     :validate [#(.exists  (io/file %)) "The provided --data-dir does not exist."
                #(.canRead (io/file %)) "The provided --data-dir is not readable."]]
+   ["-a" "--action ACTION" "GeoServer action: either \"add\" or \"remove\". Required in CLI mode."]
    ["-h" "--geosync-server-host HOST" "Hostname to advertise in server responses"
     :validate [hostname? "The provided --geosync-server-host is invalid."]]
    ["-P" "--geosync-server-port PORT" "Server port to listen on for incoming requests"
@@ -210,12 +223,27 @@
             (println config-params)
             (println (str "Usage:\n" summary)))
 
+          ;; GeoSync is running in server mode
           (and (:geosync-server-host config-params)
                (:geosync-server-port config-params))
           (start-server! config-params)
 
-          :else
+          ;; GeoSync is running in CLI mode with an action of "add"
+          (= (:action config-params) "add")
           (do
             (add-directory-to-workspace! config-params)
+            (shutdown-agents)
+            (flush))
+
+          ;; GeoSync is running in CLI mode with an action of "remove"
+          (= (:action config-params) "remove")
+          (do
+            (remove-workspace! config-params)
+            (shutdown-agents)
+            (flush))
+
+          :else
+          (do
+            (println "Something went wrong when running GeoSync.")
             (shutdown-agents)
             (flush)))))
