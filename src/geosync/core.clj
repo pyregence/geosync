@@ -493,7 +493,7 @@
   [data-dir]
   (let [data-dir (to-dir data-dir)]
     (->> (io/file data-dir)
-         (file-seq)
+         (gis-file-seq)
          (map #(-> (.getPath ^File %)
                    (s/replace-first data-dir "")))
          (sort))))
