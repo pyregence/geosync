@@ -9,3 +9,7 @@
 logs
 target
 config.edn
+
+.calva/*
+.clj-kondo/*
+.lsp/*

@@ -143,8 +143,8 @@
   [{:keys [file-watcher] :as config-params}]
   (if file-watcher
     (update-in config-params
-              [:file-watcher :folder-name->regex]
-              #(reduce-kv (fn [acc k v] (assoc acc k (re-pattern v))) {} %))
+               [:file-watcher :folder-name->regex]
+               #(reduce-kv (fn [acc k v] (assoc acc k (re-pattern v))) {} %))
     config-params))
 
 (defn process-options
@@ -177,20 +177,34 @@
   [["-c" "--config-file EDN" "Path to an EDN file containing a map of these parameters"
     :validate [#(.exists  (io/file %)) "The provided --config-file does not exist."
                #(.canRead (io/file %)) "The provided --config-file is not readable."]]
+
    ["-g" "--geoserver-rest-uri URI" "URI of your GeoServer's REST extensions"
     :validate [url? "The provided --geoserver-rest-uri is not a valid URI."]]
+
    ["-u" "--geoserver-username USER" "GeoServer admin username"]
+
    ["-p" "--geoserver-password PASS" "GeoServer admin password"]
+
    ["-w" "--geoserver-workspace WS" "Workspace name to receive the new GeoServer layers"]
+
    ["-d" "--data-dir DIR" "Path to the directory containing your GIS files"
     :validate [#(.exists  (io/file %)) "The provided --data-dir does not exist."
                #(.canRead (io/file %)) "The provided --data-dir is not readable."]]
    ["-a" "--action ACTION" "GeoServer action: either \"add\" or \"remove\". Required in CLI mode."]
+
+   ["-s" "--style-dir DIR" "Path to the directory containing your style files"
+    :validate [#(.exists  (io/file %)) "The provided --style-dir does not exist."
+               #(.canRead (io/file %)) "The provided --style-dir is not readable."]]
+
+   ["-O" "--overwrite-styles" "If true, already existing styles will have their definition overwritten"]
+
    ["-h" "--geosync-server-host HOST" "Hostname to advertise in server responses"
     :validate [hostname? "The provided --geosync-server-host is invalid."]]
+
    ["-P" "--geosync-server-port PORT" "Server port to listen on for incoming requests"
     :parse-fn #(Integer/parseInt %)
     :validate [port? "The provided --geosync-server-port must be an integer between 0 and 65536."]]
+
    ["-o" "--log-dir PATH" "Path to log files"
     :validate [writable-directory? "Directory does not exist or is not writable."]]])
 

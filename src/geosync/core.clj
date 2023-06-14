@@ -11,7 +11,8 @@
             [geosync.utils       :refer [nil-on-error url-path]]
             [triangulum.logging  :refer [log log-str]]
             [triangulum.database :refer [call-sql]]
-            [taoensso.tufte      :as tufte]))
+            [taoensso.tufte      :as tufte]
+            [clojure.string :as str]))
 
 ;;===========================================================
 ;;
@@ -428,6 +429,30 @@
         spatial-index-file-path  (str file-path-sans-extension ".qix")]
     (.exists (io/file data-dir spatial-index-file-path))))
 
+
+(defn style-exists?
+  [{:keys [geoserver-workspace] :as config-params} style-name]
+  (as-> (rest/get-style geoserver-workspace (str style-name ".css")) %
+    (make-rest-request config-params %)
+    (:status %)
+    (= 200 %)))
+
+
+(defn get-style-name [file-path]
+  (as-> (->> (io/file file-path)
+             (.getName)) %
+    (first (str/split % #"\."))))
+
+(defn file-path->style-spec
+  [{:keys [geoserver-workspace overwrite-styles] :as config-params} file-path]
+  (let [style-name (get-style-name file-path)
+        exists? (style-exists? config-params style-name)]
+    (println "\nstyle exists" exists? "\n")
+    (cond
+      (and exists? overwrite-styles) (rest/update-style geoserver-workspace style-name file-path)
+      (not exists?) (rest/create-style geoserver-workspace style-name file-path)
+      :else nil)))
+
 (defn file-paths->file-specs
   [data-dir styles file-paths]
   (mapv #(let [store-type (get-store-type %)]
@@ -453,13 +478,23 @@
      (when (get-store-type (.getName node))
        [node]))))
 
-(defn load-file-paths
+(defn to-dir [dir]
+  (if (str/ends-with? dir "/")
+    dir
+    (str dir "/")))
+
+(defn load-style-file-paths [style-dir]
+  (let [style-dir (to-dir style-dir)]
+    (->> (io/file style-dir)
+         (file-seq)
+         (filter #(str/ends-with? (.getName %) ".css"))
+         (map #(.getAbsolutePath %)))))
+
+(defn load-gis-file-paths
   [data-dir]
-  (let [data-dir (if (s/ends-with? data-dir "/")
-                   data-dir
-                   (str data-dir "/"))]
+  (let [data-dir (to-dir data-dir)]
     (->> (io/file data-dir)
-         (gis-file-seq)
+         (file-seq)
          (map #(-> (.getPath ^File %)
                    (s/replace-first data-dir "")))
          (sort))))
@@ -492,11 +527,14 @@
        (mapv (comp :status deref))))
 
 (defn add-directory-to-workspace-aux!
-  [{:keys [data-dir styles geoserver-workspace] :as config-params}]
+  [{:keys [data-dir style-dir overwrite-styles styles geoserver-workspace] :as config-params}]
   (tufte/profile
    {:id :add-directory-to-workspace!}
-   (let [file-specs          (tufte/p :file-specs
-                                      (->> (load-file-paths data-dir)
+   ;; file-seq
+   (let [style-specs         (tufte/p :style-specs (->> (load-style-file-paths style-dir)
+                                                        (map #(file-path->style-spec config-params %))))
+         file-specs          (tufte/p :file-specs
+                                      (->> (load-gis-file-paths data-dir)
                                            (file-paths->file-specs data-dir styles)))
          rest-specs          (tufte/p :rest-specs
                                       (file-specs->rest-specs config-params file-specs))
