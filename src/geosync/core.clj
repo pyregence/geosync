@@ -11,8 +11,7 @@
             [geosync.utils       :refer [nil-on-error url-path]]
             [triangulum.logging  :refer [log log-str]]
             [triangulum.database :refer [call-sql]]
-            [taoensso.tufte      :as tufte]
-            [clojure.string :as str]))
+            [taoensso.tufte      :as tufte]))
 
 ;;===========================================================
 ;;
@@ -441,7 +440,7 @@
 (defn get-style-name [file-path]
   (as-> (->> (io/file file-path)
              (.getName)) %
-    (first (str/split % #"\."))))
+    (first (s/split % #"\."))))
 
 (defn file-path->style-spec
   [{:keys [geoserver-workspace overwrite-styles] :as config-params} file-path]
@@ -479,7 +478,7 @@
        [node]))))
 
 (defn to-dir [dir]
-  (if (str/ends-with? dir "/")
+  (if (s/ends-with? dir "/")
     dir
     (str dir "/")))
 
@@ -487,7 +486,7 @@
   (let [style-dir (to-dir style-dir)]
     (->> (io/file style-dir)
          (file-seq)
-         (filter #(str/ends-with? (.getName %) ".css"))
+         (filter #(s/ends-with? (.getName %) ".css"))
          (map #(.getAbsolutePath %)))))
 
 (defn load-gis-file-paths
@@ -527,7 +526,7 @@
        (mapv (comp :status deref))))
 
 (defn add-directory-to-workspace-aux!
-  [{:keys [data-dir style-dir overwrite-styles styles geoserver-workspace] :as config-params}]
+  [{:keys [data-dir style-dir styles geoserver-workspace] :as config-params}]
   (tufte/profile
    {:id :add-directory-to-workspace!}
    ;; file-seq
