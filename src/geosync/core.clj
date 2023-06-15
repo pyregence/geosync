@@ -347,49 +347,49 @@
      "DELETE" (condp #(s/includes? %2 %1) uri-suffix
                 "/layers/"             :delete-layer
                 "/featuretypes/"       :delete-feature-type))))
+
 (defn style-exists?
   [{:keys [geoserver-workspace] :as config-params} style-name]
-  (as-> (rest/get-style geoserver-workspace (str style-name ".css")) %
-    (make-rest-request config-params %)
-    (:status %)
-    (success-code? %)))
+  (->> (str style-name ".css")
+       (rest/get-style geoserver-workspace)
+       (make-rest-request config-params)
+       (:status)
+       (success-code?)))
 
 (defn get-style-name
   [file-path]
-  (as-> (->> (io/file file-path)
-             (.getName)) %
-    (first (s/split % #"\."))))
-
+  (-> file-path
+      (io/file)
+      (.getName)
+      (s/split #"\.")
+      (first)))
 
 (defn file-path->style-spec
   [{:keys [geoserver-workspace overwrite-styles] :as config-params} file-path]
   (let [style-name (get-style-name file-path)
         exists?    (style-exists? config-params style-name)]
     (cond
-      (not exists?) (rest/create-style geoserver-workspace style-name file-path)
+      (not exists?)                  (rest/create-style geoserver-workspace style-name file-path)
       (and exists? overwrite-styles) (rest/update-style geoserver-workspace style-name file-path)
-      :else nil)))
+      :else                          nil)))
 
-(defn file-specs->style-specs
-  [config-params file-specs]
-  (->> (filter #(s/ends-with? % ".css") file-specs)
-       (map #(file-path->style-spec config-params %))
-       (remove nil?)))
+(defn file-paths->style-specs
+  [config-params style-file-paths]
+  (keep #(file-path->style-spec config-params %) style-file-paths))
 
 (defn file-specs->rest-specs
   "Generates a sequence of REST request specifications as tuples of
   [http-method uri-suffix http-body content-type]. Each file-spec may
   contribute one or more of these to the final sequence. Returns a map
   of these REST specs grouped by spec type."
-  [{:keys [geoserver-workspace] :as config-params} file-specs style-file-specs]
+  [{:keys [geoserver-workspace] :as config-params} gis-file-specs style-file-paths]
   (let [ws-exists?            (workspace-exists? config-params)
         existing-stores       (if ws-exists? (get-existing-stores config-params) #{})
         existing-layer-groups (if ws-exists? (get-existing-layer-groups config-params) #{})
-        layer-specs           (file-specs->layer-specs config-params existing-stores file-specs)
-        style-specs           (file-specs->style-specs config-params style-file-specs)
-        layer-group-specs     (file-specs->layer-group-specs config-params existing-stores existing-layer-groups file-specs)
-        gis-specs             (into [] (concat layer-specs style-specs))
-        rest-specs            (-> (group-by get-spec-type gis-specs)
+        layer-specs           (file-specs->layer-specs config-params existing-stores gis-file-specs)
+        style-specs           (file-paths->style-specs config-params style-file-paths)
+        layer-group-specs     (file-specs->layer-group-specs config-params existing-stores existing-layer-groups gis-file-specs)
+        rest-specs            (-> (group-by get-spec-type (concat layer-specs style-specs))
                                   (assoc :create-layer-group layer-group-specs))]
     (if ws-exists?
       rest-specs
@@ -538,16 +538,17 @@
   [{:keys [data-dir style-dir styles geoserver-workspace] :as config-params}]
   (tufte/profile
    {:id :add-directory-to-workspace!}
-   (let [style-file-specs    (tufte/p :style-specs (load-style-file-paths style-dir))
-         file-specs          (tufte/p :file-specs
+   (let [style-file-paths    (tufte/p :style-specs
+                                      (load-style-file-paths style-dir))
+         gis-file-specs      (tufte/p :gis-file-specs
                                       (->> (load-gis-file-paths data-dir)
                                            (file-paths->file-specs data-dir styles)))
          rest-specs          (tufte/p :rest-specs
-                                      (file-specs->rest-specs config-params file-specs style-file-specs))
+                                      (file-specs->rest-specs config-params gis-file-specs style-file-paths))
          wms-specs           (tufte/p :wms-specs
-                                      (file-specs->wms-specs file-specs))
+                                      (file-specs->wms-specs gis-file-specs))
          gwc-specs           (tufte/p :gwc-specs
-                                      (file-specs->gwc-specs file-specs))
+                                      (file-specs->gwc-specs gis-file-specs))
          rest-response-codes (tufte/p :rest-requests
                                       (client/with-async-connection-pool {:insecure? true}
                                         (into []
