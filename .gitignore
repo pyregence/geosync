@@ -4,12 +4,11 @@
 .nrepl-port
 .rebel_readline_history
 .vscode
+.calva/*
+.clj-kondo/*
+.lsp/*
 
 # Deployment specific files
 logs
 target
 config.edn
-
-.calva/*
-.clj-kondo/*
-.lsp/*
