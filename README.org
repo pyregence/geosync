@@ -234,7 +234,7 @@ the styles configuration with already available options on GeoSync.
 
 There is a parameter called `overwrite-styles` (available in the CLI as `-O` or `--overwrite-styles`)
 that will control how GeoSync processes the styles. If enabled, any already existing style
-will be updated. Defaults to `false`.
+will be updated. Defaults to `nil` and will be considered `false`.
 
 The styles are tied to your workspace, so if you remove your workspace, the styles will
 also be removed.
