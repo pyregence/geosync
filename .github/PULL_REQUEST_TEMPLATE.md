@@ -2,17 +2,13 @@
 <!-- Description of what has been added/changed -->
 
 ## Related Issues
-Closes GEO-###
+Closes GEO1-###
 
 ## Submission Checklist
-- [ ] Commits include the JIRA issue and the `#review` hashtag (e.g. `GEO-### #review <comment>`)
+- [ ] Included Jira issue in the PR title (e.g. `GEO1-### Did something here`)
 - [ ] Code passes linter rules (`clj-kondo --lint src`)
-- [ ] Feature(s) work when compiled (`clojure -M:compile-cljs`)
+- [ ] No new reflection warnings (`clojure -M:check-reflection`)
 
 ## Testing
 <!-- Create a BDD style test script -->
 1. Given..., When ..., Then ....
-
-## Screenshots
-<!-- Add a screen shot when UI changes are included -->
-

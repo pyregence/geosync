@@ -57,7 +57,7 @@
           ^Path     watch-dir (get watch-keys watch-key)]
       (recur handler
              watcher
-             (try (reduce (fn [acc ^WatchEvent event]
+             (try (reduce (fn [_ ^WatchEvent event]
                             (let [kind               (.kind event)
                                   path               (->> event
                                                           ^Path (.context)
