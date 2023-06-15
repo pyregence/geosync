@@ -27,6 +27,8 @@
 (spec/def ::geoserver-password  non-empty-string?)
 (spec/def ::geoserver-workspace non-empty-string?)
 (spec/def ::data-dir            readable-directory?)
+(spec/def ::style-dir           readable-directory?)
+(spec/def ::overwrite-styles    boolean?)
 (spec/def ::geosync-server-host hostname?)
 (spec/def ::geosync-server-port port?)
 (spec/def ::layer-pattern       non-empty-string?)
@@ -59,6 +61,8 @@
                                                                     ::geosync-server-port))]
                                                      :opt-un [::data-dir
                                                               ::styles
+                                                              ::style-dir
+                                                              ::overwrite-styles
                                                               ::layer-groups
                                                               ::action-hooks])
                                           (fn [{:keys [action data-dir geosync-server-host geosync-server-port]}]
@@ -73,6 +77,8 @@
                                                     ::geoserver-password
                                                     ::geoserver-workspace
                                                     ::data-dir
+                                                    ::style-dir
+                                                    ::overwrite-styles
                                                     ::geosync-server-host
                                                     ::geosync-server-port
                                                     ::styles
