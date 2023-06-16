@@ -92,12 +92,8 @@ Usage:
   -p, --geoserver-password PASS   GeoServer admin password
   -w, --geoserver-workspace WS    Workspace name to receive the new GeoServer layers
   -d, --data-dir DIR              Path to the directory containing your GIS files
-<<<<<<< HEAD
-  -a, --action ACTION             GeoServer action: either "add" or "remove". Required in CLI mode.
-  -s, --style-dir DIR             Path to the directory containing your style files
-=======
   -s, --style-dir STYLEDIR        Path to the directory containing your style files
->>>>>>> 7e07dd3 (1. remove `style-exists?` function)
+  -a, --action ACTION             GeoServer action: either "add" or "remove". Required in CLI mode.
   -O, --overwrite-styles          If true, already existing styles will have their definition overwritten
   -h, --geosync-server-host HOST  Hostname to advertise in server responses
   -P, --geosync-server-port PORT  Server port to listen on for incoming requests
