@@ -369,7 +369,7 @@
       (first)))
 
 (defn file-path->style-spec
-  [{:keys [geoserver-workspace overwrite-styles] :as config-params} file-path existing-styles]
+  [{:keys [geoserver-workspace overwrite-styles]} file-path existing-styles]
   (let [style-name (get-style-name file-path)
         exists?    (contains? existing-styles style-name)]
     (cond

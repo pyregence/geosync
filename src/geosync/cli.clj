@@ -65,13 +65,15 @@
                                                               ::overwrite-styles
                                                               ::layer-groups
                                                               ::action-hooks])
-                                          (fn [{:keys [action data-dir geosync-server-host geosync-server-port]}]
-                                            ;; Server mode
-                                            (if (and geosync-server-host geosync-server-port)
-                                              true
-                                              ;; CLI mode
-                                              (or (and (= action "add") (string? data-dir))
-                                                  (and (= action "remove") (nil? data-dir)))))))
+                                          (fn [{:keys [action data-dir style-dir
+                                                       geosync-server-host geosync-server-port]}]
+                                            (or (and geosync-server-host geosync-server-port) ; Server Mode
+                                                (and (= action "add")                         ; CLI Register Mode
+                                                     (or (string? data-dir)
+                                                         (string? style-dir)))
+                                                (and (= action "remove")                      ; CLI Deregister Mode
+                                                     (and (nil? data-dir)
+                                                          (nil? style-dir)))))))
 (spec/def ::geosync-config-file (spec/keys :opt-un [::geoserver-rest-uri
                                                     ::geoserver-username
                                                     ::geoserver-password
@@ -198,7 +200,7 @@
                #(.canRead (io/file %)) "The provided --data-dir is not readable."]]
    ["-a" "--action ACTION" "GeoServer action: either \"add\" or \"remove\". Required in CLI mode."]
 
-   ["-s" "--style-dir STYLEDIR" "Path to the directory containing your style files"
+   ["-s" "--style-dir DIR" "Path to the directory containing your style files"
     :validate [#(.exists  (io/file %)) "The provided --style-dir does not exist."
                #(.canRead (io/file %)) "The provided --style-dir is not readable."]]
 
