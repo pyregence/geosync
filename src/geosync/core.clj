@@ -339,25 +339,26 @@
 
 (defn get-spec-type
   [[http-method uri-suffix]]
-  (nil-on-error
-   (case http-method
-     "POST"   (condp #(or (s/ends-with? %2 %1) (s/includes? %2 %1)) uri-suffix
-                "external.imagemosaic" :update-coverage-store-image-mosaic
-                "/coverages"           :create-coverage
-                "/datastores"          :create-data-store
-                "/featuretypes"        :create-feature-type-alias
-                "/styles"              :create-style)
-     "PUT"    (condp #(s/includes? %2 %1) uri-suffix
-                "external.imagemosaic" :create-coverage-store-image-mosaic
-                "external.geotiff"     :create-coverage-via-put
-                "external.shp"         :create-feature-type-via-put
-                "/coveragestores/"     :update-coverage-store
-                "/gwc/rest/layers/"    :update-cached-layer
-                "/layers/"             :update-layer-style
-                "/styles"              :update-style)
-     "DELETE" (condp #(s/includes? %2 %1) uri-suffix
-                "/layers/"             :delete-layer
-                "/featuretypes/"       :delete-feature-type))))
+  (let [uri-without-query-params (first (s/split uri-suffix #"\?"))]
+    (nil-on-error
+     (case http-method
+       "POST"   (condp #(s/ends-with? %2 %1) uri-without-query-params
+                  "external.imagemosaic" :update-coverage-store-image-mosaic
+                  "/coverages"           :create-coverage
+                  "/datastores"          :create-data-store
+                  "/featuretypes"        :create-feature-type-alias
+                  "/styles"              :create-style)
+       "PUT"    (condp #(s/includes? %2 %1) uri-suffix
+                  "external.imagemosaic" :create-coverage-store-image-mosaic
+                  "external.geotiff"     :create-coverage-via-put
+                  "external.shp"         :create-feature-type-via-put
+                  "/coveragestores/"     :update-coverage-store
+                  "/gwc/rest/layers/"    :update-cached-layer
+                  "/layers/"             :update-layer-style
+                  "/styles"              :update-style)
+       "DELETE" (condp #(s/includes? %2 %1) uri-suffix
+                  "/layers/"             :delete-layer
+                  "/featuretypes/"       :delete-feature-type)))))
 
 (defn get-style-name
   [file-path]
