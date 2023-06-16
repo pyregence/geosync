@@ -198,7 +198,7 @@
                #(.canRead (io/file %)) "The provided --data-dir is not readable."]]
    ["-a" "--action ACTION" "GeoServer action: either \"add\" or \"remove\". Required in CLI mode."]
 
-   ["-s" "--style-dir DIR" "Path to the directory containing your style files"
+   ["-s" "--style-dir STYLEDIR" "Path to the directory containing your style files"
     :validate [#(.exists  (io/file %)) "The provided --style-dir does not exist."
                #(.canRead (io/file %)) "The provided --style-dir is not readable."]]
 

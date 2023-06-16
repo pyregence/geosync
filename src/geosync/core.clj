@@ -263,6 +263,17 @@
     (map :name %)
     (set %)))
 
+(defn get-existing-styles
+  [{:keys [geoserver-workspace] :as config-params}]
+  (as-> (rest/get-styles geoserver-workspace) %
+    (make-rest-request config-params %)
+    (:body %)
+    (json/read-str % :key-fn keyword)
+    (:styles %)
+    (:style %)
+    (map :name %)
+    (set %)))
+
 ;; FIXME: unused
 (defn get-existing-layers
   [{:keys [geoserver-workspace] :as config-params}]
@@ -348,14 +359,6 @@
                 "/layers/"             :delete-layer
                 "/featuretypes/"       :delete-feature-type))))
 
-(defn style-exists?
-  [{:keys [geoserver-workspace] :as config-params} style-name]
-  (->> (str style-name ".css")
-       (rest/get-style geoserver-workspace)
-       (make-rest-request config-params)
-       (:status)
-       (success-code?)))
-
 (defn get-style-name
   [file-path]
   (-> file-path
@@ -365,9 +368,9 @@
       (first)))
 
 (defn file-path->style-spec
-  [{:keys [geoserver-workspace overwrite-styles] :as config-params} file-path]
+  [{:keys [geoserver-workspace overwrite-styles] :as config-params} file-path existing-styles]
   (let [style-name (get-style-name file-path)
-        exists?    (style-exists? config-params style-name)]
+        exists?    (contains? existing-styles style-name)]
     (cond
       (not exists?)                  (rest/create-style geoserver-workspace style-name file-path)
       (and exists? overwrite-styles) (rest/update-style geoserver-workspace style-name file-path)
@@ -375,7 +378,8 @@
 
 (defn file-paths->style-specs
   [config-params style-file-paths]
-  (keep #(file-path->style-spec config-params %) style-file-paths))
+  (let [existing-styles (get-existing-styles config-params)]
+    (keep #(file-path->style-spec config-params % existing-styles) style-file-paths)))
 
 (defn file-specs->rest-specs
   "Generates a sequence of REST request specifications as tuples of
@@ -538,7 +542,7 @@
   [{:keys [data-dir style-dir styles geoserver-workspace] :as config-params}]
   (tufte/profile
    {:id :add-directory-to-workspace!}
-   (let [style-file-paths    (tufte/p :style-specs
+   (let [style-file-paths    (tufte/p :style-file-paths
                                       (load-style-file-paths style-dir))
          gis-file-specs      (tufte/p :gis-file-specs
                                       (->> (load-gis-file-paths data-dir)
