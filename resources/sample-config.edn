@@ -11,6 +11,8 @@
                                             "fire_weather_forecast" "(?<=/)fire_weather_forecast/\\d{8}_\\d{2}"
                                             "fire_detections"       "(?<=/)fire_detections/[\\w]+"}}
  :data-dir            "/data"
+ :style-dir           "/styles"
+ :overwrite-styles    true
  :log-dir             "logs"
  :styles              [{:layer-pattern "fire-area"           :raster-style "fire-area"           :vector-style "line-fire-area"}
                        {:layer-pattern "fire-volume"         :raster-style "fire-volume"         :vector-style "line-fire-volume"}

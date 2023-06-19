@@ -263,6 +263,17 @@
     (map :name %)
     (set %)))
 
+(defn get-existing-styles
+  [{:keys [geoserver-workspace] :as config-params}]
+  (as-> (rest/get-styles geoserver-workspace) %
+    (make-rest-request config-params %)
+    (:body %)
+    (json/read-str % :key-fn keyword)
+    (:styles %)
+    (:style %)
+    (map :name %)
+    (set %)))
+
 ;; FIXME: unused
 (defn get-existing-layers
   [{:keys [geoserver-workspace] :as config-params}]
@@ -328,36 +339,62 @@
 
 (defn get-spec-type
   [[http-method uri-suffix]]
-  (nil-on-error
-   (case http-method
-     "POST"   (condp #(s/ends-with? %2 %1) uri-suffix
-                "external.imagemosaic" :update-coverage-store-image-mosaic
-                "/coverages"           :create-coverage
-                "/datastores"          :create-data-store
-                "/featuretypes"        :create-feature-type-alias)
-     "PUT"    (condp #(s/includes? %2 %1) uri-suffix
-                "external.imagemosaic" :create-coverage-store-image-mosaic
-                "external.geotiff"     :create-coverage-via-put
-                "external.shp"         :create-feature-type-via-put
-                "/coveragestores/"     :update-coverage-store
-                "/gwc/rest/layers/"    :update-cached-layer
-                "/layers/"             :update-layer-style)
-     "DELETE" (condp #(s/includes? %2 %1) uri-suffix
-                "/layers/"             :delete-layer
-                "/featuretypes/"       :delete-feature-type))))
+  (let [uri-without-query-params (first (s/split uri-suffix #"\?"))]
+    (nil-on-error
+     (case http-method
+       "POST"   (condp #(s/ends-with? %2 %1) uri-without-query-params
+                  "external.imagemosaic" :update-coverage-store-image-mosaic
+                  "/coverages"           :create-coverage
+                  "/datastores"          :create-data-store
+                  "/featuretypes"        :create-feature-type-alias
+                  "/styles"              :create-style)
+       "PUT"    (condp #(s/includes? %2 %1) uri-suffix
+                  "external.imagemosaic" :create-coverage-store-image-mosaic
+                  "external.geotiff"     :create-coverage-via-put
+                  "external.shp"         :create-feature-type-via-put
+                  "/coveragestores/"     :update-coverage-store
+                  "/gwc/rest/layers/"    :update-cached-layer
+                  "/layers/"             :update-layer-style
+                  "/styles"              :update-style)
+       "DELETE" (condp #(s/includes? %2 %1) uri-suffix
+                  "/layers/"             :delete-layer
+                  "/featuretypes/"       :delete-feature-type)))))
+
+(defn get-style-name
+  [file-path]
+  (-> file-path
+      (io/file)
+      (.getName)
+      (s/split #"\.")
+      (first)))
+
+(defn file-path->style-spec
+  [{:keys [geoserver-workspace overwrite-styles]} file-path existing-styles]
+  (let [style-name (get-style-name file-path)
+        exists?    (contains? existing-styles style-name)]
+    (cond
+      (not exists?)                  (rest/create-style geoserver-workspace style-name file-path)
+      (and exists? overwrite-styles) (rest/update-style geoserver-workspace style-name file-path)
+      :else                          nil)))
+
+(defn file-paths->style-specs
+  [config-params style-file-paths]
+  (let [existing-styles (get-existing-styles config-params)]
+    (keep #(file-path->style-spec config-params % existing-styles) style-file-paths)))
 
 (defn file-specs->rest-specs
   "Generates a sequence of REST request specifications as tuples of
   [http-method uri-suffix http-body content-type]. Each file-spec may
   contribute one or more of these to the final sequence. Returns a map
   of these REST specs grouped by spec type."
-  [{:keys [geoserver-workspace] :as config-params} file-specs]
+  [{:keys [geoserver-workspace] :as config-params} gis-file-specs style-file-paths]
   (let [ws-exists?            (workspace-exists? config-params)
         existing-stores       (if ws-exists? (get-existing-stores config-params) #{})
         existing-layer-groups (if ws-exists? (get-existing-layer-groups config-params) #{})
-        layer-specs           (file-specs->layer-specs config-params existing-stores file-specs)
-        layer-group-specs     (file-specs->layer-group-specs config-params existing-stores existing-layer-groups file-specs)
-        rest-specs            (-> (group-by get-spec-type layer-specs)
+        layer-specs           (file-specs->layer-specs config-params existing-stores gis-file-specs)
+        style-specs           (file-paths->style-specs config-params style-file-paths)
+        layer-group-specs     (file-specs->layer-group-specs config-params existing-stores existing-layer-groups gis-file-specs)
+        rest-specs            (-> (group-by get-spec-type (concat layer-specs style-specs))
                                   (assoc :create-layer-group layer-group-specs))]
     (if ws-exists?
       rest-specs
@@ -453,11 +490,22 @@
      (when (get-store-type (.getName node))
        [node]))))
 
-(defn load-file-paths
+(defn to-dir
+  [dir]
+  (if (s/ends-with? dir "/")
+    dir
+    (str dir "/")))
+
+(defn load-style-file-paths
+  [style-dir]
+  (->> (io/file style-dir)
+       (file-seq)
+       (filter #(s/ends-with? (.getName %) ".css"))
+       (map #(.getPath ^File %))))
+
+(defn load-gis-file-paths
   [data-dir]
-  (let [data-dir (if (s/ends-with? data-dir "/")
-                   data-dir
-                   (str data-dir "/"))]
+  (let [data-dir (to-dir data-dir)]
     (->> (io/file data-dir)
          (gis-file-seq)
          (map #(-> (.getPath ^File %)
@@ -492,18 +540,20 @@
        (mapv (comp :status deref))))
 
 (defn add-directory-to-workspace-aux!
-  [{:keys [data-dir styles geoserver-workspace] :as config-params}]
+  [{:keys [data-dir style-dir styles geoserver-workspace] :as config-params}]
   (tufte/profile
    {:id :add-directory-to-workspace!}
-   (let [file-specs          (tufte/p :file-specs
-                                      (->> (load-file-paths data-dir)
+   (let [style-file-paths    (tufte/p :style-file-paths
+                                      (load-style-file-paths style-dir))
+         gis-file-specs      (tufte/p :gis-file-specs
+                                      (->> (load-gis-file-paths data-dir)
                                            (file-paths->file-specs data-dir styles)))
          rest-specs          (tufte/p :rest-specs
-                                      (file-specs->rest-specs config-params file-specs))
+                                      (file-specs->rest-specs config-params gis-file-specs style-file-paths))
          wms-specs           (tufte/p :wms-specs
-                                      (file-specs->wms-specs file-specs))
+                                      (file-specs->wms-specs gis-file-specs))
          gwc-specs           (tufte/p :gwc-specs
-                                      (file-specs->gwc-specs file-specs))
+                                      (file-specs->gwc-specs gis-file-specs))
          rest-response-codes (tufte/p :rest-requests
                                       (client/with-async-connection-pool {:insecure? true}
                                         (into []
@@ -511,7 +561,9 @@
                                                         (->> (get rest-specs spec-type)
                                                              (make-parallel-rest-requests config-params))))
                                               [:create-workspace
+                                               :create-style
                                                :create-coverage-store-image-mosaic
+                                               :update-style
                                                :update-coverage-store
                                                :update-coverage-store-image-mosaic
                                                :create-coverage

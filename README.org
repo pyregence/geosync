@@ -92,7 +92,9 @@ Usage:
   -p, --geoserver-password PASS   GeoServer admin password
   -w, --geoserver-workspace WS    Workspace name to receive the new GeoServer layers
   -d, --data-dir DIR              Path to the directory containing your GIS files
+  -s, --style-dir DIR             Path to the directory containing your style files
   -a, --action ACTION             GeoServer action: either "add" or "remove". Required in CLI mode.
+  -O, --overwrite-styles          If true, already existing styles will have their definition overwritten
   -h, --geosync-server-host HOST  Hostname to advertise in server responses
   -P, --geosync-server-port PORT  Server port to listen on for incoming requests
   -o, --log-dir PATH              Path to log files
@@ -220,12 +222,22 @@ clojure -M:run ... &> out.txt
 
 ** Styles
 
-If you make use of the styles option, any raster or vector styles
-referenced in your style specs should already exist on the GeoServer
-before running GeoSync. Documentation on creating styles for GeoServer
-can be found here:
+It is possible to sync styles to GeoServer using the `style-dir`
+key in your `.edn` file.
 
-https://docs.geoserver.org/latest/en/user/styling/webadmin/index.html
+When you configure a `style-dir` (`-s` or `--style-dir` option in the CLI),
+GeoSync will look up all `.css` files recursively in this directory and it
+will add them to GeoServer for you.
+
+This step happens before any layers are registered, so you can mix and match
+the styles configuration with already available options on GeoSync.
+
+There is a parameter called `overwrite-styles` (available in the CLI as `-O` or `--overwrite-styles`)
+that will control how GeoSync processes the styles. If enabled, any already existing style
+will be updated. Defaults to `nil` and will be considered `false`.
+
+The styles are tied to your workspace, so if you remove your workspace, the styles will
+also be removed.
 
 ** Using Custom Projections
 

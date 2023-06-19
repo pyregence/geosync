@@ -749,36 +749,28 @@
     nil]))
 
 (defn create-style
-  ([style file-url]
+  ([style file-path]
    ["POST"
-    "/styles"
-    (xml
-     [:style
-      [:name style]
-      [:filename file-url]])])
-  ([workspace style file-url]
+    (str "/styles?name=" style)
+    (slurp file-path)
+    "application/vnd.geoserver.geocss+css"])
+  ([workspace style file-path]
    ["POST"
-    (str "/workspaces/" workspace "/styles")
-    (xml
-     [:style
-      [:name style]
-      [:filename file-url]])]))
+    (str "/workspaces/" workspace "/styles?name=" style)
+    (slurp file-path)
+    "application/vnd.geoserver.geocss+css"]))
 
 (defn update-style
-  ([style file-url]
+  ([style file-path]
    ["PUT"
     (str "/styles/" style)
-    (xml
-     [:style
-      [:name style]
-      [:filename file-url]])])
-  ([workspace style file-url]
+    (slurp file-path)
+    "application/vnd.geoserver.geocss+css"])
+  ([workspace style file-path]
    ["PUT"
     (str "/workspaces/" workspace "/styles/" style)
-    (xml
-     [:style
-      [:name style]
-      [:filename file-url]])]))
+    (slurp file-path)
+    "application/vnd.geoserver.geocss+css"]))
 
 (defn delete-style
   ([style]

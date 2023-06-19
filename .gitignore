@@ -4,6 +4,9 @@
 .nrepl-port
 .rebel_readline_history
 .vscode
+.calva/*
+.clj-kondo/*
+.lsp/*
 
 # Deployment specific files
 logs
