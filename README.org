@@ -94,7 +94,7 @@ Usage:
   -d, --data-dir DIR              Path to the directory containing your GIS files
   -s, --style-dir DIR             Path to the directory containing your style files
   -a, --action ACTION             GeoServer action: either "add" or "remove". Required in CLI mode.
-  -O, --overwrite-styles          If true, already existing styles will have their definition overwritten
+  -O, --overwrite-styles          If true, already existing styles will have their definitions overwritten
   -h, --geosync-server-host HOST  Hostname to advertise in server responses
   -P, --geosync-server-port PORT  Server port to listen on for incoming requests
   -o, --log-dir PATH              Path to log files
@@ -222,22 +222,45 @@ clojure -M:run ... &> out.txt
 
 ** Styles
 
-It is possible to sync styles to GeoServer using the `style-dir`
-key in your `.edn` file.
+*** ~:styles~
+There are a few ways to interface with GeoServer styles using GeoSync.
+The most simple way is by using a ~:styles~ key-value pair in your ~.edn~
+configuration file. To use this key-value pair, the value associated with the
+~:styles~ key should be a vector of maps. Each map in the vector should contain
+a ~:layer-pattern~ key with an associated string or regular expression. This string
+or regular expression should correspond with the types of layers that you want
+to apply specific vector or raster style(s) to. It should also either contain a
+~:vector-style~ key, a ~:raster-style~ key, or both (for scenarios where similarly
+named layers could either be a vector or raster layer). The values associated with
+both the ~:vector-style~ and ~:raster-style~ keys can either be a string or a
+vector of unique strings. Each string should correspond with the exact name of a style
+that already exists on the GeoServer. Whenever GeoSync matches a layer with the
+specific ~:layer-pattern~ you provided, it will automatically add whatever
+~:vector-style~(s) or ~:raster-style~(s) you specified with these keys (depending
+on the type of layer -- which will be determined automatically by GeoSync).
+Please see [[file:resources/sample-config.edn][resources/sample-config.edn]]
+for a concrete example of how to use the ~:styles~ key.
 
-When you configure a `style-dir` (`-s` or `--style-dir` option in the CLI),
-GeoSync will look up all `.css` files recursively in this directory and it
-will add them to GeoServer for you.
+*** ~:style-dir~
+If you don't wish to manually add any of the styles laid out in your ~:styles~
+key to your GeoServer, it's possible to sync styles to GeoServer using the ~:style-dir~
+key in your ~.edn~ file. When you configure a ~:style-dir~ (also available with the ~-s~
+or ~--style-dir~ option in the CLI), GeoSync will recursively look up all ~.css~ files
+that are present in this directory and add them to GeoServer for you. Note that
+this step happens before any layers are registered, so you can leverage the use
+of the ~:styles~ key without having to add any styles manually to your GeoServer.
 
-This step happens before any layers are registered, so you can mix and match
-the styles configuration with already available options on GeoSync.
+If you don't provide a ~:style-dir~, you'll have to make sure that any styles you
+use inside of the ~:styles~ key have already been manually added to the GeoServer.
+Note that any styles added automatically using this key will be tied to a workspace.
+If you remove that workspace, all styles associated with that workspace will also be removed.
 
-There is a parameter called `overwrite-styles` (available in the CLI as `-O` or `--overwrite-styles`)
-that will control how GeoSync processes the styles. If enabled, any already existing style
-will be updated. Defaults to `nil` and will be considered `false`.
-
-The styles are tied to your workspace, so if you remove your workspace, the styles will
-also be removed.
+*** ~:overwrite-styles~
+If you wish to overwrite any already existing GeoServer styles with updates to the
+styles made inside of the ~.css~ files in your ~:style-dir~, you can leverage a parameter
+called ~:overwrite-styles~ (also available with the ~-O~ or ~--overwrite-styles~ option in the CLI).
+If set to ~true~, any already existing GeoServer style will be updated to match
+the latest ~.css~ style available in your ~:style-dir~. Defaults to ~false~ if not specified.
 
 ** Using Custom Projections
 
