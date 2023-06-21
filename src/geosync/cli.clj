@@ -46,34 +46,47 @@
 (spec/def ::action-hook         (spec/tuple ::action-run-time ::server/action url? ::action-hook-params))
 (spec/def ::action-hooks        (spec/coll-of ::action-hook :kind vector? :distinct true))
 (spec/def ::dir                 readable-directory?)
+
 (spec/def ::folder-name->regex  (spec/map-of string? string?))
 (spec/def ::file-watcher        (spec/keys :req-un [::dir
                                                     ::folder-name->regex]))
+(spec/def ::server-mode         (fn
+                                  [{:keys [geosync-server-host geosync-server-port data-dir style-dir]}]
+                                  (and geosync-server-host
+                                       geosync-server-port
+                                       (nil? data-dir)
+                                       (nil? style-dir))))
+(spec/def ::cli-register-mode   (fn
+                                  [{:keys [geoserver-workspace action data-dir style-dir overwrite-styles]}]
+                                  (and geoserver-workspace
+                                       (= action "add")
+                                       (or data-dir style-dir)
+                                       ;; overwrite-styles and no style-dir is the only invalid combination
+                                       (not (and overwrite-styles (nil? style-dir))))))
+(spec/def ::cli-deregister-mode (fn
+                                  [{:keys [geoserver-workspace action data-dir style-dir]}]
+                                  (and geoserver-workspace
+                                       (= action "remove")
+                                       (nil? data-dir)
+                                       (nil? style-dir))))
+(spec/def ::operation-mode (spec/or :server-mode         ::server-mode
+                                    :cli-register-mode   ::cli-register-mode
+                                    :cli-deregister-mode ::cli-deregister-mode))
 (spec/def ::geosync-config      (spec/and (spec/keys :req-un [::geoserver-rest-uri
                                                               ::geoserver-username
-                                                              ::geoserver-password
-                                                              (or
-                                                               ;; CLI mode
-                                                               (and ::geoserver-workspace
-                                                                    ::action)
-                                                               ;; Server mode
-                                                               (and ::geosync-server-host
-                                                                    ::geosync-server-port))]
-                                                     :opt-un [::data-dir
-                                                              ::styles
+                                                              ::geoserver-password]
+                                                     :opt-un [::geoserver-workspace
+                                                              ::geoserver-server-host
+                                                              ::geoserver-server-port
+                                                              ::action
+                                                              ::data-dir
                                                               ::style-dir
                                                               ::overwrite-styles
+                                                              ::styles
                                                               ::layer-groups
                                                               ::action-hooks])
-                                          (fn [{:keys [action data-dir style-dir
-                                                       geosync-server-host geosync-server-port]}]
-                                            (or (and geosync-server-host geosync-server-port) ; Server Mode
-                                                (and (= action "add")                         ; CLI Register Mode
-                                                     (or (string? data-dir)
-                                                         (string? style-dir)))
-                                                (and (= action "remove")                      ; CLI Deregister Mode
-                                                     (and (nil? data-dir)
-                                                          (nil? style-dir)))))))
+                                          ::operation-mode))
+
 (spec/def ::geosync-config-file (spec/keys :opt-un [::geoserver-rest-uri
                                                     ::geoserver-username
                                                     ::geoserver-password
