@@ -269,8 +269,11 @@ both be added under the same ~:geoserver-workspace~.
 If you wish to overwrite any already existing GeoServer styles with updates to the
 styles made inside of the ~.css~ files in your ~:style-dir~, you can leverage a parameter
 called ~:overwrite-styles~ (also available with the ~-O~ or ~--overwrite-styles~ option in the CLI).
-If set to ~true~, any already existing GeoServer style will be updated to match
-the latest ~.css~ style available in your ~:style-dir~. Defaults to ~false~ if not specified.
+If set to ~true~, any GeoServer styles will be overwritten if and only if the style
+already exists in the provided ~:geoserver-workspace~ and we have a style file of
+the same name in ~:style-dir~. If both of these cases are hit, the GeoServer style
+will be overwritten with the latest style provided in the corresponding ~.css~ file.
+Defaults to ~false~ if not specified.
 
 ** Using Custom Projections
 
