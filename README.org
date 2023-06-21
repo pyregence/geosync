@@ -256,7 +256,7 @@ If you don't provide a ~:style-dir~, you'll have to make sure that any styles yo
 use inside of the ~:styles~ key have already been manually added to the GeoServer.
 Note that any styles added automatically using this key will be tied to the same
 workspace that you provide via ~:geoserver-workspace~ in your ~.edn~ file (or with
-~-w~/~--geoserver-workspace~) from the command line. If you remove that workspace,
+~-w~ / ~--geoserver-workspace~) from the command line. If you remove that workspace,
 all styles associated with that workspace will also be removed.
 
 If you wish to sync styles to a unique "styles" workspace that isn't tied to any other layers
