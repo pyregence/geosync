@@ -229,7 +229,7 @@ configuration file. To use this key-value pair, the value associated with the
 ~:styles~ key should be a vector of maps. Each map in the vector should contain
 a ~:layer-pattern~ key with an associated string or regular expression. This string
 or regular expression should correspond with the types of layers that you want
-to apply specific vector or raster style(s) to. It should also either contain a
+to apply specific vector or raster styles to. It should also either contain a
 ~:vector-style~ key, a ~:raster-style~ key, or both (for scenarios where similarly
 named layers could either be a vector or raster layer). The values associated with
 both the ~:vector-style~ and ~:raster-style~ keys can either be a string or a

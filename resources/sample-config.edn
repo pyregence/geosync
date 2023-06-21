@@ -18,7 +18,6 @@
                        {:layer-pattern "fire-volume"          :raster-style "fire-volume"         :vector-style "line-fire-volume"}
                        {:layer-pattern "times-burned"         :raster-style "times-burned"        :vector-style "line-times-burned"}
                        {:layer-pattern "impacted-structures"  :raster-style "impacted-structures" :vector-style "line-impacted-structures"}
-                       {:layer-pattern "impacted-structures"  :raster-style "impacted-structures" :vector-style "line-impacted-structures"}
                        {:layer-pattern "deenergization-zones" :vector-style ["poly-h-wg-a-css"]
                                                                             "poly-h-wg-h-css"
                                                                             "poly-h-wg-l-css"
