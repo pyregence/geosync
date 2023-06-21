@@ -252,8 +252,18 @@ of the ~:styles~ key without having to add any styles manually to your GeoServer
 
 If you don't provide a ~:style-dir~, you'll have to make sure that any styles you
 use inside of the ~:styles~ key have already been manually added to the GeoServer.
-Note that any styles added automatically using this key will be tied to a workspace.
-If you remove that workspace, all styles associated with that workspace will also be removed.
+Note that any styles added automatically using this key will be tied to the same
+workspace that you provide via ~:geoserver-workspace~ in your ~.edn~ file (or with
+~-w~/~--geoserver-workspace~) from the command line. If you remove that workspace,
+all styles associated with that workspace will also be removed.
+
+If you wish to sync styles to a unique "styles" workspace that isn't tied to any other layers
+so that they aren't removed when you need to remove layers, you can configure your
+~.edn~ file to use the ~:style-dir~ key and **not** the ~:data-dir~ key. In this case,
+GeoSync would just load the CSS styles found under ~:style-dir~ into the GeoServer
+under the ~:geoserver-workspace~ specified in your ~.edn~ config file. If you include
+both a ~:style-dir~ and a ~:data-dir~, then your CSS styles and your GIS layers will
+both be added under the same ~:geoserver-workspace~.
 
 *** ~:overwrite-styles~
 If you wish to overwrite any already existing GeoServer styles with updates to the
