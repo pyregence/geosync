@@ -204,7 +204,7 @@
     :validate [#(.exists  (io/file %)) "The provided --style-dir does not exist."
                #(.canRead (io/file %)) "The provided --style-dir is not readable."]]
 
-   ["-O" "--overwrite-styles" "If true, already existing styles will have their definition overwritten"]
+   ["-O" "--overwrite-styles" "If true, already existing styles will have their definitions overwritten"]
 
    ["-h" "--geosync-server-host HOST" "Hostname to advertise in server responses"
     :validate [hostname? "The provided --geosync-server-host is invalid."]]

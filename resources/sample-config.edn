@@ -14,10 +14,25 @@
  :style-dir           "/styles"
  :overwrite-styles    true
  :log-dir             "logs"
- :styles              [{:layer-pattern "fire-area"           :raster-style "fire-area"           :vector-style "line-fire-area"}
-                       {:layer-pattern "fire-volume"         :raster-style "fire-volume"         :vector-style "line-fire-volume"}
-                       {:layer-pattern "times-burned"        :raster-style "times-burned"        :vector-style "line-times-burned"}
-                       {:layer-pattern "impacted-structures" :raster-style "impacted-structures" :vector-style "line-impacted-structures"}]
+ :styles              [{:layer-pattern "fire-area"            :raster-style "fire-area"           :vector-style "line-fire-area"}
+                       {:layer-pattern "fire-volume"          :raster-style "fire-volume"         :vector-style "line-fire-volume"}
+                       {:layer-pattern "times-burned"         :raster-style "times-burned"        :vector-style "line-times-burned"}
+                       {:layer-pattern "impacted-structures"  :raster-style "impacted-structures" :vector-style "line-impacted-structures"}
+                       {:layer-pattern "deenergization-zones" :vector-style ["poly-h-wg-a-css"]
+                                                                            "poly-h-wg-h-css"
+                                                                            "poly-h-wg-l-css"
+                                                                            "poly-h-ws-a-css"
+                                                                            "poly-h-ws-h-css"
+                                                                            "poly-h-ws-l-css"
+                                                                            "poly-l-area-a-css"
+                                                                            "poly-l-area-h-css"
+                                                                            "poly-l-area-l-css"
+                                                                            "poly-l-vol-a-css"
+                                                                            "poly-l-vol-h-css"
+                                                                            "poly-l-vol-l-css"
+                                                                            "poly-l-str-a-css"
+                                                                            "poly-l-str-h-css"
+                                                                            "poly-l-str-l-css"}]
  :layer-groups        [{:layer-pattern "elmfire_landfire_fire-area"            :name "elmfire_landfire_fire-area"}
                        {:layer-pattern "elmfire_landfire_fire-volume"          :name "elmfire_landfire_fire-volume"}
                        {:layer-pattern "elmfire_landfire_times-burned"         :name "elmfire_landfire_times-burned"}
@@ -33,4 +48,5 @@
                        {:layer-pattern "gridfire_cfo_fire-area"                :name "gridfire_cfo_fire-area"}
                        {:layer-pattern "gridfire_cfo_fire-volume"              :name "gridfire_cfo_fire-volume"}
                        {:layer-pattern "gridfire_cfo_times-burned"             :name "gridfire_cfo_times-burned"}
-                       {:layer-pattern "gridfire_cfo_impacted-structures"      :name "gridfire_cfo_impacted-structures"}]}
+                       {:layer-pattern "gridfire_cfo_impacted-structures"      :name "gridfire_cfo_impacted-structures"}
+                       {:layer-pattern "some_deenergization-zones"             :name "some_deenergization-zones"}]}
