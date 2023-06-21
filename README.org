@@ -15,16 +15,12 @@ layers, and layergroups for each file to a running GeoServer instance.
 
 ** Application Plugin Configuration
 
-Upon request, triangulum/config reads a file called config.edn
+Upon request, ~triangulum/config~ reads a file called ~config.edn~
 in the toplevel directory of this repository, which contains various
 user-configurable system parameters. A sample file called
-config.default.edn is provided with this repository to get you
-started. To begin, simply copy it to config.edn. Then edit
+~config.default.edn~ is provided with this repository to get you
+started. To begin, simply copy it to ~config.edn~. Then edit
 it according to the following sections.
-
-Please note that you must replace all values surrounded with angle
-brackets (e.g., "<api-key>") with actual values for the application to
-work correctly.
 
 ** PostgreSQL Database Setup
 
@@ -37,7 +33,7 @@ directory and run the database build command as follows:
 clojure -M:build-db build-all -d geoserver
 #+end_src
 
-This will begin by creating a new database and role called *geoserver*
+This will begin by creating a new database and role called ~geoserver~
 and then add the postgis extension to it. Next, the script will populate
 the database with the functions that are necessary for storing and processing
 GeoServer's data.
@@ -102,7 +98,7 @@ Usage:
 
 You can run GeoSync in one of three ways:
 
-1. Pass all options (except -c) on the command line.
+1. Pass options on the command line.
 
    #+begin_src sh
    # Script mode: Load (add) a single directory tree into a GeoServer workspace and exit
@@ -115,22 +111,22 @@ You can run GeoSync in one of three ways:
    clojure -M:run -g http://localhost:8080/geoserver/rest -u admin -p geoserver -h geosync.mydomain.org -P 31337
    #+end_src
 
-   Please note that the -d option must receive a file path that is
+   Please note that the ~-d~ option must receive a file path that is
    available on the JVM classpath. The easiest way to accomplish this
    is to use an absolute path for your filesystem. Also note that
-   without the -c option, this approach cannot make use of the
-   optional styles and layer-groups options.
+   without the ~-c~ option there are certain options/features that you can not
+   make use of (such as ~:styles~ and ~:layer-groups~).
 
-2. Pass the -c option with an EDN file containing all of the other
+2. Pass the ~-c~ option with an EDN file containing all of the other
    options formatted as an EDN map of keywords to values. You may also
-   pass the optional styles and layer-groups options in this way. See
+   pass the optional ~:styles~ and ~:layer-groups~ options in this way. See
    [[file:resources/sample-config.edn][resources/sample-config.edn]] for an example.
 
    #+begin_src sh
    clojure -M:run -c resources/sample-config.edn
    #+end_src
 
-3. Pass the -c option with an EDN config file and also pass any other
+3. Pass the ~-c~ option with an EDN config file and also pass any other
    options on the command line that should override the settings in
    the EDN file.
 
@@ -141,10 +137,10 @@ You can run GeoSync in one of three ways:
 ** Server Mode
 
 In server-mode, GeoSync will listen for incoming requests on the port
-specified with the -P option. Each request should be a single
+specified with the ~-P~ option. Each request should be a single
 newline-terminated JSON object matching one of these forms:
 
-1. Add All GIS Files under a Directory Tree to a (Possibly New) Workspace
+1. Add all GIS files under a directory tree to a (possibly new) workspace
 
 #+begin_src js
 {"action":             "add",
@@ -154,7 +150,7 @@ newline-terminated JSON object matching one of these forms:
  "responsePort":       5555}
 #+end_src
 
-2. Remove All Layers under a Workspace(s) from GeoServer and Delete the Workspace(s)
+2. Remove all layers under a workspace(s) from GeoServer and delete the workspace(s)
 
 The ~geoserverWorkspace~ parameter can be plain text or a regex
 pattern. If a plain text string is provided, an exact match will be
@@ -173,7 +169,7 @@ are processed asynchronously. This means that the network connection
 will be closed as soon as the incoming request is read from the
 client. In order to get a response message back from the GeoSync
 server about whether the requested action succeeded or failed, each
-request includes responseHost and responsePort fields. After the
+request includes ~responseHost~ and ~responsePort~ fields. After the
 request has been processed, GeoSync will send a newline-terminated
 JSON response there containing all of the original request fields
 merged with these additional fields:
@@ -185,8 +181,8 @@ merged with these additional fields:
  responsePort: 31337}
 #+end_src
 
-Note that responseHost and responsePort from the request is overriden
-by the new responseHost and responsePort values that correspond to the
+Note that ~responseHost~ and ~responsePort~ from the request is overriden
+by the new ~responseHost~ and ~responsePort~ values that correspond to the
 GeoSync server's host and port.
 
 In this response, the status code is 0 on success, 1 on error, or 2
@@ -220,6 +216,12 @@ GeoServer.
 clojure -M:run ... &> out.txt
 #+end_src
 
+Alternatively, if you pass in a path to a log directory with either ~-o~ on the
+command line or via ~:log-dir~ in your ~config.edn~ file, all logs will be
+redirected to the provided directory. This directory will hold up to ten different
+log files where each log file corresponds to a date where GeoSync logs were output.
+The format of these log files is: ~YYYY-MM-DD.log~.
+
 ** Styles
 
 *** ~:styles~
@@ -235,8 +237,8 @@ named layers could either be a vector or raster layer). The values associated wi
 both the ~:vector-style~ and ~:raster-style~ keys can either be a string or a
 vector of unique strings. Each string should correspond with the exact name of a style
 that already exists on the GeoServer. Whenever GeoSync matches a layer with the
-specific ~:layer-pattern~ you provided, it will automatically add whatever
-~:vector-style~(s) or ~:raster-style~(s) you specified with these keys (depending
+specific ~:layer-pattern~ you provided, it will automatically add any
+~:vector-style~ or ~:raster-style~ you specified with these keys (depending
 on the type of layer -- which will be determined automatically by GeoSync).
 Please see [[file:resources/sample-config.edn][resources/sample-config.edn]]
 for a concrete example of how to use the ~:styles~ key.
@@ -259,7 +261,7 @@ all styles associated with that workspace will also be removed.
 
 If you wish to sync styles to a unique "styles" workspace that isn't tied to any other layers
 so that they aren't removed when you need to remove layers, you can configure your
-~.edn~ file to use the ~:style-dir~ key and **not** the ~:data-dir~ key. In this case,
+~.edn~ file to use the ~:style-dir~ key and *not* the ~:data-dir~ key. In this case,
 GeoSync would just load the CSS styles found under ~:style-dir~ into the GeoServer
 under the ~:geoserver-workspace~ specified in your ~.edn~ config file. If you include
 both a ~:style-dir~ and a ~:data-dir~, then your CSS styles and your GIS layers will
@@ -295,14 +297,14 @@ file per timestep.
 In order for a directory to be detected as an ImageMosaic data source
 by GeoSync, it must include these three text files:
 
-- datastore.properties
-- indexer.properties
-- timeregex.properties
+- ~datastore.properties~
+- ~indexer.properties~
+- ~timeregex.properties~
 
 The required contents of these files is provided in the following
 subsections.
 
-*** datastore.properties
+*** ~datastore.properties~
 
 #+begin_example
 Estimated\ extends=true
@@ -312,9 +314,9 @@ Connection\ timeout=10
 SPI=org.geotools.data.postgis.PostgisNGJNDIDataStoreFactory
 #+end_example
 
-Note that datastore.properties also needs a schema property, but this
-will be inserted by GeoSync by using the geoserverWorkspace attribute
-from either config.edn (in script mode) or the JSON request (in server
+Note that ~datastore.properties~ also needs a schema property, but this
+will be inserted by GeoSync by using the ~geoserverWorkspace~ attribute
+from either ~config.edn~ (in script mode) or the JSON request (in server
 mode).
 
 *** indexer.properties
@@ -325,10 +327,10 @@ Schema=*the_geom\:Polygon,location\:String,ingestion\:java.util.Date
 PropertyCollectors=TimestampFileNameExtractorSPI[timeregex](ingestion)
 #+end_example
 
-Note that indexer.properties also needs a Name property, but this will be inserted
+Note that ~indexer.properties~ also needs a Name property, but this will be inserted
 by GeoSync based on the the directory structure.
 
-*** timeregex.properties
+*** ~timeregex.properties~
 
 #+begin_example
 regex=([0-9]{8}_[0-9]{6}),format=yyyyMMdd_HHmmss
@@ -338,29 +340,29 @@ This regex must match the file naming convention used for all the
 timeseries GeoTIFFs in your ImageMosaic directory. The example given
 above would match files with the following names:
 
-- some_layer_20210801_120000
-- some_layer_20210801_130000
-- some_layer_20210801_140000
+- ~some_layer_20210801_120000~
+- ~some_layer_20210801_130000~
+- ~some_layer_20210801_140000~
 
 If you use a different file naming convention for your timestamps,
-make sure to update timeregex.properties accordingly.
+make sure to update ~timeregex.properties~ accordingly.
 
 ** File Watcher
 
 In server-mode, you may optionally specify a file path to be
 monitored. Any folders added or removed with a valid directory
-structure (as specified in the `folder-name->regex` map) will be automatically
-registered or dergesitered from the GeoServer. See the `file-watcher`
+structure (as specified in the ~folder-name->regex~ map) will be automatically
+registered or dergesitered from the GeoServer. See the ~file-watcher~
 entry in [[file:resources/sample-config.edn][resources/sample-config.edn]] for an example.
 
-Here's an explanation of the ~:file-watcher~ confgiuration:
+Here's an explanation of the ~:file-watcher~ configuration:
 - ~dir~: A path to a readable directory.
 - ~folder-name->regex~: A map of folder names to regexes. The regexes are used to
                         parse the appropriate workspace name from the file path.
                         Note that for any folder name not included in this map no
                         action will be taken (even if the file watcher detects an event).
 
-Note that depending on the number of files you are attempting to watch,
+Depending on the number of files you are attempting to watch,
 you will likely have to increase your ~inotify~ limit. You can find your current
 ~inotify~ limit by running ~cat /proc/sys/fs/inotify/max_user_watches~. To set
 a new limit temporarily, run:
