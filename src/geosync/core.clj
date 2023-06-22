@@ -267,12 +267,14 @@
   [{:keys [geoserver-workspace] :as config-params}]
   (as-> (rest/get-styles geoserver-workspace) %
     (make-rest-request config-params %)
-    (:body %)
-    (json/read-str % :key-fn keyword)
-    (:styles %)
-    (:style %)
-    (map :name %)
-    (set %)))
+    (if (success-code? (:status %))
+      ((:body %)
+       (json/read-str % :key-fn keyword)
+       (:styles %)
+       (:style %)
+       (map :name %)
+       (set %))
+      [])))
 
 ;; FIXME: unused
 (defn get-existing-layers
