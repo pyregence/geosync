@@ -175,6 +175,12 @@
 
 (def ^:private hostname-path-regex #"(https?:\/\/[^/]+)(.*)")
 
+(defn preserve-slash
+  [original-path resolved-url]
+  (if (s/ends-with? original-path "/")
+    (str resolved-url "/")
+    resolved-url))
+
 (defn url-path
   "Resolves a `root-url` with a `path`, which can include '..' as a way to remove
    previous entries.
@@ -193,7 +199,8 @@
                  '())
          (reverse)
          (s/join "/")
-         (str (end-with hostname "/")))))
+         (str (end-with hostname "/"))
+         (preserve-slash path))))
 
 ;;===========================================================
 ;; Spec Predicates
