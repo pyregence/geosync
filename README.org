@@ -138,8 +138,8 @@ You can run GeoSync in one of three ways:
 
 GeoSync comes with two main operation modes:
 
-* Server
-* CLI
+- Server
+- CLI
 
 While they execute the same functions and have the same capabilities, the server mode
 will listen for incoming requests on the port specified and will execute any actions,
