@@ -267,6 +267,8 @@ redirected to the provided directory. This directory will hold up to ten differe
 log files where each log file corresponds to a date where GeoSync logs were output.
 The format of these log files is: ~YYYY-MM-DD.log~.
 
+This section only applies to `CLI` operation mode.
+
 ** Styles
 
 *** ~:styles~
