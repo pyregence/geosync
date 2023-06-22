@@ -18,7 +18,7 @@
 
 (defn get-workspace [workspace]
   ["GET"
-   (str "/workspaces/" workspace)
+   (str "/workspaces/" workspace "/")
    nil])
 
 (defn create-workspace [workspace]
@@ -31,7 +31,7 @@
 ;; FIXME: Add params that can be changed.
 (defn update-workspace [workspace]
   ["PUT"
-   (str "/workspaces/" workspace)
+   (str "/workspaces/" workspace "/")
    (xml
     [:workspace
      [:name workspace]])])
