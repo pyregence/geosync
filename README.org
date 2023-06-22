@@ -66,7 +66,7 @@ include = 'performance.conf'
 Note that the PostgreSQL server will need to be restarted for these
 changes to take effect.
 
-** Usage
+** Quickstart
 
 To compile and run the application, navigate to the toplevel project
 directory and run:
@@ -134,7 +134,26 @@ You can run GeoSync in one of three ways:
    clojure -M:run -c resources/sample-config.edn -w demo -d /data
    #+end_src
 
-** Server Mode
+** Operation Modes
+
+GeoSync comes with two main operation modes:
+
+* Server
+* CLI
+
+While they execute the same functions and have the same capabilities, the server mode
+will listen for incoming requests on the port specified and will execute any actions,
+when it receive instructions from it's callees.
+
+The server mode is useful if you need to dynamically sync layers and styles with a GeoServer
+instance, after some interesting work is done (like layers were processed).
+
+The CLI mode is simpler, because it depends on the user to direct it's usage and targets
+use cases that do not have dynamic sync requirements.
+
+Check further details on these operation modes below.
+
+*** Server Mode
 
 In server-mode, GeoSync will listen for incoming requests on the port
 specified with the ~-P~ option. Each request should be a single
@@ -204,6 +223,32 @@ queue and processed in the order in which they are received. A status
 them of their place in the queue. Once processed, a final status 0
 (success) or 1 (error) response will be sent to the client indicating
 the outcome of their request.
+
+*** CLI Mode
+
+The CLI mode is the simplest operation mode of GeoSync. It allows it's
+user to sync on demand with target GeoServer.
+
+The CLI mode can `add` or `remove` synced workspaces - by using the 
+configuration file or specifying the `action` on the CLI arguments.
+
+While using GeoSync over the terminal, you can specify options using
+flags and switches of the CLI itself, of by pointing to a `.edn` configuration
+file. These options will be merged in run-time in order to produce the
+final version of the confgiuration. Options specified in the CLI takes
+precedence of the options specified in the configuration file.
+
+In this mode, it's mandatory to specify in the configuration file or
+the CLI arguments, the following arguments:
+
+1. `geoserver-workspace`
+1. `geoserver-rest-uri`
+1. `geoserver-username`
+1. `geoserver-password`
+1. `action`
+
+Refer to the CLI usage section on top of this document to get more details
+on each argument.
 
 ** Logging
 
