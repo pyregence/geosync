@@ -380,9 +380,8 @@
       :else                          nil)))
 
 (defn file-paths->style-specs
-  [config-params style-file-paths]
-  (let [existing-styles (get-existing-styles config-params)]
-    (keep #(file-path->style-spec config-params % existing-styles) style-file-paths)))
+  [config-params style-file-paths existing-styles]
+  (keep #(file-path->style-spec config-params % existing-styles) style-file-paths))
 
 (defn file-specs->rest-specs
   "Generates a sequence of REST request specifications as tuples of
@@ -393,8 +392,9 @@
   (let [ws-exists?            (workspace-exists? config-params)
         existing-stores       (if ws-exists? (get-existing-stores config-params) #{})
         existing-layer-groups (if ws-exists? (get-existing-layer-groups config-params) #{})
+        existing-styles       (if ws-exists? (get-existing-styles config-params) #{})
         layer-specs           (file-specs->layer-specs config-params existing-stores gis-file-specs)
-        style-specs           (file-paths->style-specs config-params style-file-paths)
+        style-specs           (file-paths->style-specs config-params style-file-paths existing-styles)
         layer-group-specs     (file-specs->layer-group-specs config-params existing-stores existing-layer-groups gis-file-specs)
         rest-specs            (-> (group-by get-spec-type (concat layer-specs style-specs))
                                   (assoc :create-layer-group layer-group-specs))]
