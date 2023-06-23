@@ -380,7 +380,7 @@
       :else                          nil)))
 
 (defn file-paths->style-specs
-  [config-params style-file-paths existing-styles]
+  [config-params existing-styles style-file-paths]
   (keep #(file-path->style-spec config-params % existing-styles) style-file-paths))
 
 (defn file-specs->rest-specs
