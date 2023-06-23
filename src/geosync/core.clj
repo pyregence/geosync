@@ -265,16 +265,16 @@
 
 (defn get-existing-styles
   [{:keys [geoserver-workspace] :as config-params}]
-  (as-> (rest/get-styles geoserver-workspace) %
-    (make-rest-request config-params %)
-    (if (success-code? (:status %))
-      ((:body %)
-       (json/read-str % :key-fn keyword)
-       (:styles %)
-       (:style %)
-       (map :name %)
-       (set %))
-      [])))
+  (let [response (make-rest-request config-params (rest/get-styles geoserver-workspace))
+        success? (success-code? (:status response))]
+    (if success?
+      (as-> (:body response) %
+        (json/read-str % :key-fn keyword)
+        (:styles %)
+        (:style %)
+        (map :name %)
+        (set %))
+      (hash-set))))
 
 ;; FIXME: unused
 (defn get-existing-layers
