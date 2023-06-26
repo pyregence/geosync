@@ -403,8 +403,9 @@
         existing-stores       (if ws-exists? (get-existing-stores config-params) #{})
         existing-layer-groups (if ws-exists? (get-existing-layer-groups config-params) #{})
         existing-styles       (if ws-exists? (get-existing-styles config-params) #{})
-        layer-specs           (file-specs->layer-specs config-params existing-stores existing-styles gis-file-specs)
         style-specs           (file-paths->style-specs config-params existing-styles style-file-paths)
+        all-styles            (concat existing-styles (map get-style-name style-file-paths))
+        layer-specs           (file-specs->layer-specs config-params existing-stores all-styles gis-file-specs)
         layer-group-specs     (file-specs->layer-group-specs config-params existing-stores existing-layer-groups gis-file-specs)
         rest-specs            (-> (group-by get-spec-type (concat layer-specs style-specs))
                                   (assoc :create-layer-group layer-group-specs))]
