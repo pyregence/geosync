@@ -502,7 +502,7 @@
   [style-dir]
   (some->> (io/file style-dir)
            (file-seq)
-           (filter #(s/ends-with? (.getName %) ".css"))
+           (filter #(s/ends-with? (.getName ^File %) ".css"))
            (map #(.getPath ^File %))))
 
 (defn load-gis-file-paths
