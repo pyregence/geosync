@@ -500,17 +500,10 @@
 
 (defn load-style-file-paths
   [style-dir]
-<<<<<<< HEAD
   (some->> (io/file style-dir)
            (file-seq)
            (filter #(s/ends-with? (.getName %) ".css"))
            (map #(.getPath ^File %))))
-=======
-  (->> (io/file style-dir)
-       (file-seq)
-       (filter #(s/ends-with? (.getName ^File %) ".css"))
-       (map #(.getPath ^File %))))
->>>>>>> 1cd85d9 (adds type-hint to avoid reflection)
 
 (defn load-gis-file-paths
   [data-dir]

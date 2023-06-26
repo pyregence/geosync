@@ -226,24 +226,24 @@ the outcome of their request.
 
 *** CLI Mode
 
-The CLI mode is the simplest operation mode of GeoSync. It allows it's
-user to sync on demand with target GeoServer and it can `add` or `remove`
-synced workspaces.
+The CLI mode is the simplest operation mode of GeoSync. It allows its
+user to sync on-demand additions or removals of workspaces with the specified
+GeoServer and it can `add` or `remove`.
 
-While using GeoSync over the terminal, you can specify options using
-flags and switches of the CLI itself, of by pointing to a `.edn` configuration
+While using GeoSync via the terminal, you can specify options using
+the flags and switches of the CLI itself or by pointing to a ~.edn~ configuration
 file. These options will be merged in run-time in order to produce the
-final version of the confgiuration. Options specified in the CLI takes
-precedence of the options specified in the configuration file.
+final version of the configuration. Options specified in the CLI takes
+precedence over the options specified in the configuration file.
 
-In this mode, it's mandatory to specify in the configuration file or
-the CLI arguments, the following arguments:
+In CLI mode, it's mandatory to specify the following arguments in the configuration file 
+or via the command line:
 
-1. `geoserver-workspace`
-1. `geoserver-rest-uri`
-1. `geoserver-username`
-1. `geoserver-password`
-1. `action`
+1. ~geoserver-workspace~
+1. ~geoserver-rest-uri~
+1. ~geoserver-username~
+1. ~geoserver-password~
+1. ~action~
 
 Refer to the CLI usage section on top of this document to get more details
 on each argument.
@@ -265,7 +265,7 @@ redirected to the provided directory. This directory will hold up to ten differe
 log files where each log file corresponds to a date where GeoSync logs were output.
 The format of these log files is: ~YYYY-MM-DD.log~.
 
-This section only applies to `CLI` operation mode.
+This section only applies to the CLI operation mode.
 
 ** Styles
 

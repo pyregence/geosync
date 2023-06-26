@@ -50,28 +50,25 @@
 (spec/def ::folder-name->regex  (spec/map-of string? string?))
 (spec/def ::file-watcher        (spec/keys :req-un [::dir
                                                     ::folder-name->regex]))
-(spec/def ::server-mode         (fn
-                                  [{:keys [geosync-server-host geosync-server-port data-dir style-dir]}]
+(spec/def ::server-mode         (fn [{:keys [geosync-server-host geosync-server-port data-dir style-dir]}]
                                   (and geosync-server-host
                                        geosync-server-port
                                        (nil? data-dir)
                                        (nil? style-dir))))
-(spec/def ::cli-register-mode   (fn
-                                  [{:keys [geoserver-workspace action data-dir style-dir overwrite-styles]}]
+(spec/def ::cli-register-mode   (fn [{:keys [geoserver-workspace action data-dir style-dir overwrite-styles]}]
                                   (and geoserver-workspace
                                        (= action "add")
                                        (or data-dir style-dir)
                                        ;; overwrite-styles and no style-dir is the only invalid combination
                                        (not (and overwrite-styles (nil? style-dir))))))
-(spec/def ::cli-deregister-mode (fn
-                                  [{:keys [geoserver-workspace action data-dir style-dir]}]
+(spec/def ::cli-deregister-mode (fn [{:keys [geoserver-workspace action data-dir style-dir]}]
                                   (and geoserver-workspace
                                        (= action "remove")
                                        (nil? data-dir)
                                        (nil? style-dir))))
-(spec/def ::operation-mode (spec/or :server-mode         ::server-mode
-                                    :cli-register-mode   ::cli-register-mode
-                                    :cli-deregister-mode ::cli-deregister-mode))
+(spec/def ::operation-mode      (spec/or :server-mode         ::server-mode
+                                         :cli-register-mode   ::cli-register-mode
+                                         :cli-deregister-mode ::cli-deregister-mode))
 (spec/def ::geosync-config      (spec/and (spec/keys :req-un [::geoserver-rest-uri
                                                               ::geoserver-username
                                                               ::geoserver-password]
