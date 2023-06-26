@@ -33,6 +33,7 @@
 (spec/def ::data-dir            readable-directory?)
 (spec/def ::style-dir           readable-directory?)
 (spec/def ::overwrite-styles    boolean?)
+(spec/def ::autostyle-layers    boolean?)
 (spec/def ::layer-pattern       non-empty-string?)
 (spec/def ::name                non-empty-string?)
 (spec/def ::layer-group         (spec/keys :req-un [::layer-pattern ::name]))
@@ -95,6 +96,21 @@
 (spec/def ::geosync-config      (spec/and ::geosync-config-file
                                           ::geoserver-auth
                                           ::operation-mode))
+
+(spec/def ::geosync-config-file (spec/keys :opt-un [::geoserver-rest-uri
+                                                    ::geoserver-username
+                                                    ::geoserver-password
+                                                    ::geoserver-workspace
+                                                    ::data-dir
+                                                    ::style-dir
+                                                    ::overwrite-styles
+                                                    ::geosync-server-host
+                                                    ::geosync-server-port
+                                                    ::styles
+                                                    ::autostyle-layers
+                                                    ::layer-groups
+                                                    ::action-hooks
+                                                    ::file-watcher]))
 
 ;;===========================================================
 ;; Argument Processing
@@ -213,6 +229,8 @@
                #(.canRead (io/file %)) "The provided --style-dir is not readable."]]
 
    ["-O" "--overwrite-styles" "If true, already existing styles will have their definitions overwritten"]
+
+   ["-A", "--autostyle-layers" "If true, Geosync will match layers with existing styles based on the style and layer name"]
 
    ["-h" "--geosync-server-host HOST" "Hostname to advertise in server responses"
     :validate [hostname? "The provided --geosync-server-host is invalid."]]

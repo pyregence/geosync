@@ -203,52 +203,62 @@
                            (#{"datastore.properties" "timeregex.properties" "indexer.properties"} file-name))))]
     (io/delete-file file)))
 
+(defn get-matching-style
+  [layer-name style existing-styles autostyle-layers]
+  (cond
+    style style
+    autostyle-layers (first (filter #(s/ends-with? (s/lower-case layer-name) (s/lower-case %)) existing-styles))
+    :else nil))
+
 (defn file-spec->layer-specs
   "Returns a sequence of one or more REST request specifications as
   tuples of [http-method uri-suffix http-body content-type] depending
   on the structure of the passed-in file-spec or nil if the store-type
   is unsupported."
-  [{:keys [geoserver-workspace]}
+  [{:keys [geoserver-workspace autostyle-layers]}
    existing-stores
+   existing-styles
    {:keys [store-type store-name layer-name file-url style]}]
-  (when-not (contains? existing-stores store-name)
-    (case store-type
-      :geotiff     [(rest/create-coverage-via-put geoserver-workspace store-name file-url)
-                    (when style
-                      (rest/update-layer-style geoserver-workspace store-name style :raster))]
+  (let [matching-style (get-matching-style layer-name style existing-styles autostyle-layers)]
+    (when-not (contains? existing-stores store-name)
+      (case store-type
+        :geotiff     [(rest/create-coverage-via-put geoserver-workspace store-name file-url)
+                      (when matching-style
+                        (rest/update-layer-style geoserver-workspace store-name matching-style :raster))]
 
-      :shapefile   (doall
-                    (concat
-                     [(rest/create-data-store geoserver-workspace store-name file-url)
-                      (rest/create-feature-type-via-put geoserver-workspace store-name file-url)]
-                     (when (not= store-name layer-name)
-                       [(rest/create-feature-type-alias geoserver-workspace
-                                                        store-name
-                                                        layer-name
-                                                        store-name)
-                        (rest/delete-layer geoserver-workspace layer-name)
-                        (rest/delete-feature-type geoserver-workspace store-name layer-name)])
-                     (when style
-                       [(rest/update-layer-style geoserver-workspace store-name style :vector)])))
+        :shapefile   (doall
+                      (concat
+                       [(rest/create-data-store geoserver-workspace store-name file-url)
+                        (rest/create-feature-type-via-put geoserver-workspace store-name file-url)]
+                       (when (not= store-name layer-name)
+                         [(rest/create-feature-type-alias geoserver-workspace
+                                                          store-name
+                                                          layer-name
+                                                          store-name)
+                          (rest/delete-layer geoserver-workspace layer-name)
+                          (rest/delete-feature-type geoserver-workspace store-name layer-name)])
+                       (when matching-style
+                         [(rest/update-layer-style geoserver-workspace store-name matching-style :vector)])))
 
-      :imagemosaic (do (update-properties-file! (str file-url "/datastore.properties") "schema" geoserver-workspace)
-                       (update-properties-file! (str file-url "/indexer.properties") "Name" store-name)
-                       (clean-image-mosaic-folder (s/replace file-url "file://" ""))
-                       [(rest/create-coverage-store-image-mosaic geoserver-workspace store-name file-url)
-                        (rest/update-coverage-store-image-mosaic geoserver-workspace store-name file-url)
-                        (rest/create-coverage-image-mosaic geoserver-workspace store-name)
-                        (when style
-                          (rest/update-layer-style geoserver-workspace store-name style :raster))])
+        :imagemosaic (do (update-properties-file! (str file-url "/datastore.properties") "schema" geoserver-workspace)
+                         (update-properties-file! (str file-url "/indexer.properties") "Name" store-name)
+                         (clean-image-mosaic-folder (s/replace file-url "file://" ""))
+                         [(rest/create-coverage-store-image-mosaic geoserver-workspace store-name file-url)
+                          (rest/update-coverage-store-image-mosaic geoserver-workspace store-name file-url)
+                          (rest/create-coverage-image-mosaic geoserver-workspace store-name)
+                          (when matching-style
+                            (rest/update-layer-style geoserver-workspace store-name matching-style :raster))])
 
-      (throw (ex-info "Unsupported store type detected."
-                      {:store-type store-type :file-url file-url})))))
+        (throw (ex-info "Unsupported store type detected."
+                        {:store-type store-type :file-url file-url}))))))
 
 (defn file-specs->layer-specs
-  [config-params existing-stores file-specs]
+  [config-params existing-stores existing-styles file-specs]
   (into []
         (comp (mapcat (partial file-spec->layer-specs
                                config-params
-                               existing-stores))
+                               existing-stores
+                               existing-styles))
               (remove nil?))
         file-specs))
 
@@ -393,7 +403,7 @@
         existing-stores       (if ws-exists? (get-existing-stores config-params) #{})
         existing-layer-groups (if ws-exists? (get-existing-layer-groups config-params) #{})
         existing-styles       (if ws-exists? (get-existing-styles config-params) #{})
-        layer-specs           (file-specs->layer-specs config-params existing-stores gis-file-specs)
+        layer-specs           (file-specs->layer-specs config-params existing-stores existing-styles gis-file-specs)
         style-specs           (file-paths->style-specs config-params existing-styles style-file-paths)
         layer-group-specs     (file-specs->layer-group-specs config-params existing-stores existing-layer-groups gis-file-specs)
         rest-specs            (-> (group-by get-spec-type (concat layer-specs style-specs))

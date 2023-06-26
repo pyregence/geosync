@@ -125,6 +125,7 @@ Usage:
   -d, --data-dir DIR              Path to the directory containing your GIS files
   -s, --style-dir DIR             Path to the directory containing your style files
   -a, --action ACTION             GeoServer action: either "add" or "remove". Required in CLI mode.
+  -A, --autostyle-layers          If true, Geosync will match layers with existing styles based on the style and layer name
   -O, --overwrite-styles          If true, already existing styles will have their definitions overwritten
   -h, --geosync-server-host HOST  Hostname to advertise in server responses
   -P, --geosync-server-port PORT  Server port to listen on for incoming requests
@@ -373,6 +374,25 @@ already exists in the provided ~:geoserver-workspace~ and we have a style file o
 the same name in ~:style-dir~. If both of these cases are hit, the GeoServer style
 will be overwritten with the latest style provided in the corresponding ~.css~ file.
 Defaults to ~false~ if not specified.
+
+*** Autostyle Layers
+
+If you have a big number of styles and layers, you can use the ~autostyle-layers~ option of
+GeoSync. Instead of matching declaratively each ~layer-pattern~ with the corresponding style,
+you can rely on this feature.
+
+To use it, you must set ~autostyle-layers~ to true (using the CLI or the configuration file).
+
+GeoSync will fetch all existing styles in the current workspace and will match the layer
+name with the style name, comparing if the end of the layer name is the same as the style name
+(case insensitive).
+
+Examples:
+
+- Layer: ~sierra-nevada-fires~, Style: ~fires~, will match
+- Layer: ~SierraNevada_Tier2_AnnualBurnProbability~, Style: ~annualburnprobability~, will match
+- Layer: ~SierraNevada_Tier2_AnnualBurnProbability~, Style: ~TIER2_ANNUALBURNPROBABILITY~, will match
+- Layer: ~SierraNevada_Tier2_AnnualBurnProbability~, Style: ~TIER1_ANNUALBURNPROBABILITY~, will not match
 
 ** Using Custom Projections
 
