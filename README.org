@@ -1,63 +1,98 @@
 * GeoSync
 
-GeoSync is a simple command-line application that traverses a
-directory tree of raster and vector GIS files (e.g., GeoTIFFs,
-Shapefiles) and generates the necessary REST commands to add
-workspaces, coveragestores, datastores, coverages, featuretypes,
-layers, and layergroups for each file to a running GeoServer instance.
+GeoSync is a simple command-line application that can be used to
+synchronize your GIS and style files on disk with a running
+GeoServer's catalog, so that they can be served up using web mapping
+protocols.
+
+GeoSync can be used to:
+
+- Create workspaces
+- Add layers to new or existing workspaces (along with their associated coveragestores, coverages, datastores, and featuretypes)
+- Add layergroups to new or existing workspaces and associate layers with them
+- Add styles to new or existing workspaces (or update existing styles with new definitions)
+- Assign styles to layers using pattern matching on layer names
+- Remove workspaces (along with all of the objects associated with them)
+
+GeoSync works by scanning the directory trees under the ~data-dir~
+that you give it for GIS files and under the ~style-dir~ that you give
+it for style files. For each GIS or style file that it finds, GeoSync
+will compute the set of REST API calls necessary to load that layer or
+style into a running GeoServer instance and will then send those
+requests to the specified GeoServer using the authentication
+credentials that you provide.
+
+At this time, GeoSync supports the following GIS file formats:
+
+- GeoTIFF
+- Shapefile
+- ImageMosaic
+
+At this time, GeoSync supports the following style file formats:
+
+- CSS
 
 ** Installation Requirements
 
 - [[https://jdk.java.net][Java Development Kit (version 11+)]]
 - [[https://clojure.org/guides/getting_started][Clojure CLI tools]]
-- [[https://www.postgresql.org/download][PostgreSQL (version 12)]]
-- [[https://postgis.net/install][PostGIS (version 3)]]
-
-** Application Plugin Configuration
-
-Upon request, ~triangulum/config~ reads a file called ~config.edn~
-in the toplevel directory of this repository, which contains various
-user-configurable system parameters. A sample file called
-~config.default.edn~ is provided with this repository to get you
-started. To begin, simply copy it to ~config.edn~. Then edit
-it according to the following sections.
+- [[https://www.postgresql.org/download][PostgreSQL (version 12)]] (needed for ImageMosaic support)
+- [[https://postgis.net/install][PostGIS (version 3)]] (needed for ImageMosaic support)
 
 ** PostgreSQL Database Setup
 
 *PostgreSQL* needs to be installed on the machine that will be hosting
-the GeoServer to support ImageMosaic rasters. Once the PostgreSQL database
-server is running on your machine, you should navigate to the toplevel
-directory and run the database build command as follows:
+the GeoServer to support ImageMosaic rasters. Once the PostgreSQL
+database server is running on your machine, you can initialize a
+GeoSync database in it by performing the following steps.
+
+*** Configure database connection settings in config.edn
+
+GeoSync looks for a file called ~config.edn~ in the top level
+directory of this repository and reads it in to load the database
+connection settings it will use for communicating with your PostgreSQL
+server.
+
+A sample file called ~config.default.edn~ is provided with this
+repository to get you started. To begin, simply copy it to
+~config.edn~. Then edit it as necessary for your local setup.
+
+*** Create and populate the database
+
+Once your ~config.edn~ file has been prepared, you can navigate to the
+top level repository directory and run the database build command as
+follows:
 
 #+begin_src sh
 clojure -M:build-db build-all -d geoserver
 #+end_src
 
 This will begin by creating a new database and role called ~geoserver~
-and then add the postgis extension to it. Next, the script will populate
-the database with the functions that are necessary for storing and processing
-GeoServer's data.
+and then add the ~postgis~ extension to it. Next, the script will
+populate the database with the functions that are necessary for
+storing and processing GeoServer's data.
 
-It's important to note that when you are dealing with ImageMosaic workspaces,
-you must make sure to use GeoSync to deregister them. The GeoServer web UI gives
-you an option to deregister workspaces using its interface, but due to the
-ImageMosaic data stored in GeoSync's Postgres database, you must use GeoSync
-to deregister any ImageMosaic workspaces in order to make sure the database is
-updated properly.
+It's important to note that when you are dealing with ImageMosaic
+workspaces, you must make sure to use GeoSync to deregister them. The
+GeoServer web UI gives you an option to deregister workspaces using
+its interface, but due to the ImageMosaic data stored in GeoSync's
+PostgreSQL database, you must use GeoSync to deregister any
+ImageMosaic workspaces in order to make sure the database is updated
+properly.
 
-*** Performance Settings
+*** Performance Settings (Optional)
 
 If you want to improve the performance of your PostgreSQL server, one
-way is to visit the [[https://pgtune.leopard.in.ua/][pgtune]] website
-and input your system settings. This will generate a set of configuration
-options that you can add to the postgresql.conf file in your system-specific
-PostgreSQL data directory.
+way is to visit the [[https://pgtune.leopard.in.ua/][pgtune]] website and input your system settings.
+This will generate a set of configuration options that you can add to
+the ~postgresql.conf~ file in your system-specific PostgreSQL data
+directory.
 
 If you would like to keep these settings separate for your own
-reference, you can add them to a file called "performance.conf" that
+reference, you can add them to a file called ~performance.conf~ that
 you should place in your PostgreSQL data directory. You can then
-import these settings into postgresql.conf by adding this line to the
-end of that file:
+import these settings into ~postgresql.conf~ by adding this line to
+the end of that file:
 
 #+begin_example
 include = 'performance.conf'
@@ -68,7 +103,7 @@ changes to take effect.
 
 ** Quickstart
 
-To compile and run the application, navigate to the toplevel project
+To compile and run the application, navigate to the top level project
 directory and run:
 
 #+begin_src sh
@@ -101,11 +136,11 @@ You can run GeoSync in one of three ways:
 1. Pass options on the command line.
 
    #+begin_src sh
-   # Script mode: Load (add) a single directory tree into a GeoServer workspace and exit
-   clojure -M:run -g http://localhost:8080/geoserver/rest -u admin -p geoserver -w demo -d /data -a "add"
+   # CLI register mode: Load (add) a single directory tree into a GeoServer workspace and exit
+   clojure -M:run -g http://localhost:8080/geoserver/rest -u admin -p geoserver -w demo -a "add" -d /data
 
-  # Script mode: Remove a single workspace from GeoServer and exit
-  clojure -M:run -g http://localhost:8080/geoserver/rest -u admin -p geoserver -w demo -a "remove"
+   # CLI deregister mode: Remove a single workspace from GeoServer and exit
+   clojure -M:run -g http://localhost:8080/geoserver/rest -u admin -p geoserver -w demo -a "remove"
 
    # Server mode: Listen on a port for JSON requests (see section "Server Mode" below for more info)
    clojure -M:run -g http://localhost:8080/geoserver/rest -u admin -p geoserver -h geosync.mydomain.org -P 31337
@@ -114,44 +149,86 @@ You can run GeoSync in one of three ways:
    Please note that the ~-d~ option must receive a file path that is
    available on the JVM classpath. The easiest way to accomplish this
    is to use an absolute path for your filesystem. Also note that
-   without the ~-c~ option there are certain options/features that you can not
-   make use of (such as ~:styles~ and ~:layer-groups~).
+   without the ~-c~ option there are certain options/features that you
+   can not make use of (such as ~:styles~ and ~:layer-groups~).
 
 2. Pass the ~-c~ option with an EDN file containing all of the other
    options formatted as an EDN map of keywords to values. You may also
-   pass the optional ~:styles~ and ~:layer-groups~ options in this way. See
-   [[file:resources/sample-config.edn][resources/sample-config.edn]] for an example.
+   pass the optional ~:styles~ and ~:layer-groups~ options in this
+   way. See [[file:resources/sample-config.edn][resources/sample-config.edn]] for an example.
 
    #+begin_src sh
    clojure -M:run -c resources/sample-config.edn
    #+end_src
 
-3. Pass the ~-c~ option with an EDN config file and also pass any other
-   options on the command line that should override the settings in
-   the EDN file.
+3. Pass the ~-c~ option with an EDN config file and also pass any
+   other options on the command line that should override the settings
+   in the EDN file.
 
    #+begin_src sh
-   clojure -M:run -c resources/sample-config.edn -w demo -d /data
+   clojure -M:run -c resources/sample-config.edn -w demo -a "add" -d /data
    #+end_src
 
 ** Operation Modes
 
 GeoSync comes with two main operation modes:
 
-- Server
 - CLI
+- Server
 
-While they execute the same functions and have the same capabilities, the server mode
-will listen for incoming requests on the port specified and will execute any actions,
-when it receive instructions from it's callees.
+The CLI mode is simple to use and understand as it launches a new
+process, performs a single action, and exits.
 
-The server mode is useful if you need to dynamically sync layers and styles with a GeoServer
-instance, after some interesting work is done (like layers were processed).
+The server mode can execute the same actions as the CLI mode, but
+rather than performing an action at start up, it simply binds to the
+user-specified port and listens for incoming requests. Each time a
+request is received, it is sorted into either a priority or standby
+job queue. Jobs are then executed in FIFO order with all priority jobs
+being completed before any standby jobs are processed.
 
-The CLI mode is simpler, because it depends on the user to direct it's usage and targets
-use cases that do not have dynamic sync requirements.
+The server mode is particularly useful if you need to submit many
+GeoSync requests over brief timespans. Instead of spawning one GeoSync
+process per action (and thus repeatedly incurring a startup time
+penalty and consuming more and more memory per process), you can start
+a single GeoSync server and send all of your jobs to it. They will be
+prioritized and run all from within one process with a fixed size
+memory footprint.
 
-Check further details on these operation modes below.
+More details on these operation modes are provided below.
+
+*** CLI Mode
+
+The CLI mode is the simplest operation mode of GeoSync. It allows its
+user to perform on-demand additions or removals of GIS layers and
+styles to workspaces on the specified GeoServer.
+
+While using GeoSync via the terminal, you can specify options using
+the flags and switches of the CLI itself or by providing a ~.edn~
+configuration file. These options will be merged at run-time in order
+to produce the final version of the configuration. Options specified
+in the CLI take precedence over the options specified in the
+configuration file.
+
+In CLI mode, it's mandatory to specify the following arguments in the configuration file
+or via the command line:
+
+1. ~geoserver-rest-uri~
+2. ~geoserver-username~
+3. ~geoserver-password~
+4. ~geoserver-workspace~
+5. ~action~
+
+If ~action~ is set to ~"add"~, you will also need to specify either or
+both of the following two parameters:
+
+1. ~data-dir~
+2. ~style-dir~
+
+If ~style-dir~ is provided, you may also choose to set
+~overwrite-styles~ to ~true~ or ~false~.
+
+Refer to the usage message in the [[Quickstart]] section above for more
+details on each argument.
 
 *** Server Mode
 
@@ -159,17 +236,17 @@ In server-mode, GeoSync will listen for incoming requests on the port
 specified with the ~-P~ option. Each request should be a single
 newline-terminated JSON object matching one of these forms:
 
-1. Add all GIS files under a directory tree to a (possibly new) workspace
+1. Add all GIS files under a directory tree as layers under a (possibly new) workspace
 
 #+begin_src js
 {"action":             "add",
  "dataDir":            "/data",
  "geoserverWorkspace": "demo",
- "responseHost":       "localhost",
+ "responseHost":       "my.server.org",
  "responsePort":       5555}
 #+end_src
 
-2. Remove all layers under a workspace(s) from GeoServer and delete the workspace(s)
+2. Remove all objects under the specified workspace(s) from GeoServer and delete the workspace(s)
 
 The ~geoserverWorkspace~ parameter can be plain text or a regex
 pattern. If a plain text string is provided, an exact match will be
@@ -194,18 +271,18 @@ JSON response there containing all of the original request fields
 merged with these additional fields:
 
 #+begin_src js
-{status: 0,
- message: "GeoSync: Workspace updated.",
+{status:       0,
+ message:      "GeoSync: Workspace updated.",
  responseHost: "geosync.mydomain.org",
  responsePort: 31337}
 #+end_src
 
-Note that ~responseHost~ and ~responsePort~ from the request is overriden
-by the new ~responseHost~ and ~responsePort~ values that correspond to the
-GeoSync server's host and port.
+Note that ~responseHost~ and ~responsePort~ from the request is
+overriden by the new ~responseHost~ and ~responsePort~ values that
+correspond to the GeoSync server's host and port.
 
-In this response, the status code is 0 on success, 1 on error, or 2
-for a progress message. The message string will explain the success,
+In this response, the ~status~ code is 0 on success, 1 on error, or 2
+for a progress message. The ~message~ string will explain the success,
 error, or progress state of the associated request.
 
 GeoSync includes all request fields in the response object to enable
@@ -224,30 +301,6 @@ them of their place in the queue. Once processed, a final status 0
 (success) or 1 (error) response will be sent to the client indicating
 the outcome of their request.
 
-*** CLI Mode
-
-The CLI mode is the simplest operation mode of GeoSync. It allows its
-user to sync on-demand additions or removals of workspaces with the specified
-GeoServer and it can `add` or `remove`.
-
-While using GeoSync via the terminal, you can specify options using
-the flags and switches of the CLI itself or by pointing to a ~.edn~ configuration
-file. These options will be merged in run-time in order to produce the
-final version of the configuration. Options specified in the CLI takes
-precedence over the options specified in the configuration file.
-
-In CLI mode, it's mandatory to specify the following arguments in the configuration file 
-or via the command line:
-
-1. ~geoserver-workspace~
-1. ~geoserver-rest-uri~
-1. ~geoserver-username~
-1. ~geoserver-password~
-1. ~action~
-
-Refer to the CLI usage section on top of this document to get more details
-on each argument.
-
 ** Logging
 
 You will probably want to redirect the output from these commands to a
@@ -259,13 +312,12 @@ GeoServer.
 clojure -M:run ... &> out.txt
 #+end_src
 
-Alternatively, if you pass in a path to a log directory with either ~-o~ on the
-command line or via ~:log-dir~ in your ~config.edn~ file, all logs will be
-redirected to the provided directory. This directory will hold up to ten different
-log files where each log file corresponds to a date where GeoSync logs were output.
-The format of these log files is: ~YYYY-MM-DD.log~.
-
-This section only applies to the CLI operation mode.
+Alternatively, if you pass in a path to a log directory with either
+~-o~ on the command line or via ~:log-dir~ in your ~config.edn~ file,
+all logs will be redirected to the provided directory. This directory
+will hold up to ten different log files where each log file
+corresponds to a date where GeoSync logs were output. The format of
+these log files is: ~YYYY-MM-DD.log~.
 
 ** Styles
 
@@ -349,7 +401,7 @@ by GeoSync, it must include these three text files:
 The required contents of these files is provided in the following
 subsections.
 
-*** ~datastore.properties~
+*** datastore.properties
 
 #+begin_example
 Estimated\ extends=true
@@ -359,9 +411,10 @@ Connection\ timeout=10
 SPI=org.geotools.data.postgis.PostgisNGJNDIDataStoreFactory
 #+end_example
 
-Note that ~datastore.properties~ also needs a schema property, but this
-will be inserted by GeoSync by using the ~geoserverWorkspace~ attribute
-from either ~config.edn~ (in script mode) or the JSON request (in server
+Note that ~datastore.properties~ also needs a ~schema~ property, but
+this will be inserted by GeoSync by using either the
+~:geoserver-workspace~ attribute from ~config.edn~ (in CLI mode) or
+the ~geoserverWorkspace~ attribute from a JSON request (in server
 mode).
 
 *** indexer.properties
@@ -372,10 +425,10 @@ Schema=*the_geom\:Polygon,location\:String,ingestion\:java.util.Date
 PropertyCollectors=TimestampFileNameExtractorSPI[timeregex](ingestion)
 #+end_example
 
-Note that ~indexer.properties~ also needs a Name property, but this will be inserted
-by GeoSync based on the the directory structure.
+Note that ~indexer.properties~ also needs a ~Name~ property, but this
+will be inserted by GeoSync based on the the directory structure.
 
-*** ~timeregex.properties~
+*** timeregex.properties
 
 #+begin_example
 regex=([0-9]{8}_[0-9]{6}),format=yyyyMMdd_HHmmss
@@ -396,21 +449,27 @@ make sure to update ~timeregex.properties~ accordingly.
 
 In server-mode, you may optionally specify a file path to be
 monitored. Any folders added or removed with a valid directory
-structure (as specified in the ~folder-name->regex~ map) will be automatically
-registered or dergesitered from the GeoServer. See the ~file-watcher~
-entry in [[file:resources/sample-config.edn][resources/sample-config.edn]] for an example.
+structure (as specified in the ~folder-name->regex~ map) will be
+automatically registered or deregistered from the GeoServer. See the
+~file-watcher~ entry in [[file:resources/sample-config.edn][resources/sample-config.edn]] for an example.
 
 Here's an explanation of the ~:file-watcher~ configuration:
-- ~dir~: A path to a readable directory.
-- ~folder-name->regex~: A map of folder names to regexes. The regexes are used to
-                        parse the appropriate workspace name from the file path.
-                        Note that for any folder name not included in this map no
-                        action will be taken (even if the file watcher detects an event).
 
-Depending on the number of files you are attempting to watch,
-you will likely have to increase your ~inotify~ limit. You can find your current
-~inotify~ limit by running ~cat /proc/sys/fs/inotify/max_user_watches~. To set
-a new limit temporarily, run:
+- dir :: A path to a readable directory.
+- folder-name->regex :: A map of folder names to regexes. The regexes
+  are used to parse the appropriate workspace name from the file path.
+  Note that for any folder name not included in this map, no action
+  will be taken (even if the file watcher detects an event).
+
+Depending on the number of files you are attempting to watch, you will
+likely have to increase your ~inotify~ limit. You can find your
+current ~inotify~ limit by running this command:
+
+#+begin_src sh
+cat /proc/sys/fs/inotify/max_user_watches
+#+end_src
+
+To set a new limit temporarily, run:
 
 #+begin_src sh
 sudo sysctl fs.inotify.max_user_watches=$NUMBER_OF_FILES
@@ -424,12 +483,19 @@ echo fs.inotify.max_user_watches=$NUMBER_OF_FILES | sudo tee -a /etc/sysctl.conf
 sudo sysctl -p
 #+end_src
 
-** Uber-JAR
+** UberJAR
 
-To build GeoSync as an Uber-JAR (to the ~target~) directory, run the following:
+To build GeoSync as an UberJAR (generated in this repository's
+~target~ directory), run the following command:
 
 #+begin_src sh
 clojure -T:build uberjar
+#+end_src
+
+Once you have done so, you may run GeoSync from the UberJAR with the following command:
+
+#+begin_src sh
+java -jar $PATH_TO_JAR_DIR/geosync-$VERSION.jar $CLI_ARGS
 #+end_src
 
 ** License and Distribution
