@@ -22,21 +22,41 @@
 ;; Request Validation
 ;;===========================================================
 
+;; Valid Request Keys
+
+(spec/def ::geoserver-workspace            non-empty-string?)
+(spec/def ::action                         #{"add" "remove"})
+(spec/def ::data-dir                       readable-directory?)
+(spec/def ::style-dir                      readable-directory?)
+(spec/def ::overwrite-styles               boolean?)
+(spec/def ::prioritize                     boolean?)
 (spec/def ::response-host                  hostname?)
 (spec/def ::response-port                  port?)
-(spec/def ::action                         #{"add" "remove"})
-(spec/def ::geoserver-workspace            non-empty-string?)
-(spec/def ::data-dir                       readable-directory?)
-(spec/def ::prioritize                     boolean?)
-(spec/def ::geosync-server-request         (spec/and (spec/keys :req-un [::action
-                                                                         ::geoserver-workspace]
-                                                                :opt-un [::response-host
-                                                                         ::response-port
-                                                                         ::data-dir
-                                                                         ::prioritize])
-                                                     (fn [{:keys [action data-dir]}]
-                                                       (or (and (= action "add") (string? data-dir))
-                                                           (and (= action "remove") (nil? data-dir))))))
+
+;; Key Combination Rules
+
+(spec/def ::server-register-request        (fn [{:keys [geoserver-workspace action data-dir style-dir overwrite-styles]}]
+                                             (and geoserver-workspace
+                                                  (= action "add")
+                                                  (or data-dir style-dir)
+                                                  ;; overwrite-styles and no style-dir is the only invalid combination
+                                                  (not (and overwrite-styles (nil? style-dir))))))
+(spec/def ::server-deregister-request      (fn [{:keys [geoserver-workspace action data-dir style-dir overwrite-styles]}]
+                                             (and geoserver-workspace
+                                                  (= action "remove")
+                                                  (nil? data-dir)
+                                                  (nil? style-dir)
+                                                  (nil? overwrite-styles))))
+(spec/def ::geosync-server-request         (spec/and (spec/keys :req-un [::geoserver-workspace
+                                                                         ::action]
+                                                                :opt-un [::data-dir
+                                                                         ::style-dir
+                                                                         ::overwrite-styles
+                                                                         ::prioritize
+                                                                         ::response-host
+                                                                         ::response-port])
+                                                     (spec/or :server-register-request   ::server-register-request
+                                                              :server-deregister-request ::server-deregister-request)))
 (spec/def ::geosync-server-response-minimal (spec/keys :req-un [::response-host
                                                                 ::response-port]))
 
