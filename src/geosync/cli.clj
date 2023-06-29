@@ -225,7 +225,7 @@
     :validate [writable-directory? "Directory does not exist or is not writable."]]])
 
 (def program-banner
-  (str "geosync: Load a nested directory tree of GeoTIFFs and Shapefiles into a running GeoServer instance.\n"
+  (str "geosync: Load directory trees of GIS and style files into a running GeoServer instance.\n"
        "Copyright © 2020-2023 Spatial Informatics Group, LLC.\n"))
 
 (defn -main
