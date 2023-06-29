@@ -1,14 +1,14 @@
 {:paths   ["src" "resources"]
- :deps    {clj-http/clj-http            {:mvn/version "3.12.3"}
-           com.taoensso/tufte           {:mvn/version "2.2.0"}
-           hiccup/hiccup                {:mvn/version "2.0.0-alpha2"}
-           org.clojure/clojure          {:mvn/version "1.10.3"}
-           org.clojure/core.async       {:mvn/version "1.3.610"}
-           org.clojure/data.json        {:mvn/version "2.0.1"}
-           org.clojure/tools.cli        {:mvn/version "1.0.206"}
-           sig-gis/triangulum           {:git/url "https://github.com/sig-gis/triangulum"
-                                         :sha     "67c22ef318c8c42626186872ada4a4436c6bd405"}}
- :aliases {:build            {:deps       {io.github.clojure/tools.build {:git/tag "v0.8.2" :git/sha "ba1a2bf"}}
+ :deps    {clj-http/clj-http      {:mvn/version "3.12.3"}
+           com.taoensso/tufte     {:mvn/version "2.4.5"}
+           hiccup/hiccup          {:mvn/version "2.0.0-RC1"}
+           org.clojure/clojure    {:mvn/version "1.11.1"}
+           org.clojure/core.async {:mvn/version "1.6.673"}
+           org.clojure/data.json  {:mvn/version "2.4.0"}
+           org.clojure/tools.cli  {:mvn/version "1.0.219"}
+           sig-gis/triangulum     {:git/url "https://github.com/sig-gis/triangulum"
+                                   :sha     "38d3c7cb608728fd085449707f33e1952a609d12"}}
+ :aliases {:build            {:deps       {io.github.clojure/tools.build {:mvn/version "0.9.4"}}
                               :ns-default build}
            :build-db         {:main-opts ["-m" "triangulum.build-db"]}
            :check-deps       {:deps      {com.github.liquidz/antq {:mvn/version "RELEASE"}}
