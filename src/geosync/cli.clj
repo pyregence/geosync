@@ -8,7 +8,7 @@
             [clojure.tools.cli  :refer [parse-opts]]
             [geosync.core       :refer [add-directory-to-workspace!
                                         remove-workspace!]]
-            [geosync.server     :refer [start-server!] :as server]
+            [geosync.server     :refer [start-server!]]
             [geosync.utils      :refer [hostname?
                                         nil-on-error
                                         non-empty-string?
@@ -22,71 +22,79 @@
 ;; Argument Validation
 ;;===========================================================
 
+;; Valid Config Keys
+
 (spec/def ::geoserver-rest-uri  url?)
 (spec/def ::geoserver-username  non-empty-string?)
 (spec/def ::geoserver-password  non-empty-string?)
 (spec/def ::geoserver-workspace non-empty-string?)
+(spec/def ::geosync-server-host hostname?)
+(spec/def ::geosync-server-port port?)
 (spec/def ::data-dir            readable-directory?)
 (spec/def ::style-dir           readable-directory?)
 (spec/def ::overwrite-styles    boolean?)
-(spec/def ::geosync-server-host hostname?)
-(spec/def ::geosync-server-port port?)
 (spec/def ::layer-pattern       non-empty-string?)
+(spec/def ::name                non-empty-string?)
+(spec/def ::layer-group         (spec/keys :req-un [::layer-pattern ::name]))
+(spec/def ::layer-groups        (spec/coll-of ::layer-group :kind vector? :distinct true))
 (spec/def ::style-vector        (spec/coll-of non-empty-string? :kind vector? :distinct true))
 (spec/def ::raster-style        (spec/or :style non-empty-string? :styles ::style-vector))
 (spec/def ::vector-style        (spec/or :style non-empty-string? :styles ::style-vector))
 (spec/def ::style               (spec/keys :req-un [::layer-pattern (or ::raster-style ::vector-style)]))
 (spec/def ::styles              (spec/coll-of ::style :kind vector? :distinct true))
-(spec/def ::name                non-empty-string?)
-(spec/def ::layer-group         (spec/keys :req-un [::layer-pattern ::name]))
-(spec/def ::layer-groups        (spec/coll-of ::layer-group :kind vector? :distinct true))
-(spec/def ::action              #{"add" "remove"})
 (spec/def ::action-run-time     #{:before :after})
+(spec/def ::action              #{"add" "remove"})
 (spec/def ::action-hook-params  (spec/map-of keyword? any?))
-(spec/def ::action-hook         (spec/tuple ::action-run-time ::server/action url? ::action-hook-params))
+(spec/def ::action-hook         (spec/tuple ::action-run-time ::action url? ::action-hook-params))
 (spec/def ::action-hooks        (spec/coll-of ::action-hook :kind vector? :distinct true))
 (spec/def ::dir                 readable-directory?)
 (spec/def ::folder-name->regex  (spec/map-of string? string?))
 (spec/def ::file-watcher        (spec/keys :req-un [::dir
                                                     ::folder-name->regex]))
-(spec/def ::geosync-config      (spec/and (spec/keys :req-un [::geoserver-rest-uri
-                                                              ::geoserver-username
-                                                              ::geoserver-password
-                                                              (or
-                                                               ;; CLI mode
-                                                               (and ::geoserver-workspace
-                                                                    ::action)
-                                                               ;; Server mode
-                                                               (and ::geosync-server-host
-                                                                    ::geosync-server-port))]
-                                                     :opt-un [::data-dir
-                                                              ::styles
-                                                              ::style-dir
-                                                              ::overwrite-styles
-                                                              ::layer-groups
-                                                              ::action-hooks])
-                                          (fn [{:keys [action data-dir style-dir
-                                                       geosync-server-host geosync-server-port]}]
-                                            (or (and geosync-server-host geosync-server-port) ; Server Mode
-                                                (and (= action "add")                         ; CLI Register Mode
-                                                     (or (string? data-dir)
-                                                         (string? style-dir)))
-                                                (and (= action "remove")                      ; CLI Deregister Mode
-                                                     (and (nil? data-dir)
-                                                          (nil? style-dir)))))))
 (spec/def ::geosync-config-file (spec/keys :opt-un [::geoserver-rest-uri
                                                     ::geoserver-username
                                                     ::geoserver-password
                                                     ::geoserver-workspace
+                                                    ::geosync-server-host
+                                                    ::geosync-server-port
+                                                    ::action
                                                     ::data-dir
                                                     ::style-dir
                                                     ::overwrite-styles
-                                                    ::geosync-server-host
-                                                    ::geosync-server-port
-                                                    ::styles
                                                     ::layer-groups
+                                                    ::styles
                                                     ::action-hooks
                                                     ::file-watcher]))
+
+;; Key Combination Rules
+
+(spec/def ::geoserver-auth      (spec/keys :req-un [::geoserver-rest-uri
+                                                    ::geoserver-username
+                                                    ::geoserver-password]))
+(spec/def ::server-mode         (fn [{:keys [geosync-server-host geosync-server-port data-dir style-dir]}]
+                                  (and geosync-server-host
+                                       geosync-server-port
+                                       (nil? data-dir)
+                                       (nil? style-dir))))
+(spec/def ::cli-register-mode   (fn [{:keys [geoserver-workspace action data-dir style-dir overwrite-styles]}]
+                                  (and geoserver-workspace
+                                       (= action "add")
+                                       (or data-dir style-dir)
+                                       ;; overwrite-styles and no style-dir is the only invalid combination
+                                       (not (and overwrite-styles (nil? style-dir))))))
+(spec/def ::cli-deregister-mode (fn [{:keys [geoserver-workspace action data-dir style-dir overwrite-styles]}]
+                                  (and geoserver-workspace
+                                       (= action "remove")
+                                       (nil? data-dir)
+                                       (nil? style-dir)
+                                       (nil? overwrite-styles))))
+(spec/def ::operation-mode      (spec/or :server-mode         ::server-mode
+                                         :cli-register-mode   ::cli-register-mode
+                                         :cli-deregister-mode ::cli-deregister-mode))
+
+(spec/def ::geosync-config      (spec/and ::geosync-config-file
+                                          ::geoserver-auth
+                                          ::operation-mode))
 
 ;;===========================================================
 ;; Argument Processing
