@@ -33,10 +33,7 @@
 (spec/def ::data-dir            readable-directory?)
 (spec/def ::style-dir           readable-directory?)
 (spec/def ::overwrite-styles    boolean?)
-<<<<<<< HEAD
 (spec/def ::autostyle-layers    boolean?)
-=======
->>>>>>> e7d3c71 (making changes to cli.clj)
 (spec/def ::layer-pattern       non-empty-string?)
 (spec/def ::name                non-empty-string?)
 (spec/def ::layer-group         (spec/keys :req-un [::layer-pattern ::name]))
@@ -65,6 +62,7 @@
                                                     ::data-dir
                                                     ::style-dir
                                                     ::overwrite-styles
+                                                    ::autostyle-layers
                                                     ::layer-groups
                                                     ::styles
                                                     ::action-hooks
@@ -95,13 +93,10 @@
 (spec/def ::operation-mode      (spec/or :server-mode         ::server-mode
                                          :cli-register-mode   ::cli-register-mode
                                          :cli-deregister-mode ::cli-deregister-mode))
-<<<<<<< HEAD
 
 (spec/def ::geosync-config      (spec/and ::geosync-config-file
                                           ::geoserver-auth
                                           ::operation-mode))
-=======
->>>>>>> e7d3c71 (making changes to cli.clj)
 
 (spec/def ::geosync-config      (spec/and ::geosync-config-file
                                           ::geoserver-auth
