@@ -18,10 +18,8 @@
            :rebel            {:extra-deps {com.bhauman/rebel-readline {:mvn/version "0.1.4"}}
                               :main-opts  ["-m" "rebel-readline.main"]}
            :run              {:main-opts ["-m" "geosync.cli"]}
-           :test             {:extra-paths ["test"]
-                              :extra-deps {org.clojure/test.check {:mvn/version "0.10.0"}}}
            :runner           {:extra-deps {com.cognictect/test-runner
                                            {:git/url "https://github.com/cognitect-labs/test-runner"
                                             :sha     "dfb30dd6605cb6c0efc275e1df1736f6e90d4d73"}}
-                              :main-opts ["-m" "cognitect.test-runner"
-                                          "-d" "test"]}}}
+                              :main-opts  ["-m" "cognitect.test-runner"
+                                           "-d" "test"]}}}

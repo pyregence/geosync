@@ -222,15 +222,16 @@
    ["-d" "--data-dir DIR" "Path to the directory containing your GIS files"
     :validate [#(.exists  (io/file %)) "The provided --data-dir does not exist."
                #(.canRead (io/file %)) "The provided --data-dir is not readable."]]
-   ["-a" "--action ACTION" "GeoServer action: either \"add\" or \"remove\". Required in CLI mode."]
 
    ["-s" "--style-dir DIR" "Path to the directory containing your style files"
     :validate [#(.exists  (io/file %)) "The provided --style-dir does not exist."
                #(.canRead (io/file %)) "The provided --style-dir is not readable."]]
 
+   ["-a" "--action ACTION" "GeoServer action: either \"add\" or \"remove\". Required in CLI mode."]
+
    ["-O" "--overwrite-styles" "If true, already existing styles will have their definitions overwritten"]
 
-   ["-A", "--autostyle-layers" "If true, Geosync will match layers with existing styles based on the style and layer name"]
+   ["-A", "--autostyle-layers" "If true, Geosync will match layers with existing styles based on the style and layer names"]
 
    ["-h" "--geosync-server-host HOST" "Hostname to advertise in server responses"
     :validate [hostname? "The provided --geosync-server-host is invalid."]]

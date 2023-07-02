@@ -125,8 +125,8 @@ Usage:
   -d, --data-dir DIR              Path to the directory containing your GIS files
   -s, --style-dir DIR             Path to the directory containing your style files
   -a, --action ACTION             GeoServer action: either "add" or "remove". Required in CLI mode.
-  -A, --autostyle-layers          If true, Geosync will match layers with existing styles based on the style and layer name
   -O, --overwrite-styles          If true, already existing styles will have their definitions overwritten
+  -A, --autostyle-layers          If true, GeoSync will match layers with existing styles based on the style and layer names
   -h, --geosync-server-host HOST  Hostname to advertise in server responses
   -P, --geosync-server-port PORT  Server port to listen on for incoming requests
   -o, --log-dir PATH              Path to log files
@@ -377,22 +377,26 @@ Defaults to ~false~ if not specified.
 
 *** Autostyle Layers
 
-If you have a big number of styles and layers, you can use the ~autostyle-layers~ option of
-GeoSync. Instead of matching declaratively each ~layer-pattern~ with the corresponding style,
-you can rely on this feature.
+If you have a large number of styles and layers, you can use the ~autostyle-layers~ option of
+GeoSync. Instead of declaratively matching each ~layer-pattern~ with the corresponding style,
+you can rely on this feature to do the work for you.
 
 To use it, you must set ~autostyle-layers~ to true (using the CLI or the configuration file).
 
-GeoSync will fetch all existing styles in the current workspace and will match the layer
-name with the style name, comparing if the end of the layer name is the same as the style name
-(case insensitive).
+GeoSync will fetch all existing styles in the specified ~geoserver-workspace~ and will match each 
+newly added GIS layer with any style whose name appears in the end of the layer name. This string
+matching is case insensitive.
 
 Examples:
 
-- Layer: ~sierra-nevada-fires~, Style: ~fires~, will match
-- Layer: ~SierraNevada_Tier2_AnnualBurnProbability~, Style: ~annualburnprobability~, will match
-- Layer: ~SierraNevada_Tier2_AnnualBurnProbability~, Style: ~TIER2_ANNUALBURNPROBABILITY~, will match
-- Layer: ~SierraNevada_Tier2_AnnualBurnProbability~, Style: ~TIER1_ANNUALBURNPROBABILITY~, will not match
+|------------------------------------------+-----------------------------+--------|
+| Layer                                    | Style                       | Match? |
+|------------------------------------------+-----------------------------+--------|
+| sierra-nevada-fires                      | fires                       | Y      |
+| SierraNevada_Tier2_AnnualBurnProbability | annualburnprobability       | Y      |
+| SierraNevada_Tier2_AnnualBurnProbability | TIER2_ANNUALBURNPROBABILITY | Y      |
+| SierraNevada_Tier2_AnnualBurnProbability | TIER1_ANNUALBURNPROBABILITY | N      |
+|------------------------------------------+-----------------------------+--------|
 
 ** Using Custom Projections
 
