@@ -208,7 +208,7 @@
   (let [layer-name (s/lower-case layer-name)]
     (cond
       style            style
-      autostyle-layers (first (filter #(s/ends-with? layer-name %) existing-styles))
+      autostyle-layers (first (filter #(s/ends-with? (s/lower-case layer-name) (s/lower-case %)) existing-styles))
       :else            nil)))
 
 (defn file-spec->layer-specs
@@ -405,7 +405,7 @@
         existing-layer-groups (if ws-exists? (get-existing-layer-groups config-params) #{})
         existing-styles       (if ws-exists? (get-existing-styles config-params) #{})
         style-specs           (file-paths->style-specs config-params existing-styles style-file-paths)
-        all-styles            (set (map s/lower-case (concat existing-styles (map get-style-name style-file-paths))))
+        all-styles            (concat existing-styles (map get-style-name style-file-paths))
         layer-specs           (file-specs->layer-specs config-params existing-stores all-styles gis-file-specs)
         layer-group-specs     (file-specs->layer-group-specs config-params existing-stores existing-layer-groups gis-file-specs)
         rest-specs            (-> (group-by get-spec-type (concat layer-specs style-specs))
