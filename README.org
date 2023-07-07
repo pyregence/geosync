@@ -101,6 +101,13 @@ include = 'performance.conf'
 Note that the PostgreSQL server will need to be restarted for these
 changes to take effect.
 
+*** Testing
+
+GeoSync comes with a test suite. You can run it with `clojure -M:test:runner`.
+
+As we improve de codebase, more tests should be written and code-coverage will
+increase, making sure we don´t see any regressions.
+
 ** Quickstart
 
 To compile and run the application, navigate to the top level project
@@ -126,6 +133,7 @@ Usage:
   -s, --style-dir DIR             Path to the directory containing your style files
   -a, --action ACTION             GeoServer action: either "add" or "remove". Required in CLI mode.
   -O, --overwrite-styles          If true, already existing styles will have their definitions overwritten
+  -A, --autostyle-layers          If true, GeoSync will match layers with existing styles based on the style and layer names
   -h, --geosync-server-host HOST  Hostname to advertise in server responses
   -P, --geosync-server-port PORT  Server port to listen on for incoming requests
   -o, --log-dir PATH              Path to log files
@@ -373,6 +381,29 @@ already exists in the provided ~:geoserver-workspace~ and we have a style file o
 the same name in ~:style-dir~. If both of these cases are hit, the GeoServer style
 will be overwritten with the latest style provided in the corresponding ~.css~ file.
 Defaults to ~false~ if not specified.
+
+*** Autostyle Layers
+
+If you have a large number of styles and layers, you can use the ~autostyle-layers~ option of
+GeoSync. Instead of declaratively matching each ~layer-pattern~ with the corresponding style,
+you can rely on this feature to do the work for you.
+
+To use it, you must set ~autostyle-layers~ to true (using the CLI or the configuration file).
+
+GeoSync will fetch all existing styles in the specified ~geoserver-workspace~ and will match each 
+newly added GIS layer with any style whose name appears in the end of the layer name. This string
+matching is case insensitive.
+
+Examples:
+
+|------------------------------------------+-----------------------------+--------|
+| Layer                                    | Style                       | Match? |
+|------------------------------------------+-----------------------------+--------|
+| sierra-nevada-fires                      | fires                       | Y      |
+| SierraNevada_Tier2_AnnualBurnProbability | annualburnprobability       | Y      |
+| SierraNevada_Tier2_AnnualBurnProbability | TIER2_ANNUALBURNPROBABILITY | Y      |
+| SierraNevada_Tier2_AnnualBurnProbability | TIER1_ANNUALBURNPROBABILITY | N      |
+|------------------------------------------+-----------------------------+--------|
 
 ** Using Custom Projections
 
