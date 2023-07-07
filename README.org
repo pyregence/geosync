@@ -101,6 +101,13 @@ include = 'performance.conf'
 Note that the PostgreSQL server will need to be restarted for these
 changes to take effect.
 
+*** Testing
+
+GeoSync comes with a test suite. You can run it with `clojure -M:test:runner`.
+
+As we improve de codebase, more tests should be written and code-coverage will
+increase, making sure we don´t see any regressions.
+
 ** Quickstart
 
 To compile and run the application, navigate to the top level project

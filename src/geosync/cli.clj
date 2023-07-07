@@ -98,10 +98,6 @@
                                           ::geoserver-auth
                                           ::operation-mode))
 
-(spec/def ::geosync-config      (spec/and ::geosync-config-file
-                                          ::geoserver-auth
-                                          ::operation-mode))
-
 ;;===========================================================
 ;; Argument Processing
 ;;===========================================================
