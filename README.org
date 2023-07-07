@@ -105,8 +105,8 @@ changes to take effect.
 
 GeoSync comes with a test suite. You can run it with `clojure -M:test:runner`.
 
-As we improve de codebase, more tests should be written and code-coverage will
-increase, making sure we don´t see any regressions.
+As we improve and expand upon the codebase, more tests will be written in order
+to increase code-coverage and make sure that we don't introduce any regressions.
 
 ** Quickstart
 
