@@ -374,16 +374,17 @@
                   "/featuretypes/"       :delete-feature-type)))))
 
 (defn get-style-name
-  [file-path]
-  (-> file-path
-      (io/file)
-      (.getName)
-      (s/split #"\.")
-      (first)))
+  [workspace-name file-path]
+  (let [style-name (-> file-path
+                       (io/file)
+                       (.getName)
+                       (s/split #"\.")
+                       (first))]
+    (str workspace-name "_" style-name)))
 
 (defn file-path->style-spec
   [{:keys [geoserver-workspace overwrite-styles]} file-path existing-styles]
-  (let [style-name (get-style-name file-path)
+  (let [style-name (get-style-name geoserver-workspace file-path)
         exists?    (contains? existing-styles style-name)]
     (cond
       (not exists?)                  (rest/create-style geoserver-workspace style-name file-path)
@@ -405,7 +406,7 @@
         existing-layer-groups (if ws-exists? (get-existing-layer-groups config-params) #{})
         existing-styles       (if ws-exists? (get-existing-styles config-params) #{})
         style-specs           (file-paths->style-specs config-params existing-styles style-file-paths)
-        all-styles            (concat existing-styles (map get-style-name style-file-paths))
+        all-styles            (concat existing-styles (map #(get-style-name geoserver-workspace %) style-file-paths))
         layer-specs           (file-specs->layer-specs config-params existing-stores all-styles gis-file-specs)
         layer-group-specs     (file-specs->layer-group-specs config-params existing-stores existing-layer-groups gis-file-specs)
         rest-specs            (-> (group-by get-spec-type (concat layer-specs style-specs))
