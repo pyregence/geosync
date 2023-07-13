@@ -205,7 +205,7 @@
 
 (defn get-matching-style
   [layer-name style existing-styles autostyle-layers]
-  (let [layer-name  (s/lower-case layer-name)]
+  (let [layer-name (s/lower-case layer-name)]
     (cond
       style            style
       autostyle-layers (first (filter #(s/ends-with? layer-name (s/lower-case (last (s/split % #":")))) existing-styles))
@@ -374,6 +374,9 @@
                   "/featuretypes/"       :delete-feature-type)))))
 
 (defn get-style-name
+  "Returns the style name, given a target workspace and a file path.
+   We are prepending the workspace name to the final style name because
+   GeoServer does not support styles with the same name across workspaces."
   [workspace-name file-path]
   (let [style-name (-> file-path
                        (io/file)
