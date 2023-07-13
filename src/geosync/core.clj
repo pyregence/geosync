@@ -205,10 +205,10 @@
 
 (defn get-matching-style
   [layer-name style existing-styles autostyle-layers]
-  (let [layer-name (s/lower-case layer-name)]
+  (let [layer-name  (s/lower-case layer-name)]
     (cond
       style            style
-      autostyle-layers (first (filter #(s/ends-with? (s/lower-case layer-name) (s/lower-case %)) existing-styles))
+      autostyle-layers (first (filter #(s/ends-with? layer-name (s/lower-case (last (s/split % #":")))) existing-styles))
       :else            nil)))
 
 (defn file-spec->layer-specs
@@ -380,7 +380,7 @@
                        (.getName)
                        (s/split #"\.")
                        (first))]
-    (str workspace-name "_" style-name)))
+    (str workspace-name ":" style-name)))
 
 (defn file-path->style-spec
   [{:keys [geoserver-workspace overwrite-styles]} file-path existing-styles]
