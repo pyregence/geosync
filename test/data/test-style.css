@@ -1,16 +1,15 @@
 * {
-raster-channels: auto;
-raster-color-map: 	
-	color-map-entry(#000000, -340282306073709652508363335590014353408.00, 0, "nodata")
-	color-map-entry(#7a0403, 0.01, 1)
-	color-map-entry(#d93807, 0.03, 1)
-	color-map-entry(#fe992c, 0.04, 1)
-	color-map-entry(#d3e835, 0.06, 1)
-	color-map-entry(#64fd6a, 0.07, 1)
-	color-map-entry(#4777ef, 0.09, 1)
-	color-map-entry(#30123b, 0.10, 1);
-raster-color-map-type: ramp;
-raster-contrast-enhancement: none;
-raster-gamma: 1.0;
+	raster-channels: auto;
+	raster-color-map:
+		color-map-entry(#000000, -340282306073709652508363335590014353408.00, 0, "nodata")
+		color-map-entry(#7a0403, 0.01, 1)
+		color-map-entry(#d93807, 0.03, 1)
+		color-map-entry(#fe992c, 0.04, 1)
+		color-map-entry(#d3e835, 0.06, 1)
+		color-map-entry(#64fd6a, 0.07, 1)
+		color-map-entry(#4777ef, 0.09, 1)
+		color-map-entry(#30123b, 0.10, 1);
+	raster-color-map-type: ramp;
+	raster-contrast-enhancement: none;
+	raster-gamma: 1.0;
 }
-    
