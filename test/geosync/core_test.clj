@@ -26,8 +26,8 @@
     (is (= "sierra-nevada:test-style" (core/get-style-name "sierra-nevada" "test/data/test-style.css")))
     (is (= "other-workspace:test-style" (core/get-style-name "other-workspace" "test/data/test-style.css")))
     (is (= "another-workspace_:test-style" (core/get-style-name "another-workspace_" "test/data/test-style.css")))
-    (is (= ":test-style" (core/get-style-name nil "test/data/test-style.css")))
-    (is (= ":test-style" (core/get-style-name "" "test/data/test-style.css")))))
+    (is (= "test-style" (core/get-style-name nil "test/data/test-style.css")))
+    (is (= "test-style" (core/get-style-name "" "test/data/test-style.css")))))
 
 
 (deftest file-path->style-spec-test

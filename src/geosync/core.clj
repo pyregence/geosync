@@ -383,7 +383,9 @@
                        (.getName)
                        (s/split #"\.")
                        (first))]
-    (str workspace-name ":" style-name)))
+    (cond
+      (s/blank? workspace-name) style-name
+      :else                     (str workspace-name ":" style-name))))
 
 (defn file-path->style-spec
   [{:keys [geoserver-workspace overwrite-styles]} file-path existing-styles]
