@@ -208,7 +208,7 @@
   (let [layer-name (s/lower-case layer-name)]
     (cond
       style            style
-      autostyle-layers (first (filter #(s/ends-with? (s/lower-case layer-name) (s/lower-case %)) existing-styles))
+      autostyle-layers (first (filter #(s/ends-with? layer-name (s/lower-case (last (s/split % #":")))) existing-styles))
       :else            nil)))
 
 (defn file-spec->layer-specs
@@ -374,16 +374,22 @@
                   "/featuretypes/"       :delete-feature-type)))))
 
 (defn get-style-name
-  [file-path]
-  (-> file-path
-      (io/file)
-      (.getName)
-      (s/split #"\.")
-      (first)))
+  "Returns the style name, given a target workspace and a file path.
+   We are prepending the workspace name to the final style name because
+   GeoServer does not support styles with the same name across workspaces."
+  [workspace-name file-path]
+  (let [style-name (-> file-path
+                       (io/file)
+                       (.getName)
+                       (s/split #"\.")
+                       (first))]
+    (cond
+      (s/blank? workspace-name) style-name
+      :else                     (str workspace-name ":" style-name))))
 
 (defn file-path->style-spec
   [{:keys [geoserver-workspace overwrite-styles]} file-path existing-styles]
-  (let [style-name (get-style-name file-path)
+  (let [style-name (get-style-name geoserver-workspace file-path)
         exists?    (contains? existing-styles style-name)]
     (cond
       (not exists?)                  (rest/create-style geoserver-workspace style-name file-path)
@@ -405,7 +411,7 @@
         existing-layer-groups (if ws-exists? (get-existing-layer-groups config-params) #{})
         existing-styles       (if ws-exists? (get-existing-styles config-params) #{})
         style-specs           (file-paths->style-specs config-params existing-styles style-file-paths)
-        all-styles            (concat existing-styles (map get-style-name style-file-paths))
+        all-styles            (concat existing-styles (map #(get-style-name geoserver-workspace %) style-file-paths))
         layer-specs           (file-specs->layer-specs config-params existing-stores all-styles gis-file-specs)
         layer-group-specs     (file-specs->layer-group-specs config-params existing-stores existing-layer-groups gis-file-specs)
         rest-specs            (-> (group-by get-spec-type (concat layer-specs style-specs))

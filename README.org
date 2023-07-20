@@ -235,6 +235,9 @@ both of the following two parameters:
 If ~style-dir~ is provided, you may also choose to set
 ~overwrite-styles~ to ~true~ or ~false~.
 
+You can also set ~autostyle-layers~ option to true. If you do, GeoSync will
+automatically assign existing or new styles to the layers being loaded.
+
 Refer to the usage message in the [[Quickstart]] section above for more
 details on each argument.
 
@@ -372,6 +375,14 @@ under the ~:geoserver-workspace~ specified in your ~.edn~ config file. If you in
 both a ~:style-dir~ and a ~:data-dir~, then your CSS styles and your GIS layers will
 both be added under the same ~:geoserver-workspace~.
 
+When using this option, styles will be created on GeoServer with their name prepended
+with the workspace name, using ~:~ as separator. Example, if your workspace is named
+~sierra-nevada~ and your style ~habitat-connectivity~, the final style name will be 
+~sierra-nevada:habitat-connectivity~. This is because GeoServer has a long standing
+[bug](https://osgeo-org.atlassian.net/browse/GEOS-9166) that will prevent it from
+assigning the correctly style if have multiple styles with the same name (even across
+different workspaces).
+
 *** ~:overwrite-styles~
 If you wish to overwrite any already existing GeoServer styles with updates to the
 styles made inside of the ~.css~ files in your ~:style-dir~, you can leverage a parameter
@@ -382,7 +393,9 @@ the same name in ~:style-dir~. If both of these cases are hit, the GeoServer sty
 will be overwritten with the latest style provided in the corresponding ~.css~ file.
 Defaults to ~false~ if not specified.
 
-*** Autostyle Layers
+This option is not available when ~:style-dir~ is not set.
+
+*** :autostyle-layers
 
 If you have a large number of styles and layers, you can use the ~autostyle-layers~ option of
 GeoSync. Instead of declaratively matching each ~layer-pattern~ with the corresponding style,
@@ -396,14 +409,14 @@ matching is case insensitive.
 
 Examples:
 
-|------------------------------------------+-----------------------------+--------|
-| Layer                                    | Style                       | Match? |
-|------------------------------------------+-----------------------------+--------|
-| sierra-nevada-fires                      | fires                       | Y      |
-| SierraNevada_Tier2_AnnualBurnProbability | annualburnprobability       | Y      |
-| SierraNevada_Tier2_AnnualBurnProbability | TIER2_ANNUALBURNPROBABILITY | Y      |
-| SierraNevada_Tier2_AnnualBurnProbability | TIER1_ANNUALBURNPROBABILITY | N      |
-|------------------------------------------+-----------------------------+--------|
+|------------------------------------------+-------------------------------------------+--------|
+| Layer                                    | Style                                     | Match? |
+|------------------------------------------+-------------------------------------------+--------|
+| sierra-nevada-fires                      | sierra-nevada:fires                       | Y      |
+| SierraNevada_Tier2_AnnualBurnProbability | sierra-nevada:annualburnprobability       | Y      |
+| SierraNevada_Tier2_AnnualBurnProbability | sierra-nevada:TIER2_ANNUALBURNPROBABILITY | Y      |
+| SierraNevada_Tier2_AnnualBurnProbability | sierra-nevada:TIER1_ANNUALBURNPROBABILITY | N      |
+|------------------------------------------+-------------------------------------------+--------|
 
 ** Using Custom Projections
 
