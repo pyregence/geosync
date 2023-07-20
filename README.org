@@ -46,7 +46,7 @@ the GeoServer to support ImageMosaic rasters. Once the PostgreSQL
 database server is running on your machine, you can initialize a
 GeoSync database in it by performing the following steps.
 
-*** Configure database connection settings in config.edn
+*** Configure Database Connection Settings in config.edn
 
 GeoSync looks for a file called ~config.edn~ in the top level
 directory of this repository and reads it in to load the database
@@ -57,7 +57,7 @@ A sample file called ~config.default.edn~ is provided with this
 repository to get you started. To begin, simply copy it to
 ~config.edn~. Then edit it as necessary for your local setup.
 
-*** Create and populate the database
+*** Create and Populate the Database
 
 Once your ~config.edn~ file has been prepared, you can navigate to the
 top level repository directory and run the database build command as
@@ -103,7 +103,11 @@ changes to take effect.
 
 *** Testing
 
-GeoSync comes with a test suite. You can run it with `clojure -M:test:runner`.
+GeoSync comes with a test suite. You can run it with this command:
+
+#+begin_src sh
+clojure -M:test:runner
+#+end_src
 
 As we improve and expand upon the codebase, more tests will be written in order
 to increase code-coverage and make sure that we don't introduce any regressions.
@@ -332,7 +336,7 @@ these log files is: ~YYYY-MM-DD.log~.
 
 ** Styles
 
-*** ~:styles~
+*** :styles
 There are a few ways to interface with GeoServer styles using GeoSync.
 The most simple way is by using a ~:styles~ key-value pair in your ~.edn~
 configuration file. To use this key-value pair, the value associated with the
@@ -351,7 +355,7 @@ on the type of layer -- which will be determined automatically by GeoSync).
 Please see [[file:resources/sample-config.edn][resources/sample-config.edn]]
 for a concrete example of how to use the ~:styles~ key.
 
-*** ~:style-dir~
+*** :style-dir
 If you don't wish to manually add any of the styles laid out in your ~:styles~
 key to your GeoServer, it's possible to sync styles to GeoServer using the ~:style-dir~
 key in your ~.edn~ file. When you configure a ~:style-dir~ (also available with the ~-s~
@@ -379,11 +383,10 @@ When using this option, styles will be created on GeoServer with their name prep
 with the workspace name, using ~:~ as separator. Example, if your workspace is named
 ~sierra-nevada~ and your style ~habitat-connectivity~, the final style name will be 
 ~sierra-nevada:habitat-connectivity~. This is because GeoServer has a long standing
-[bug](https://osgeo-org.atlassian.net/browse/GEOS-9166) that will prevent it from
-assigning the correctly style if have multiple styles with the same name (even across
-different workspaces).
+[[https://osgeo-org.atlassian.net/browse/GEOS-9166][bug]] that will prevent it from assigning the correctly style if have multiple styles
+with the same name (even across different workspaces).
 
-*** ~:overwrite-styles~
+*** :overwrite-styles
 If you wish to overwrite any already existing GeoServer styles with updates to the
 styles made inside of the ~.css~ files in your ~:style-dir~, you can leverage a parameter
 called ~:overwrite-styles~ (also available with the ~-O~ or ~--overwrite-styles~ option in the CLI).
