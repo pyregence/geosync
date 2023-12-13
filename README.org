@@ -381,7 +381,7 @@ both be added under the same ~:geoserver-workspace~.
 
 When using this option, styles will be created on GeoServer with their name prepended
 with the workspace name, using ~:~ as separator. Example, if your workspace is named
-~sierra-nevada~ and your style ~habitat-connectivity~, the final style name will be 
+~sierra-nevada~ and your style ~habitat-connectivity~, the final style name will be
 ~sierra-nevada:habitat-connectivity~. This is because GeoServer has a long standing
 [[https://osgeo-org.atlassian.net/browse/GEOS-9166][bug]] that will prevent it from assigning the correctly style if have multiple styles
 with the same name (even across different workspaces).
@@ -406,7 +406,7 @@ you can rely on this feature to do the work for you.
 
 To use it, you must set ~autostyle-layers~ to true (using the CLI or the configuration file).
 
-GeoSync will fetch all existing styles in the specified ~geoserver-workspace~ and will match each 
+GeoSync will fetch all existing styles in the specified ~geoserver-workspace~ and will match each
 newly added GIS layer with any style whose name appears in the end of the layer name. This string
 matching is case insensitive.
 
@@ -420,6 +420,11 @@ Examples:
 | SierraNevada_Tier2_AnnualBurnProbability | sierra-nevada:TIER2_ANNUALBURNPROBABILITY | Y      |
 | SierraNevada_Tier2_AnnualBurnProbability | sierra-nevada:TIER1_ANNUALBURNPROBABILITY | N      |
 |------------------------------------------+-------------------------------------------+--------|
+
+** Layer Rules
+
+*** :layer
+[[https://docs.geoserver.org/stable/en/user/security/layer.html][some text]]
 
 ** Using Custom Projections
 

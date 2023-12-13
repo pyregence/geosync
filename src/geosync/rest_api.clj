@@ -843,12 +843,13 @@
    (str "/security/acl/layers/" layer-rule)])
 
 (defn add-layer-rules
-  [layer-rules role]
+  [layer-rules]
   ["POST"
    "/security/acl/layers"
    (xml
     [:rules
-     (map (fn [layer-rule] [:rule {:resource layer-rule} role])
+     (map (fn [{:keys [layer-rule role]}]
+            [:rule {:resource layer-rule} role])
           layer-rules)])])
 
 (defn get-layer-rules

@@ -52,6 +52,11 @@
 (spec/def ::folder-name->regex  (spec/map-of string? string?))
 (spec/def ::file-watcher        (spec/keys :req-un [::dir
                                                     ::folder-name->regex]))
+(spec/def ::workspace-regex     re-pattern)
+(spec/def ::associated-rule     (spec/keys :req-un [::layer-rule ::role]))
+(spec/def ::associated-rules    (spec/coll-of ::associated-rule :kind vector? :distinct true))
+(spec/def ::one-layer-rule      (spec/keys :req-un [::workspace-regex ::associated-rules]))
+(spec/def ::layer-rules         (spec/coll-of ::one-layer-rule :kind vector? :distinct true))
 (spec/def ::geosync-config-file (spec/keys :opt-un [::geoserver-rest-uri
                                                     ::geoserver-username
                                                     ::geoserver-password
@@ -66,7 +71,8 @@
                                                     ::layer-groups
                                                     ::styles
                                                     ::action-hooks
-                                                    ::file-watcher]))
+                                                    ::file-watcher
+                                                    ::layer-rules]))
 
 ;; Key Combination Rules
 

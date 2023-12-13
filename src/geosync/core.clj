@@ -343,6 +343,18 @@
     (:workspaces %)
     (:workspace %)))
 
+(defn get-existing-layer-rules
+  "Gets existing layer rules and returns them in a vector of maps of the format:
+   [{:layer-rule \"*.*.r\", :role \"ROLE_ANONYMOUS\"
+    {:layer-rule \"*.*.w\", :role \"GROUP_ADMIN,ADMIN\"}]"
+  [config-params]
+  (as-> (rest/get-layer-rules) %
+    (make-rest-request config-params %)
+    (:body %)
+    (json/read-str % :key-fn keyword)
+    (for [[layer-rule role] %]
+      {:layer-rule (name layer-rule) :role role})))
+
 (defn workspace-exists?
   [{:keys [geoserver-workspace] :as config-params}]
   (as-> (rest/get-workspace geoserver-workspace) %
@@ -360,7 +372,8 @@
                   "/coverages"           :create-coverage
                   "/datastores"          :create-data-store
                   "/featuretypes"        :create-feature-type-alias
-                  "/styles"              :create-style)
+                  "/styles"              :create-style
+                  "/security/acl/layers" :add-layer-rules)
        "PUT"    (condp #(s/includes? %2 %1) uri-suffix
                   "external.imagemosaic" :create-coverage-store-image-mosaic
                   "external.geotiff"     :create-coverage-via-put
@@ -400,6 +413,31 @@
   [config-params existing-styles style-file-paths]
   (keep #(file-path->style-spec config-params % existing-styles) style-file-paths))
 
+(defn layer-rules->layer-rules-specs
+  "Matches the given `geoserver-workspace` to the `:workspace-regex` value provided
+   in the `:layer-rules` section of the config file and returns the rules associated
+   with that entry in the map. Note that each `:layer-rule` should have the string
+   \"geoserver-workspace\" in it in order to be replaced with the actual workspace.
+   Any already `existing-layer-rules` are removed from `matching-layer-rules`.
+   Example `final-layer-rules` format:
+   [{:layer-rule \"fire-risk-forecast_nve_20231213_00.*.r\" :role \"NVE\"}
+    {:layer-rule \"fire-risk-forecast_nve_20231213_00.*.w\" :role \"NVE\"}]"
+  [{:keys [geoserver-workspace layer-rules]} existing-layer-rules]
+  (let [matching-layer-rules (some->> layer-rules
+                                      (filter #(re-matches (:workspace-regex %) geoserver-workspace))
+                                      (first)
+                                      (:associated-rules)
+                                      (map (fn [rule]
+                                             (update rule :layer-rule #(s/replace % #"geoserver-workspace" geoserver-workspace)))))
+        final-layer-rules   (remove (fn [matching-rule]
+                                      (some (fn [existing-rule]
+                                              (= existing-rule matching-rule))
+                                            existing-layer-rules))
+                                    matching-layer-rules)]
+    (if-not (empty? final-layer-rules)
+      (rest/add-layer-rules final-layer-rules)
+      nil)))
+
 (defn file-specs->rest-specs
   "Generates a sequence of REST request specifications as tuples of
   [http-method uri-suffix http-body content-type]. Each file-spec may
@@ -407,14 +445,17 @@
   of these REST specs grouped by spec type."
   [{:keys [geoserver-workspace] :as config-params} gis-file-specs style-file-paths]
   (let [ws-exists?            (workspace-exists? config-params)
+        layer-rules?          (some? (:layer-rules config-params))
         existing-stores       (if ws-exists? (get-existing-stores config-params) #{})
         existing-layer-groups (if ws-exists? (get-existing-layer-groups config-params) #{})
         existing-styles       (if ws-exists? (get-existing-styles config-params) #{})
+        existing-layer-rules  (if layer-rules? (get-existing-layer-rules config-params) [])
+        layer-rule-specs      (if layer-rules? (layer-rules->layer-rules-specs config-params existing-layer-rules) nil)
         style-specs           (file-paths->style-specs config-params existing-styles style-file-paths)
         all-styles            (concat existing-styles (map #(get-style-name geoserver-workspace %) style-file-paths))
         layer-specs           (file-specs->layer-specs config-params existing-stores all-styles gis-file-specs)
         layer-group-specs     (file-specs->layer-group-specs config-params existing-stores existing-layer-groups gis-file-specs)
-        rest-specs            (-> (group-by get-spec-type (concat layer-specs style-specs))
+        rest-specs            (-> (group-by get-spec-type (concat layer-specs style-specs layer-rule-specs))
                                   (assoc :create-layer-group layer-group-specs))]
     (if ws-exists?
       rest-specs
@@ -594,7 +635,8 @@
                                                :delete-layer
                                                :delete-feature-type
                                                :update-layer-style
-                                               :create-layer-group])))
+                                               :create-layer-group
+                                               :add-layer-rules])))
          wms-response-codes  (tufte/p :wms-requests
                                       (client/with-async-connection-pool {:insecure? true}
                                         (make-parallel-wms-requests config-params wms-specs)))
