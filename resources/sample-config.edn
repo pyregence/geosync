@@ -23,8 +23,8 @@
                         :associated-rules [{:layer-rule "geoserver-workspace.*.r" :role "NVE"}
                                            {:layer-rule "geoserver-workspace.*.w" :role "NVE"}]}
                        {:workspace-regex  #"^psps-static_nve$"
-                        :associated-rules [{:layer-rule "geoserver-workspace.*.r" :role "NVE"}
-                                           {:layer-rule "geoserver-workspace.*.w" :role "NVE"}]}]
+                        :associated-rules [{:layer-rule "geoserver-workspace.*.r" :role "NVE,GROUP_ADMIN"}
+                                           {:layer-rule "geoserver-workspace.*.w" :role "NVE,GROUP_ADMIN"}]}]
  :log-dir             "logs"
  :styles              [{:layer-pattern "fire-area"            :raster-style "fire-area"           :vector-style "line-fire-area"}
                        {:layer-pattern "fire-volume"          :raster-style "fire-volume"         :vector-style "line-fire-volume"}

@@ -413,27 +413,34 @@
   [config-params existing-styles style-file-paths]
   (keep #(file-path->style-spec config-params % existing-styles) style-file-paths))
 
-(defn layer-rules->layer-rules-specs
+(defn get-matching-layer-rules
   "Matches the given `geoserver-workspace` to the `:workspace-regex` value provided
    in the `:layer-rules` section of the config file and returns the rules associated
    with that entry in the map. Note that each `:layer-rule` should have the string
    \"geoserver-workspace\" in it in order to be replaced with the actual workspace.
-   Any already `existing-layer-rules` are removed from `matching-layer-rules`.
+   Also note that each `:workspace-regex` should be unique from every other `:workspace-regex`
+   in the `:layer-rules` entry, thus it's safe to call `first` on the matching regex."
+  [geoserver-workspace layer-rules]
+  (some->> layer-rules
+    (filter #(re-matches (:workspace-regex %) geoserver-workspace))
+    (first)
+    (:associated-rules)
+    (map (fn [rule]
+           (update rule :layer-rule #(s/replace % #"geoserver-workspace" geoserver-workspace))))))
+
+(defn layer-rules->layer-rules-specs
+  "Determines any new layer rules that need to be added. Doesn't add any
+   layer rules that already exist on the GeoServer.
    Example `final-layer-rules` format:
    [{:layer-rule \"fire-risk-forecast_nve_20231213_00.*.r\" :role \"NVE\"}
     {:layer-rule \"fire-risk-forecast_nve_20231213_00.*.w\" :role \"NVE\"}]"
   [{:keys [geoserver-workspace layer-rules]} existing-layer-rules]
-  (let [matching-layer-rules (some->> layer-rules
-                                      (filter #(re-matches (:workspace-regex %) geoserver-workspace))
-                                      (first)
-                                      (:associated-rules)
-                                      (map (fn [rule]
-                                             (update rule :layer-rule #(s/replace % #"geoserver-workspace" geoserver-workspace)))))
-        final-layer-rules   (remove (fn [matching-rule]
-                                      (some (fn [existing-rule]
-                                              (= existing-rule matching-rule))
-                                            existing-layer-rules))
-                                    matching-layer-rules)]
+  (let [matching-layer-rules (get-matching-layer-rules geoserver-workspace layer-rules)
+        final-layer-rules    (remove (fn [matching-rule]
+                                       (some (fn [existing-rule]
+                                               (= existing-rule matching-rule))
+                                             existing-layer-rules))
+                                     matching-layer-rules)]
     (if-not (empty? final-layer-rules)
       (rest/add-layer-rules final-layer-rules)
       nil)))
@@ -667,16 +674,31 @@
 
 (defn remove-workspace!
   [{:keys [geoserver-workspace] :as config-params}]
-  (let [workspaces (->> (get-existing-workspaces config-params)
-                        (map :name)
-                        (filter (fn [w] (re-matches (re-pattern geoserver-workspace) w))))]
+  (let [workspaces            (->> (get-existing-workspaces config-params)
+                                   (map :name)
+                                   (filter (fn [w] (re-matches (re-pattern geoserver-workspace) w))))
+        layer-rules?          (some? (:layer-rules config-params))]
     (log (str (count workspaces) " workspaces are queued to be removed."))
-    (reduce (fn [acc cur]
-              (call-sql "drop_existing_schema" cur)
-              (->> (rest/delete-workspace cur true)
-                   (make-rest-request config-params)
-                   (:status)
-                   (success-code?)
-                   (and acc)))
+    (reduce (fn [acc current-workspace]
+              (call-sql "drop_existing_schema" current-workspace)
+              (let [delete-workspace-success?  (->> (rest/delete-workspace current-workspace true)
+                                                    (make-rest-request config-params)
+                                                    (:status)
+                                                    (success-code?))
+                    matching-layer-rules       (when layer-rules?
+                                                 (get-matching-layer-rules current-workspace (:layer-rules config-params)))
+                    layer-rules-to-delete      (when matching-layer-rules
+                                                 (map #(:layer-rule %) matching-layer-rules))
+                    delete-layer-rule-success? (if (empty? layer-rules-to-delete)
+                                                 true
+                                                 (let [request-success-vec (map #(->> (rest/delete-layer-rule %)
+                                                                                      (make-rest-request config-params)
+                                                                                      (:status)
+                                                                                      (success-code?))
+                                                                                layer-rules-to-delete)]
+                                                   (every? true? request-success-vec)))]
+                (when delete-layer-rule-success?
+                  (log (str (count layer-rules-to-delete) " layer rules were removed.")))
+                (and delete-workspace-success? delete-layer-rule-success? acc)))
             true
             workspaces)))

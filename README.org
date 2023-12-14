@@ -423,8 +423,13 @@ Examples:
 
 ** Layer Rules
 
-*** :layer
+*** :layer-rules
 [[https://docs.geoserver.org/stable/en/user/security/layer.html][some text]]
+
+TODO expand on this
+each workspace-regex string is expected to be unique (mutually exclusive from all others)
+Multiple roles can be provided in this string, separated by commas (e.g. "ROLE_ONE,ROLE_TWO").
+Mention that when workspaces are removed, any associated layer rules are also deleted
 
 ** Using Custom Projections
 
