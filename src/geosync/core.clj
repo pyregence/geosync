@@ -423,7 +423,7 @@
    in the `:layer-rules` entry, thus it's safe to call `first` on the matching regex."
   [geoserver-workspace layer-rules]
   (some->> layer-rules
-    (filter #(re-matches (:workspace-regex %) geoserver-workspace))
+    (filter #(re-matches (re-pattern (:workspace-regex %)) geoserver-workspace))
     (first)
     (:associated-rules)
     (map (fn [rule]

@@ -13,16 +13,16 @@
  :data-dir            "/data"
  :style-dir           "/styles"
  :overwrite-styles    true
- :layer-rules         [{:workspace-regex  #"^fire-risk-forecast_liberty_\d{8}_\d{2}$"
+ :layer-rules         [{:workspace-regex  "^fire-risk-forecast_liberty_\\d{8}_\\d{2}$"
                         :associated-rules [{:layer-rule "geoserver-workspace.*.r" :role "LIBERTY"}
                                            {:layer-rule "geoserver-workspace.*.w" :role "LIBERTY"}]}
-                       {:workspace-regex  #"^psps-static_liberty$"
+                       {:workspace-regex  "^psps-static_liberty$"
                         :associated-rules [{:layer-rule "geoserver-workspace.*.r" :role "LIBERTY"}
                                            {:layer-rule "geoserver-workspace.*.w" :role "LIBERTY"}]}
-                       {:workspace-regex  #"^fire-risk-forecast_nve_\d{8}_\d{2}$"
+                       {:workspace-regex  "^fire-risk-forecast_nve_\\d{8}_\\d{2}$"
                         :associated-rules [{:layer-rule "geoserver-workspace.*.r" :role "NVE"}
                                            {:layer-rule "geoserver-workspace.*.w" :role "NVE"}]}
-                       {:workspace-regex  #"^psps-static_nve$"
+                       {:workspace-regex  "^psps-static_nve$"
                         :associated-rules [{:layer-rule "geoserver-workspace.*.r" :role "NVE,GROUP_ADMIN"}
                                            {:layer-rule "geoserver-workspace.*.w" :role "NVE,GROUP_ADMIN"}]}]
  :log-dir             "logs"

@@ -52,7 +52,7 @@
 (spec/def ::folder-name->regex  (spec/map-of string? string?))
 (spec/def ::file-watcher        (spec/keys :req-un [::dir
                                                     ::folder-name->regex]))
-(spec/def ::workspace-regex     re-pattern)
+(spec/def ::workspace-regex     non-empty-string?)
 (spec/def ::associated-rule     (spec/keys :req-un [::layer-rule ::role]))
 (spec/def ::associated-rules    (spec/coll-of ::associated-rule :kind vector? :distinct true))
 (spec/def ::one-layer-rule      (spec/keys :req-un [::workspace-regex ::associated-rules]))
