@@ -6,6 +6,7 @@
   (:require [clj-http.client     :as client]
             [clojure.data.json   :as json]
             [clojure.java.io     :as io]
+            [clojure.set         :as set]
             [clojure.string      :as s]
             [geosync.rest-api    :as rest]
             [geosync.utils       :refer [nil-on-error url-path]]
@@ -685,10 +686,12 @@
                                                     (make-rest-request config-params)
                                                     (:status)
                                                     (success-code?))
-                    matching-layer-rules       (when layer-rules?
-                                                 (get-matching-layer-rules current-workspace (:layer-rules config-params)))
-                    layer-rules-to-delete      (when matching-layer-rules
-                                                 (map #(:layer-rule %) matching-layer-rules))
+                    existing-layer-rules      (when layer-rules?
+                                                (get-existing-layer-rules (:layer-rules config-params)))
+                    layer-rules-to-delete     (->> existing-layer-rules
+                                                   (filter #(let [[rule-workspace _ _] (s/split (:layer-rule %) #"\.")]
+                                                              (= rule-workspace current-workspace)))
+                                                   (map :layer-rule))
                     delete-layer-rule-success? (if (empty? layer-rules-to-delete)
                                                  true
                                                  (let [request-success-vec (map #(->> (rest/delete-layer-rule %)
