@@ -421,17 +421,6 @@ Examples:
 | SierraNevada_Tier2_AnnualBurnProbability | sierra-nevada:TIER1_ANNUALBURNPROBABILITY | N      |
 |------------------------------------------+-------------------------------------------+--------|
 
-** Layer Rules
-
-*** :layer-rules
-[[https://docs.geoserver.org/stable/en/user/security/layer.html][some text]]
-
-TODO expand on this
-Only for layer rules that start with a GeoServer workspace at this time
-each workspace-regex string is expected to be unique (mutually exclusive from all others)
-Multiple roles can be provided in this string, separated by commas (e.g. "ROLE_ONE,ROLE_TWO").
-Mention that when workspaces are removed, any associated layer rules are also deleted
-
 ** Using Custom Projections
 
 If your GIS data uses a custom projection that is not known to the
@@ -540,6 +529,34 @@ To make this limit permanent, run:
 echo fs.inotify.max_user_watches=$NUMBER_OF_FILES | sudo tee -a /etc/sysctl.conf
 sudo sysctl -p
 #+end_src
+
+** Layer Rules
+
+*** :layer-rules
+
+In server-mode, you may optionally specify [[https://docs.geoserver.org/stable/en/user/security/layer.html][layer rules]]
+associated with specific workspaces to add to GeoServer. To do so, you must provide
+a ~:layer-rules~ key value pair to your GeoSync confg file. The ~:layer-rules~ key
+expects a vector of maps as its value, where each map contains a GeoServer workspace
+regex and a vector of maps of layer rules to add whenever that workspace regex
+is matched upon adding a new workpace. Each ~:workspace-regex~ is assumed to be
+unique from every other ~:workspace-regex~ because you can add as many ~:associated-rules~
+as you like to each regex. For an example of what this looks like,
+see [[file:resources/sample-config.edn][resources/sample-config.edn]].
+
+Note that currently the only layer rules that can be added are those that are
+associated with a specific workspace. Global layer groups are not supported at
+this time. If you wish to add a layer rule associated with every workspace (by
+using the wildcard ~*~ character), you can do so manually via the Data Security
+page on the GeoServer web UI. Each ~:layer-rule~ inide of the ~:associated-rules~
+vector of maps *must* contain ~"geoserver-workspace"~ as the beginning part of the
+layer rule. This is replaced by the actual GeoServer workspace being added by GeoSync.
+The ~:role~ associated with each ~:layer-rule~ can contain multiple roles by separating
+each role with a comma (e.g. ~"ROLE_ONE,ROLE_TWO"~).
+
+When a workspace is removed, all existing layer rules are compared to the workspace
+being removed. Each existing layer rule that applies to the workspace being removed
+is deleted from GeoServer in order to clean up after ourselves.
 
 ** UberJAR
 
