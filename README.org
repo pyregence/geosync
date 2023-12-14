@@ -532,8 +532,6 @@ sudo sysctl -p
 
 ** Layer Rules
 
-*** :layer-rules
-
 In server-mode, you may optionally specify [[https://docs.geoserver.org/stable/en/user/security/layer.html][layer rules]]
 associated with specific workspaces to add to GeoServer. To do so, you must provide
 a ~:layer-rules~ key value pair to your GeoSync confg file. The ~:layer-rules~ key
@@ -545,18 +543,18 @@ as you like to each regex. For an example of what this looks like,
 see [[file:resources/sample-config.edn][resources/sample-config.edn]].
 
 Note that currently the only layer rules that can be added are those that are
-associated with a specific workspace. Global layer groups are not supported at
-this time. If you wish to add a layer rule associated with every workspace (by
+associated with a specific workspace. Rules associated with global layer groups
+are not supported at this time. If you wish to add a layer rule associated with every workspace (by
 using the wildcard ~*~ character), you can do so manually via the Data Security
 page on the GeoServer web UI. Each ~:layer-rule~ inide of the ~:associated-rules~
-vector of maps *must* contain ~"geoserver-workspace"~ as the beginning part of the
+vector of maps *must* contain "geoserver-workspace" as the beginning portion of the
 layer rule. This is replaced by the actual GeoServer workspace being added by GeoSync.
 The ~:role~ associated with each ~:layer-rule~ can contain multiple roles by separating
-each role with a comma (e.g. ~"ROLE_ONE,ROLE_TWO"~).
+each role with a comma (e.g. "ROLE_ONE,ROLE_TWO").
 
 When a workspace is removed, all existing layer rules are compared to the workspace
 being removed. Each existing layer rule that applies to the workspace being removed
-is deleted from GeoServer in order to clean up after ourselves.
+is deleted from GeoServer along with the workspace.
 
 ** UberJAR
 
