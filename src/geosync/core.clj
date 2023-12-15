@@ -6,7 +6,6 @@
   (:require [clj-http.client     :as client]
             [clojure.data.json   :as json]
             [clojure.java.io     :as io]
-            [clojure.set         :as set]
             [clojure.string      :as s]
             [geosync.rest-api    :as rest]
             [geosync.utils       :refer [nil-on-error url-path]]
@@ -443,7 +442,7 @@
                                              existing-layer-rules))
                                      matching-layer-rules)]
     (if-not (empty? final-layer-rules)
-      (rest/add-layer-rules final-layer-rules)
+      [(rest/add-layer-rules final-layer-rules)]
       nil)))
 
 (defn file-specs->rest-specs
@@ -700,7 +699,7 @@
                                                                                       (success-code?))
                                                                                 layer-rules-to-delete)]
                                                    (every? true? request-success-vec)))]
-                (when delete-layer-rule-success?
+                (when (and layer-rules? delete-layer-rule-success?)
                   (log (str (count layer-rules-to-delete) " layer rules were removed.")))
                 (and delete-workspace-success? delete-layer-rule-success? acc)))
             true
