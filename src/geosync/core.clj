@@ -686,7 +686,7 @@
                                                     (:status)
                                                     (success-code?))
                     existing-layer-rules      (when layer-rules?
-                                                (get-existing-layer-rules (:layer-rules config-params)))
+                                                (get-existing-layer-rules config-params))
                     layer-rules-to-delete     (->> existing-layer-rules
                                                    (filter #(let [[rule-workspace _ _] (s/split (:layer-rule %) #"\.")]
                                                               (= rule-workspace current-workspace)))
@@ -698,7 +698,7 @@
                                                                                       (:status)
                                                                                       (success-code?))
                                                                                 layer-rules-to-delete)]
-                                                   (every? true? request-success-vec)))]
+                                                   (every? some? request-success-vec)))]
                 (when (and layer-rules? delete-layer-rule-success?)
                   (log (str (count layer-rules-to-delete) " layer rules were removed.")))
                 (and delete-workspace-success? delete-layer-rule-success? acc)))
