@@ -383,8 +383,9 @@ When using this option, styles will be created on GeoServer with their name prep
 with the workspace name, using ~:~ as separator. Example, if your workspace is named
 ~sierra-nevada~ and your style ~habitat-connectivity~, the final style name will be
 ~sierra-nevada:habitat-connectivity~. This is because GeoServer has a long standing
-[[https://osgeo-org.atlassian.net/browse/GEOS-9166][bug]] that will prevent it from assigning the correctly style if have multiple styles
-with the same name (even across different workspaces).
+[[https://osgeo-org.atlassian.net/browse/GEOS-9166][bug]] that will prevent it from
+assigning the correct style if you have multiple styles with the same name
+(even across different workspaces).
 
 *** :overwrite-styles
 If you wish to overwrite any already existing GeoServer styles with updates to the
@@ -534,7 +535,7 @@ sudo sysctl -p
 
 In server-mode, you may optionally specify [[https://docs.geoserver.org/stable/en/user/security/layer.html][layer rules]]
 associated with specific workspaces to add to GeoServer. To do so, you must provide
-a ~:layer-rules~ key value pair to your GeoSync confg file. The ~:layer-rules~ key
+a ~:layer-rules~ key value pair to your GeoSync config file. The ~:layer-rules~ key
 expects a vector of maps as its value, where each map contains a GeoServer workspace
 regex and a vector of maps of layer rules to add whenever that workspace regex
 is matched upon adding a new workpace. Each ~:workspace-regex~ is assumed to be
@@ -546,7 +547,7 @@ Note that currently the only layer rules that can be added are those that are
 associated with a specific workspace. Rules associated with global layer groups
 are not supported at this time. If you wish to add a layer rule associated with every workspace (by
 using the wildcard ~*~ character), you can do so manually via the Data Security
-page on the GeoServer web UI. Each ~:layer-rule~ inide of the ~:associated-rules~
+page on the GeoServer web UI. Each ~:layer-rule~ inside of the ~:associated-rules~
 vector of maps *must* contain "geoserver-workspace" as the beginning portion of the
 layer rule. This is replaced by the actual GeoServer workspace being added by GeoSync.
 The ~:role~ associated with each ~:layer-rule~ can contain multiple roles by separating
