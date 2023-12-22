@@ -533,7 +533,7 @@ sudo sysctl -p
 
 ** Layer Rules
 
-In server-mode, you may optionally specify [[https://docs.geoserver.org/stable/en/user/security/layer.html][layer rules]]
+You may optionally specify [[https://docs.geoserver.org/stable/en/user/security/layer.html][layer rules]]
 associated with specific workspaces to add to GeoServer. To do so, you must provide
 a ~:layer-rules~ key value pair to your GeoSync config file. The ~:layer-rules~ key
 expects a vector of maps as its value, where each map contains a GeoServer workspace

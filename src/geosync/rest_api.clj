@@ -837,10 +837,11 @@
 ;;
 ;;=================================================================================
 
-(defn delete-layer-rule
-  [layer-rule]
-  ["DELETE"
-   (str "/security/acl/layers/" layer-rule)])
+(defn get-layer-rules
+  []
+  ["GET"
+   "/security/acl/layers"
+   nil])
 
 (defn add-layer-rules
   [layer-rules]
@@ -852,7 +853,8 @@
             [:rule {:resource layer-rule} role])
           layer-rules)])])
 
-(defn get-layer-rules
-  []
-  ["GET"
-   "/security/acl/layers"])
+(defn delete-layer-rule
+  [layer-rule]
+  ["DELETE"
+   (str "/security/acl/layers/" layer-rule)
+   nil])

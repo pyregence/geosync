@@ -344,16 +344,17 @@
     (:workspace %)))
 
 (defn get-existing-layer-rules
-  "Gets existing layer rules and returns them in a vector of maps of the format:
-   [{:layer-rule \"*.*.r\", :role \"ROLE_ANONYMOUS\"
-    {:layer-rule \"*.*.w\", :role \"GROUP_ADMIN,ADMIN\"}]"
+  "Gets existing layer rules and returns them in a set of maps of the format:
+   #{{:layer-rule \"*.*.r\", :role \"ROLE_ANONYMOUS\"
+     {:layer-rule \"*.*.w\", :role \"GROUP_ADMIN,ADMIN\"}}"
   [config-params]
   (as-> (rest/get-layer-rules) %
     (make-rest-request config-params %)
     (:body %)
-    (json/read-str % :key-fn keyword)
+    (json/read-str %)
     (for [[layer-rule role] %]
-      {:layer-rule (name layer-rule) :role role})))
+      {:layer-rule layer-rule :role role})
+    (set %)))
 
 (defn workspace-exists?
   [{:keys [geoserver-workspace] :as config-params}]
@@ -419,7 +420,7 @@
    with that entry in the map. Note that each `:layer-rule` should have the string
    \"geoserver-workspace\" in it in order to be replaced with the actual workspace.
    Also note that each `:workspace-regex` should be unique from every other `:workspace-regex`
-   in the `:layer-rules` entry, thus it's safe to call `first` on the matching regex."
+   in the `:layer-rules` entry; thus it's safe to call `first` on the matching regex."
   [geoserver-workspace layer-rules]
   (some->> layer-rules
     (filter #(re-matches (re-pattern (:workspace-regex %)) geoserver-workspace))
@@ -436,14 +437,9 @@
     {:layer-rule \"fire-risk-forecast_nve_20231213_00.*.w\" :role \"NVE\"}]"
   [{:keys [geoserver-workspace layer-rules]} existing-layer-rules]
   (let [matching-layer-rules (get-matching-layer-rules geoserver-workspace layer-rules)
-        final-layer-rules    (remove (fn [matching-rule]
-                                       (some (fn [existing-rule]
-                                               (= existing-rule matching-rule))
-                                             existing-layer-rules))
-                                     matching-layer-rules)]
-    (if-not (empty? final-layer-rules)
-      [(rest/add-layer-rules final-layer-rules)]
-      nil)))
+        final-layer-rules    (remove existing-layer-rules matching-layer-rules)]
+    (when (seq final-layer-rules)
+      [(rest/add-layer-rules final-layer-rules)])))
 
 (defn file-specs->rest-specs
   "Generates a sequence of REST request specifications as tuples of
@@ -456,7 +452,7 @@
         existing-stores       (if ws-exists? (get-existing-stores config-params) #{})
         existing-layer-groups (if ws-exists? (get-existing-layer-groups config-params) #{})
         existing-styles       (if ws-exists? (get-existing-styles config-params) #{})
-        existing-layer-rules  (if layer-rules? (get-existing-layer-rules config-params) [])
+        existing-layer-rules  (if layer-rules? (get-existing-layer-rules config-params) #{})
         layer-rule-specs      (if layer-rules? (layer-rules->layer-rules-specs config-params existing-layer-rules) nil)
         style-specs           (file-paths->style-specs config-params existing-styles style-file-paths)
         all-styles            (concat existing-styles (map #(get-style-name geoserver-workspace %) style-file-paths))
@@ -688,19 +684,16 @@
                     existing-layer-rules      (when layer-rules?
                                                 (get-existing-layer-rules config-params))
                     layer-rules-to-delete     (->> existing-layer-rules
-                                                   (filter #(let [[rule-workspace _ _] (s/split (:layer-rule %) #"\.")]
-                                                              (= rule-workspace current-workspace)))
-                                                   (map :layer-rule))
-                    delete-layer-rule-success? (if (empty? layer-rules-to-delete)
-                                                 true
-                                                 (let [request-success-vec (map #(->> (rest/delete-layer-rule %)
-                                                                                      (make-rest-request config-params)
-                                                                                      (:status)
-                                                                                      (success-code?))
-                                                                                layer-rules-to-delete)]
-                                                   (every? some? request-success-vec)))]
+                                                   (map :layer-rule)
+                                                   (filter #(let [[rule-workspace _ _] (s/split % #"\.")]
+                                                              (= rule-workspace current-workspace))))
+                    delete-layer-rule-success? (->> layer-rules-to-delete
+                                                    (map #(->> (rest/delete-layer-rule %)
+                                                               (make-rest-request config-params)
+                                                               (:status)))
+                                                    (every? success-code?))]
                 (when (and layer-rules? delete-layer-rule-success?)
                   (log (str (count layer-rules-to-delete) " layer rules were removed.")))
-                (and delete-workspace-success? delete-layer-rule-success? acc)))
+                (and acc delete-workspace-success? delete-layer-rule-success?)))
             true
             workspaces)))
