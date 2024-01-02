@@ -830,3 +830,31 @@
        [:normalize
         [:locale ""]]]]])
    "application/xml"])
+
+;;=================================================================================
+;;
+;; Security (https://docs.geoserver.org/latest/en/api/#1.0.0/security.yaml)
+;;
+;;=================================================================================
+
+(defn get-layer-rules
+  []
+  ["GET"
+   "/security/acl/layers"
+   nil])
+
+(defn add-layer-rules
+  [layer-rules]
+  ["POST"
+   "/security/acl/layers"
+   (xml
+    [:rules
+     (map (fn [{:keys [layer-rule role]}]
+            [:rule {:resource layer-rule} role])
+          layer-rules)])])
+
+(defn delete-layer-rule
+  [layer-rule]
+  ["DELETE"
+   (str "/security/acl/layers/" layer-rule)
+   nil])

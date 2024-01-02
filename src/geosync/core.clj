@@ -343,6 +343,19 @@
     (:workspaces %)
     (:workspace %)))
 
+(defn get-existing-layer-rules
+  "Gets existing layer rules and returns them in a set of maps of the format:
+   #{{:layer-rule \"*.*.r\", :role \"ROLE_ANONYMOUS\"
+     {:layer-rule \"*.*.w\", :role \"GROUP_ADMIN,ADMIN\"}}"
+  [config-params]
+  (as-> (rest/get-layer-rules) %
+    (make-rest-request config-params %)
+    (:body %)
+    (json/read-str %)
+    (for [[layer-rule role] %]
+      {:layer-rule layer-rule :role role})
+    (set %)))
+
 (defn workspace-exists?
   [{:keys [geoserver-workspace] :as config-params}]
   (as-> (rest/get-workspace geoserver-workspace) %
@@ -360,7 +373,8 @@
                   "/coverages"           :create-coverage
                   "/datastores"          :create-data-store
                   "/featuretypes"        :create-feature-type-alias
-                  "/styles"              :create-style)
+                  "/styles"              :create-style
+                  "/security/acl/layers" :add-layer-rules)
        "PUT"    (condp #(s/includes? %2 %1) uri-suffix
                   "external.imagemosaic" :create-coverage-store-image-mosaic
                   "external.geotiff"     :create-coverage-via-put
@@ -400,6 +414,33 @@
   [config-params existing-styles style-file-paths]
   (keep #(file-path->style-spec config-params % existing-styles) style-file-paths))
 
+(defn get-matching-layer-rules
+  "Matches the given `geoserver-workspace` to the `:workspace-regex` value provided
+   in the `:layer-rules` section of the config file and returns the rules associated
+   with that entry in the map. Note that each `:layer-rule` should have the string
+   \"geoserver-workspace\" in it in order to be replaced with the actual workspace.
+   Also note that each `:workspace-regex` should be unique from every other `:workspace-regex`
+   in the `:layer-rules` entry; thus it's safe to call `first` on the matching regex."
+  [geoserver-workspace layer-rules]
+  (some->> layer-rules
+    (filter #(re-matches (re-pattern (:workspace-regex %)) geoserver-workspace))
+    (first)
+    (:associated-rules)
+    (map (fn [rule]
+           (update rule :layer-rule #(s/replace % #"geoserver-workspace" geoserver-workspace))))))
+
+(defn layer-rules->layer-rules-specs
+  "Determines any new layer rules that need to be added. Doesn't add any
+   layer rules that already exist on the GeoServer.
+   Example `final-layer-rules` format:
+   [{:layer-rule \"fire-risk-forecast_nve_20231213_00.*.r\" :role \"NVE\"}
+    {:layer-rule \"fire-risk-forecast_nve_20231213_00.*.w\" :role \"NVE\"}]"
+  [{:keys [geoserver-workspace layer-rules]} existing-layer-rules]
+  (let [matching-layer-rules (get-matching-layer-rules geoserver-workspace layer-rules)
+        final-layer-rules    (remove existing-layer-rules matching-layer-rules)]
+    (when (seq final-layer-rules)
+      [(rest/add-layer-rules final-layer-rules)])))
+
 (defn file-specs->rest-specs
   "Generates a sequence of REST request specifications as tuples of
   [http-method uri-suffix http-body content-type]. Each file-spec may
@@ -407,14 +448,17 @@
   of these REST specs grouped by spec type."
   [{:keys [geoserver-workspace] :as config-params} gis-file-specs style-file-paths]
   (let [ws-exists?            (workspace-exists? config-params)
+        layer-rules?          (some? (:layer-rules config-params))
         existing-stores       (if ws-exists? (get-existing-stores config-params) #{})
         existing-layer-groups (if ws-exists? (get-existing-layer-groups config-params) #{})
         existing-styles       (if ws-exists? (get-existing-styles config-params) #{})
+        existing-layer-rules  (if layer-rules? (get-existing-layer-rules config-params) #{})
+        layer-rule-specs      (if layer-rules? (layer-rules->layer-rules-specs config-params existing-layer-rules) nil)
         style-specs           (file-paths->style-specs config-params existing-styles style-file-paths)
         all-styles            (concat existing-styles (map #(get-style-name geoserver-workspace %) style-file-paths))
         layer-specs           (file-specs->layer-specs config-params existing-stores all-styles gis-file-specs)
         layer-group-specs     (file-specs->layer-group-specs config-params existing-stores existing-layer-groups gis-file-specs)
-        rest-specs            (-> (group-by get-spec-type (concat layer-specs style-specs))
+        rest-specs            (-> (group-by get-spec-type (concat layer-specs style-specs layer-rule-specs))
                                   (assoc :create-layer-group layer-group-specs))]
     (if ws-exists?
       rest-specs
@@ -594,7 +638,8 @@
                                                :delete-layer
                                                :delete-feature-type
                                                :update-layer-style
-                                               :create-layer-group])))
+                                               :create-layer-group
+                                               :add-layer-rules])))
          wms-response-codes  (tufte/p :wms-requests
                                       (client/with-async-connection-pool {:insecure? true}
                                         (make-parallel-wms-requests config-params wms-specs)))
@@ -625,16 +670,30 @@
 
 (defn remove-workspace!
   [{:keys [geoserver-workspace] :as config-params}]
-  (let [workspaces (->> (get-existing-workspaces config-params)
-                        (map :name)
-                        (filter (fn [w] (re-matches (re-pattern geoserver-workspace) w))))]
+  (let [workspaces            (->> (get-existing-workspaces config-params)
+                                   (map :name)
+                                   (filter (fn [w] (re-matches (re-pattern geoserver-workspace) w))))
+        layer-rules?          (some? (:layer-rules config-params))]
     (log (str (count workspaces) " workspaces are queued to be removed."))
-    (reduce (fn [acc cur]
-              (call-sql "drop_existing_schema" cur)
-              (->> (rest/delete-workspace cur true)
-                   (make-rest-request config-params)
-                   (:status)
-                   (success-code?)
-                   (and acc)))
+    (reduce (fn [acc current-workspace]
+              (call-sql "drop_existing_schema" current-workspace)
+              (let [delete-workspace-success?  (->> (rest/delete-workspace current-workspace true)
+                                                    (make-rest-request config-params)
+                                                    (:status)
+                                                    (success-code?))
+                    existing-layer-rules      (when layer-rules?
+                                                (get-existing-layer-rules config-params))
+                    layer-rules-to-delete     (->> existing-layer-rules
+                                                   (map :layer-rule)
+                                                   (filter #(let [[rule-workspace _ _] (s/split % #"\.")]
+                                                              (= rule-workspace current-workspace))))
+                    delete-layer-rule-success? (->> layer-rules-to-delete
+                                                    (map #(->> (rest/delete-layer-rule %)
+                                                               (make-rest-request config-params)
+                                                               (:status)))
+                                                    (every? success-code?))]
+                (when (and layer-rules? delete-layer-rule-success?)
+                  (log (str (count layer-rules-to-delete) " layer rules were removed.")))
+                (and acc delete-workspace-success? delete-layer-rule-success?)))
             true
             workspaces)))
