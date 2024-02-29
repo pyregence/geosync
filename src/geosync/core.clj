@@ -104,18 +104,20 @@
                                     :insecure?          true
                                     :socket-timeout     timeout-ms
                                     :connection-timeout timeout-ms})]
-      (log-str (format "%6s %s%n               -> %s"
-                       http-method
-                       uri-suffix
-                       (select-keys response [:status :reason-phrase])))
+      (log (format "%6s %s%n               -> %s"
+                   http-method
+                   uri-suffix
+                   (select-keys response [:status :reason-phrase]))
+           {:truncate? false})
       response)
     (catch Exception e
-      (log-str (format "%6s %s%n               -> %s"
-                       http-method
-                       uri-suffix
-                       (if (timeout? e)
-                         (str "Timeout Error: Your request took longer than " (quot timeout-ms 1000) " seconds.")
-                         (select-keys (ex-data e) [:status :reason-phrase :body]))))
+      (log (format "%6s %s%n               -> %s"
+                   http-method
+                   uri-suffix
+                   (if (timeout? e)
+                     (str "Timeout Error: Your request took longer than " (quot timeout-ms 1000) " seconds.")
+                     (select-keys (ex-data e) [:status :reason-phrase :body])))
+           {:truncate? false})
       (ex-data e))))
 
 ;; FIXME: Use an SSL keystore and remove insecure? param
@@ -133,18 +135,20 @@
                      :socket-timeout     timeout-ms
                      :connection-timeout timeout-ms}
                     (fn [response]
-                      (log-str (format "%6s %s%n               -> %s"
-                                       http-method
-                                       uri-suffix
-                                       (select-keys response [:status :reason-phrase])))
+                      (log (format "%6s %s%n               -> %s"
+                                   http-method
+                                   uri-suffix
+                                   (select-keys response [:status :reason-phrase]))
+                           {:truncate? false})
                       (deliver result response))
                     (fn [error]
-                      (log-str (format "%6s %s%n               -> %s"
-                                       http-method
-                                       uri-suffix
-                                       (if (timeout? error)
-                                         (str "Timeout Error: Your request took longer than " (quot timeout-ms 1000) " seconds.")
-                                         (select-keys (ex-data error) [:status :reason-phrase :body]))))
+                      (log (format "%6s %s%n               -> %s"
+                                   http-method
+                                   uri-suffix
+                                   (if (timeout? error)
+                                     (str "Timeout Error: Your request took longer than " (quot timeout-ms 1000) " seconds.")
+                                     (select-keys (ex-data error) [:status :reason-phrase :body])))
+                           {:truncate? false})
                       (deliver result (ex-data error))))
     result))
 
