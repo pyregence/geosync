@@ -67,10 +67,10 @@ follows:
 clojure -M:build-db build-all
 #+end_src
 
-This will begin by creating a new database and role called ~geoserver~
-and then add the ~postgis~ extension to it. Next, the script will
-populate the database with the functions that are necessary for
-storing and processing GeoServer's data.
+This will begin by creating a new database and role based on your
+settings in ~config.edn~ and then add the ~postgis~ extension to it.
+Next, the script will populate the database with the functions that
+are necessary for storing and processing GeoServer's data.
 
 It's important to note that when you are dealing with ImageMosaic
 workspaces, you must make sure to use GeoSync to deregister them. The
