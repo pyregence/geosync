@@ -64,7 +64,7 @@ top level repository directory and run the database build command as
 follows:
 
 #+begin_src sh
-clojure -M:build-db build-all -d geoserver
+clojure -M:build-db build-all
 #+end_src
 
 This will begin by creating a new database and role called ~geoserver~
