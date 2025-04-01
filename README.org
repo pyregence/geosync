@@ -125,7 +125,7 @@ This will print out the following usage message:
 
 #+begin_example
 geosync: Load a nested directory tree of GeoTIFFs and Shapefiles into a running GeoServer instance.
-Copyright © 2020-2023 Spatial Informatics Group, LLC.
+Copyright © 2020-2025 Spatial Informatics Group, LLC.
 
 Usage:
   -c, --config-file EDN           Path to an EDN file containing a map of these parameters
@@ -563,19 +563,19 @@ To build GeoSync as an UberJAR (generated in this repository's
 ~target~ directory), run the following command:
 
 #+begin_src sh
-clojure -T:build uberjar
+clojure -X:build-uberjar
 #+end_src
 
 Once you have done so, you may run GeoSync from the UberJAR with the following command:
 
 #+begin_src sh
-java -jar $PATH_TO_JAR_DIR/geosync-$VERSION.jar $CLI_ARGS
+java -jar $PATH_TO_JAR_DIR/geosync-$VERSION-standalone.jar $CLI_ARGS
 #+end_src
 
 ** License and Distribution
 
-Copyright © 2020-2023 Spatial Informatics Group, LLC.
+Copyright © 2020-2025 Spatial Informatics Group, LLC.
 
 GeoSync is distributed by Spatial Informatics Group, LLC. under the
-terms of the Eclipse Public License version 2.0 (EPLv2). See
-LICENSE.txt in this directory for more information.
+terms of the Eclipse Public License version 2.0 (EPLv2). See the
+LICENSE file in this directory for more information.

@@ -240,7 +240,7 @@
 
 (def program-banner
   (str "geosync: Load directory trees of GIS and style files into a running GeoServer instance.\n"
-       "Copyright © 2020-2023 Spatial Informatics Group, LLC.\n"))
+       "Copyright © 2020-2025 Spatial Informatics Group, LLC.\n"))
 
 (defn -main
   [& args]
