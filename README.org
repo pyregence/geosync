@@ -106,7 +106,7 @@ changes to take effect.
 GeoSync comes with a test suite. You can run it with this command:
 
 #+begin_src sh
-clojure -M:test:runner
+clojure -M:test-runner
 #+end_src
 
 As we improve and expand upon the codebase, more tests will be written in order
