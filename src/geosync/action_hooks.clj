@@ -21,12 +21,19 @@
 
 (defn run-action-hooks!
   [action-hooks request selected-run-time]
-  (doseq [[_ _ url query-params] (filter (fn [[run-time action]]
-                                           (and (= run-time selected-run-time)
-                                                (= action (:action request))))
-                                         action-hooks)]
+  (doseq [[_ _ url params] (filter (fn [[run-time action]]
+                                     (and (= run-time selected-run-time)
+                                          (= action (:action request))))
+                                   action-hooks)]
     (try
-      (let [response (client/get url {:query-params (process-query-params query-params request)})]
+      (let [{:keys [auth-token] :as full-params} params
+            query-params (process-query-params (dissoc full-params :auth-token) request)
+            headers      (when auth-token
+                           {"Accept"        "application/edn"
+                            "Content-Type"  "application/edn"
+                            "Authorization" (str "Bearer " auth-token)})
+            response (client/get url {:query-params query-params
+                                      :headers      headers})]
         (log-str (:body response)))
       (catch Exception e
         (log-str (:body (ex-message e)))))))
