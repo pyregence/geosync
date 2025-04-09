@@ -877,9 +877,11 @@
    (str "/geofence/rules/id/" rule-id)
    nil])
 
+;; FIXME: (assoc-in config-params [:geoserver-rest-headers "Accept"] "*/*")
 ;; NOTE: This function doesn't implement the <subfield>, <limits>, or <layerDetails> entries.
 (defn add-geofence-rule [& {:keys [priority user-name role-name address-range valid-after valid-before
                                    service request workspace layer access]}]
+  {:pre [(contains? #{"ALLOW" "DENY"} access)]}
   ["POST"
    "/geofence/rules"
    (xml
@@ -913,7 +915,7 @@
        request       (conj [:request request])            ; OGC request name  : GetMap
        workspace     (conj [:workspace workspace])        ; workspace name    : super-private-workspace
        layer         (conj [:layer layer])                ; layer name        : ultra-secret-layer
-       access        (conj [:access access])))])
+       access        (conj [:access access])))])          ; ALLOW | DENY      : ALLOW
 
 (defn delete-geofence-rule [rule-id]
   ["DELETE"
@@ -942,6 +944,7 @@
    nil])
 
 (defn add-geofence-admin-rule [& {:keys [priority user-name role-name address-range workspace access]}]
+  {:pre [(contains? #{"ADMIN" "USER"} access)]}
   ["POST"
    "/geofence/adminrules"
    (xml
@@ -951,8 +954,9 @@
        role-name     (conj [:roleName role-name])         ; string            : ADVENTURER
        address-range (conj [:addressRange address-range]) ; IPV4 CIDR notation: 192.168.0.0/16
        workspace     (conj [:workspace workspace])        ; workspace name    : super-private-workspace
-       access        (conj [:access access])))])          ; ALLOW | DENY      : ALLOW
+       access        (conj [:access access])))])          ; ADMIN | USER      : ADMIN
 
+;; FIXME: (assoc-in config-params [:geoserver-rest-headers "Accept"] "*/*")
 (defn update-geofence-admin-rule [rule-id & {:keys [priority user-name role-name address-range workspace access]}]
   ["POST"
    (str "/geofence/adminrules/id/" rule-id)
@@ -963,7 +967,7 @@
        role-name     (conj [:roleName role-name])         ; string            : ADVENTURER
        address-range (conj [:addressRange address-range]) ; IPV4 CIDR notation: 192.168.0.0/16
        workspace     (conj [:workspace workspace])        ; workspace name    : super-private-workspace
-       access        (conj [:access access])))])          ; ALLOW | DENY      : ALLOW
+       access        (conj [:access access])))])          ; ADMIN | USER      : ADMIN
 
 (defn delete-geofence-admin-rule [rule-id]
   ["DELETE"
