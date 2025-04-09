@@ -93,13 +93,14 @@
 
 ;; FIXME: Use an SSL keystore and remove insecure? param
 (defn make-rest-request
-  [{:keys [geoserver-rest-uri geoserver-rest-headers]} [http-method uri-suffix http-body content-type]]
+  [{:keys [geoserver-rest-uri geoserver-rest-headers]} [http-method uri-suffix http-body content-type accept]]
   (try
-    (let [response (client/request {:url                (url-path geoserver-rest-uri uri-suffix)
+    (let [headers  (cond-> geoserver-rest-headers
+                     content-type (assoc "Content-Type" content-type)
+                     accept       (assoc "Accept" accept))
+          response (client/request {:url                (url-path geoserver-rest-uri uri-suffix)
                                     :method             http-method
-                                    :headers            (if content-type
-                                                          (assoc geoserver-rest-headers "Content-Type" content-type)
-                                                          geoserver-rest-headers)
+                                    :headers            headers
                                     :body               http-body
                                     :insecure?          true
                                     :socket-timeout     timeout-ms
@@ -122,13 +123,14 @@
 
 ;; FIXME: Use an SSL keystore and remove insecure? param
 (defn make-rest-request-async
-  [{:keys [geoserver-rest-uri geoserver-rest-headers]} [http-method uri-suffix http-body content-type]]
-  (let [result (promise)]
+  [{:keys [geoserver-rest-uri geoserver-rest-headers]} [http-method uri-suffix http-body content-type accept]]
+  (let [result  (promise)
+        headers (cond-> geoserver-rest-headers
+                  content-type (assoc "Content-Type" content-type)
+                  accept       (assoc "Accept" accept))]
     (client/request {:url                (url-path geoserver-rest-uri uri-suffix)
                      :method             http-method
-                     :headers            (if content-type
-                                           (assoc geoserver-rest-headers "Content-Type" content-type)
-                                           geoserver-rest-headers)
+                     :headers            headers
                      :body               http-body
                      :insecure?          true
                      :async?             true
