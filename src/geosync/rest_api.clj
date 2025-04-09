@@ -5,11 +5,11 @@
   (:require [clojure.string :as s]
             [geosync.utils  :refer [xml extract-georeferences]]))
 
-;;=================================================================================
+;;===============================================================================================================
 ;;
 ;; Workspaces (http://docs.geoserver.org/latest/en/api/#1.0.0/workspaces.yaml)
 ;;
-;;=================================================================================
+;;===============================================================================================================
 
 (defn get-workspaces []
   ["GET"
@@ -41,11 +41,11 @@
    (str "/workspaces/" workspace "?recurse=" recurse?)
    nil])
 
-;;=================================================================================
+;;===============================================================================================================
 ;;
 ;; Namespaces (http://docs.geoserver.org/latest/en/api/#1.0.0/namespaces.yaml)
 ;;
-;;=================================================================================
+;;===============================================================================================================
 
 (defn get-namespaces []
   ["GET"
@@ -79,11 +79,11 @@
    (str "/namespaces/" workspace)
    nil])
 
-;;=================================================================================
+;;===============================================================================================================
 ;;
 ;; Data Stores (http://docs.geoserver.org/latest/en/api/#1.0.0/datastores.yaml)
 ;;
-;;=================================================================================
+;;===============================================================================================================
 
 (defn get-data-stores [workspace]
   ["GET"
@@ -160,11 +160,11 @@
    (str "/workspaces/" workspace "/datastores/" store)
    nil])
 
-;;=================================================================================
+;;===============================================================================================================
 ;;
 ;; Coverage Stores (http://docs.geoserver.org/latest/en/api/#1.0.0/coveragestores.yaml)
 ;;
-;;=================================================================================
+;;===============================================================================================================
 
 (defn get-coverage-stores [workspace]
   ["GET"
@@ -216,11 +216,11 @@
    (str "/workspaces/" workspace "/coveragestores/" store)
    nil])
 
-;;=================================================================================
+;;===============================================================================================================
 ;;
 ;; Feature Types (http://docs.geoserver.org/latest/en/api/#1.0.0/featuretypes.yaml)
 ;;
-;;=================================================================================
+;;===============================================================================================================
 
 (defn get-feature-types
   ([workspace]
@@ -302,11 +302,11 @@
    (str "/workspaces/" workspace "/datastores/" store "/featuretypes/" feature-type)
    nil])
 
-;;=================================================================================
+;;===============================================================================================================
 ;;
 ;; Coverages (http://docs.geoserver.org/latest/en/api/#1.0.0/coverages.yaml)
 ;;
-;;=================================================================================
+;;===============================================================================================================
 
 (defn get-coverages
   ([workspace]
@@ -508,11 +508,11 @@
    (str "/workspaces/" workspace "/coveragestores/" store "/coverages/" coverage)
    nil])
 
-;;=================================================================================
+;;===============================================================================================================
 ;;
 ;; Layers (https://docs.geoserver.org/latest/en/api/#1.0.0/layers.yaml)
 ;;
-;;=================================================================================
+;;===============================================================================================================
 
 (defn get-layers
   ([]
@@ -616,11 +616,11 @@
     (str "/workspaces/" workspace "/layers/" layer)
     nil]))
 
-;;=================================================================================
+;;===============================================================================================================
 ;;
 ;; Layer Groups (http://docs.geoserver.org/latest/en/api/#1.0.0/layergroups.yaml)
 ;;
-;;=================================================================================
+;;===============================================================================================================
 
 (defn get-layer-groups
   ([]
@@ -722,11 +722,11 @@
     (str "/workspaces/" workspace "/layergroups/" layer-group)
     nil]))
 
-;;=================================================================================
+;;===============================================================================================================
 ;;
 ;; Styles (http://docs.geoserver.org/latest/en/api/#1.0.0/styles.yaml)
 ;;
-;;=================================================================================
+;;===============================================================================================================
 
 (defn get-styles
   ([]
@@ -782,11 +782,11 @@
     (str "/workspaces/" workspace "/styles/" style)
     nil]))
 
-;;=================================================================================
+;;===============================================================================================================
 ;;
 ;; GeoWebCache (http://docs.geoserver.org/latest/en/api/#1.0.0/gwclayers.yaml)
 ;;
-;;=================================================================================
+;;===============================================================================================================
 
 (defn get-cached-layer [workspace layer]
   ["GET"
@@ -831,20 +831,18 @@
         [:locale ""]]]]])
    "application/xml"])
 
-;;=================================================================================
+;;===============================================================================================================
 ;;
 ;; Security (https://docs.geoserver.org/latest/en/api/#1.0.0/security.yaml)
 ;;
-;;=================================================================================
+;;===============================================================================================================
 
-(defn get-layer-rules
-  []
+(defn get-layer-rules []
   ["GET"
    "/security/acl/layers"
    nil])
 
-(defn add-layer-rules
-  [layer-rules]
+(defn add-layer-rules [layer-rules]
   ["POST"
    "/security/acl/layers"
    (xml
@@ -853,8 +851,121 @@
             [:rule {:resource layer-rule} role])
           layer-rules)])])
 
-(defn delete-layer-rule
-  [layer-rule]
+(defn delete-layer-rule [layer-rule]
   ["DELETE"
    (str "/security/acl/layers/" layer-rule)
+   nil])
+
+;;===============================================================================================================
+;;
+;; GeoFence Rules (https://docs.geoserver.org/main/en/user/extensions/geofence-server/rest.html)
+;;
+;;===============================================================================================================
+
+(defn count-geofence-rules []
+  ["GET"
+   "/geofence/rules/count"
+   nil])
+
+(defn get-geofence-rules []
+  ["GET"
+   "/geofence/rules"
+   nil])
+
+(defn get-geofence-rule [rule-id]
+  ["GET"
+   (str "/geofence/rules/id/" rule-id)
+   nil])
+
+;; NOTE: This function doesn't implement the <subfield>, <limits>, or <layerDetails> entries.
+(defn add-geofence-rule [& {:keys [priority user-name role-name address-range valid-after valid-before
+                                   service request workspace layer access]}]
+  ["POST"
+   "/geofence/rules"
+   (xml
+     (cond-> [:Rule]
+       priority      (conj [:priority priority])          ; integer           : 1
+       user-name     (conj [:userName user-name])         ; string            : john_smith
+       role-name     (conj [:roleName role-name])         ; string            : ADVENTURER
+       address-range (conj [:addressRange address-range]) ; IPV4 CIDR notation: 192.168.0.0/16
+       valid-after   (conj [:validAfter valid-after])     ; yyyy-MM-dd        : 2025-02-01
+       valid-before  (conj [:validBefore valid-before])   ; yyyy-MM-dd        : 2025-02-28
+       service       (conj [:service service])            ; OGC service name  : WMS
+       request       (conj [:request request])            ; OGC request name  : GetMap
+       workspace     (conj [:workspace workspace])        ; workspace name    : super-private-workspace
+       layer         (conj [:layer layer])                ; layer name        : ultra-secret-layer
+       access        (conj [:access access])))])          ; ALLOW | DENY      : ALLOW
+
+;; NOTE: This function doesn't implement the <subfield>, <limits>, or <layerDetails> entries.
+(defn update-geofence-rule [rule-id & {:keys [priority user-name role-name address-range valid-after valid-before
+                                              service request workspace layer access]}]
+  ["POST"
+   (str "/geofence/rules/id/" rule-id)
+   (xml
+     (cond-> [:Rule]
+       priority      (conj [:priority priority])          ; integer           : 1
+       user-name     (conj [:userName user-name])         ; string            : john_smith
+       role-name     (conj [:roleName role-name])         ; string            : ADVENTURER
+       address-range (conj [:addressRange address-range]) ; IPV4 CIDR notation: 192.168.0.0/16
+       valid-after   (conj [:validAfter valid-after])     ; yyyy-MM-dd        : 2025-02-01
+       valid-before  (conj [:validBefore valid-before])   ; yyyy-MM-dd        : 2025-02-28
+       service       (conj [:service service])            ; OGC service name  : WMS
+       request       (conj [:request request])            ; OGC request name  : GetMap
+       workspace     (conj [:workspace workspace])        ; workspace name    : super-private-workspace
+       layer         (conj [:layer layer])                ; layer name        : ultra-secret-layer
+       access        (conj [:access access])))])
+
+(defn delete-geofence-rule [rule-id]
+  ["DELETE"
+   (str "/geofence/rules/id/" rule-id)
+   nil])
+
+;;===============================================================================================================
+;;
+;; GeoFence Admin Rules (https://docs.geoserver.org/main/en/user/extensions/geofence-server/rest-adminrule.html)
+;;
+;;===============================================================================================================
+
+(defn count-geofence-admin-rules []
+  ["GET"
+   "/geofence/adminrules/count"
+   nil])
+
+(defn get-geofence-admin-rules []
+  ["GET"
+   "/geofence/adminrules"
+   nil])
+
+(defn get-geofence-admin-rule [rule-id]
+  ["GET"
+   (str "/geofence/adminrules/id/" rule-id)
+   nil])
+
+(defn add-geofence-admin-rule [& {:keys [priority user-name role-name address-range workspace access]}]
+  ["POST"
+   "/geofence/adminrules"
+   (xml
+     (cond-> [:AdminRule]
+       priority      (conj [:priority priority])          ; integer           : 1
+       user-name     (conj [:userName user-name])         ; string            : john_smith
+       role-name     (conj [:roleName role-name])         ; string            : ADVENTURER
+       address-range (conj [:addressRange address-range]) ; IPV4 CIDR notation: 192.168.0.0/16
+       workspace     (conj [:workspace workspace])        ; workspace name    : super-private-workspace
+       access        (conj [:access access])))])          ; ALLOW | DENY      : ALLOW
+
+(defn update-geofence-admin-rule [rule-id & {:keys [priority user-name role-name address-range workspace access]}]
+  ["POST"
+   (str "/geofence/adminrules/id/" rule-id)
+   (xml
+     (cond-> [:AdminRule]
+       priority      (conj [:priority priority])          ; integer           : 1
+       user-name     (conj [:userName user-name])         ; string            : john_smith
+       role-name     (conj [:roleName role-name])         ; string            : ADVENTURER
+       address-range (conj [:addressRange address-range]) ; IPV4 CIDR notation: 192.168.0.0/16
+       workspace     (conj [:workspace workspace])        ; workspace name    : super-private-workspace
+       access        (conj [:access access])))])          ; ALLOW | DENY      : ALLOW
+
+(defn delete-geofence-admin-rule [rule-id]
+  ["DELETE"
+   (str "/geofence/adminrules/id/" rule-id)
    nil])
