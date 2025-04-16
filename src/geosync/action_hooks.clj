@@ -28,8 +28,7 @@
                   action-hooks)]
     (try
       (let [{:keys [auth-token]} header-params
-            headers  (cond-> {"Accept"       "application/edn"
-                              "Content-Type" "application/edn"}
+            headers  (cond-> {"Accept" "application/edn"}
                        auth-token (assoc "Authorization" (str "Bearer " auth-token)))
             response (client/get url {:query-params (process-query-params query-params request)
                                       :headers      headers})]
