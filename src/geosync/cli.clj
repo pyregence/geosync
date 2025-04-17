@@ -53,6 +53,7 @@
 (spec/def ::folder-name->regex  (spec/map-of string? string?))
 (spec/def ::file-watcher        (spec/keys :req-un [::dir
                                                     ::folder-name->regex]))
+;; :layer-rules
 (spec/def ::layer-rule          #(and (s/starts-with? % "geoserver-workspace.")
                                       (= 3 (count (s/split % #"\.")))))
 (spec/def ::role                non-empty-string?)
@@ -61,6 +62,30 @@
 (spec/def ::associated-rules    (spec/coll-of ::associated-rule :kind vector? :distinct true))
 (spec/def ::one-layer-rule      (spec/keys :req-un [::workspace-regex ::associated-rules]))
 (spec/def ::layer-rules         (spec/coll-of ::one-layer-rule :kind vector? :distinct true))
+;; :geofence-rules
+(spec/def ::data-rule           (spec/keys :req [:user-name
+                                                 :role-name
+                                                 :workspace
+                                                 :access]
+                                           :opt [:priority
+                                                 :address-range
+                                                 :valid-after
+                                                 :valid-before
+                                                 :service
+                                                 :request
+                                                 :layer]))
+(spec/def ::admin-rule          (spec/keys :req [:user-name
+                                                 :role-name
+                                                 :workspace
+                                                 :access]
+                                           :opt [:priority
+                                                 :address-range]))
+(spec/def ::data-rules          (spec/coll-of ::data-rule :kind vector? :distinct true))
+(spec/def ::admin-rules         (spec/coll-of ::admin-rule :kind vector? :distinct true))
+(spec/def ::one-geofence-rule   (spec/keys :req-un [::workspace-regex]
+                                           :opt-un [::data-rules ::admin-rules]))
+(spec/def ::geofence-rules      (spec/coll-of ::one-geofence-rule :kind vector? :distinct true))
+;; config.edn
 (spec/def ::geosync-config-file (spec/keys :opt-un [::geoserver-rest-uri
                                                     ::geoserver-username
                                                     ::geoserver-password
@@ -76,7 +101,8 @@
                                                     ::styles
                                                     ::action-hooks
                                                     ::file-watcher
-                                                    ::layer-rules]))
+                                                    ::layer-rules
+                                                    ::geofence-rules]))
 
 ;; Key Combination Rules
 

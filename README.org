@@ -557,6 +557,9 @@ When a workspace is removed, all existing layer rules are compared to the worksp
 being removed. Each existing layer rule that applies to the workspace being removed
 is deleted from GeoServer along with the workspace.
 
+** GeoFence Rules
+TODO
+
 ** UberJAR
 
 To build GeoSync as an UberJAR (generated in this repository's
