@@ -65,7 +65,6 @@
 ;; :geofence-rules
 (spec/def ::data-rule           (spec/keys :req [:user-name
                                                  :role-name
-                                                 :workspace
                                                  :access]
                                            :opt [:priority
                                                  :address-range
@@ -76,7 +75,6 @@
                                                  :layer]))
 (spec/def ::admin-rule          (spec/keys :req [:user-name
                                                  :role-name
-                                                 :workspace
                                                  :access]
                                            :opt [:priority
                                                  :address-range]))
