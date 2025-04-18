@@ -459,15 +459,15 @@
   "Gets existing GeoFence data and admin rules."
   [config-params]
   {:existing-data-rules  (as-> (rest/get-geofence-rules) %
-                                (make-rest-request config-params %)
-                                (:body %)
-                                (json/read-str % :key-fn keyword)
-                                (:rules %))
+                           (make-rest-request config-params %)
+                           (:body %)
+                           (json/read-str % :key-fn keyword)
+                           (:rules %))
    :existing-admin-rules (as-> (rest/get-geofence-admin-rules) %
-                          (make-rest-request config-params %)
-                          (:body %)
-                          (json/read-str % :key-fn keyword)
-                          (:rules %))})
+                           (make-rest-request config-params %)
+                           (:body %)
+                           (json/read-str % :key-fn keyword)
+                           (:rules %))})
 
 (defn get-matching-geofence-rules
   "Returns a map with `:matching-data-rules` and/or `:matching-admin-rules` for the matching workspace
@@ -749,23 +749,23 @@
     (log (str (count workspaces) " workspaces are queued to be removed."))
     (reduce (fn [acc current-workspace]
               (call-sql "drop_existing_schema" current-workspace)
-              (let [delete-workspace-success?  (->> (rest/delete-workspace current-workspace true)
-                                                    (make-rest-request config-params)
-                                                    (:status)
-                                                    (success-code?))
-                    existing-layer-rules       (when layer-rules?
-                                                (get-existing-layer-rules config-params))
-                    layer-rules-to-delete      (->> existing-layer-rules
-                                                    (map :layer-rule)
-                                                    (filter #(let [[rule-workspace _ _] (s/split % #"\.")]
-                                                               (= rule-workspace current-workspace))))
-                    delete-layer-rule-success? (->> layer-rules-to-delete
-                                                    (map #(->> (rest/delete-layer-rule %)
-                                                               (make-rest-request config-params)
-                                                               (:status)))
-                                                    (every? success-code?))
+              (let [delete-workspace-success?      (->> (rest/delete-workspace current-workspace true)
+                                                        (make-rest-request config-params)
+                                                        (:status)
+                                                        (success-code?))
+                    existing-layer-rules           (when layer-rules?
+                                                     (get-existing-layer-rules config-params))
+                    layer-rules-to-delete          (->> existing-layer-rules
+                                                        (map :layer-rule)
+                                                        (filter #(let [[rule-workspace _ _] (s/split % #"\.")]
+                                                                   (= rule-workspace current-workspace))))
+                    delete-layer-rule-success?     (->> layer-rules-to-delete
+                                                        (map #(->> (rest/delete-layer-rule %)
+                                                                   (make-rest-request config-params)
+                                                                   (:status)))
+                                                        (every? success-code?))
                     existing-geofence-rules        (when geofence-rules?
-                                                    (get-existing-geofence-rules config-params))
+                                                     (get-existing-geofence-rules config-params))
                     geofence-data-rules-to-delete  (when geofence-rules?
                                                      (->> (:existing-data-rules existing-geofence-rules)
                                                           (filter #(= (:workspace %) current-workspace))
@@ -774,15 +774,15 @@
                                                      (->> (:existing-admin-rules existing-geofence-rules)
                                                           (filter #(= (:workspace %) current-workspace))
                                                           (map :id)))
-                    delete-geofence-data-success? (->> geofence-data-rules-to-delete
-                                                       (map #(-> (rest/delete-geofence-rule %)
-                                                                 (make-rest-request config-params)
-                                                                 (:status)))
-                                                       (every? success-code?))
+                    delete-geofence-data-success?  (->> geofence-data-rules-to-delete
+                                                        (map #(->> (rest/delete-geofence-rule %)
+                                                                   (make-rest-request config-params)
+                                                                   (:status)))
+                                                        (every? success-code?))
                     delete-geofence-admin-success? (->> geofence-admin-rules-to-delete
-                                                        (map #(-> (rest/delete-geofence-admin-rule %)
-                                                                  (make-rest-request config-params)
-                                                                  (:status)))
+                                                        (map #(->> (rest/delete-geofence-admin-rule %)
+                                                                   (make-rest-request config-params)
+                                                                   (:status)))
                                                         (every? success-code?))]
 
 
