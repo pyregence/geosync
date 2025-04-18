@@ -13,6 +13,7 @@
  :data-dir            "/data"
  :style-dir           "/styles"
  :overwrite-styles    true
+ ;; TODO add in GeoFence here
  :layer-rules         [{:workspace-regex  "^fire-risk-forecast_liberty_\\d{8}_\\d{2}$"
                         :associated-rules [{:layer-rule "geoserver-workspace.*.r" :role "LIBERTY"}
                                            {:layer-rule "geoserver-workspace.*.w" :role "LIBERTY"}]}
