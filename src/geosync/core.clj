@@ -379,10 +379,10 @@
                   "/layers/"             :update-layer-style
                   "/styles"              :update-style)
        "DELETE" (condp #(s/includes? %2 %1) uri-suffix
-                  "/layers/"             :delete-layer
-                  "/featuretypes/"       :delete-feature-type
-                  "/geofence/rules"      :delete-geofence-data-rule
-                  "/geofence/adminrules" :delete-geofence-admin-rule)))))
+                  "/layers/"              :delete-layer
+                  "/featuretypes/"        :delete-feature-type
+                  "/geofence/rules/"      :delete-geofence-data-rule
+                  "/geofence/adminrules/" :delete-geofence-admin-rule)))))
 
 (defn get-style-name
   "Returns the style name, given a target workspace and a file path.
@@ -471,7 +471,9 @@
 
 (defn get-matching-geofence-rules
   "Returns a map with `:matching-data-rules` and/or `:matching-admin-rules` for the matching workspace
-   regex, injecting the workspace name into each rule. Returns nil if no matches are found."
+   regex, injecting the workspace name into each rule. Returns nil if no matches are found.
+   Note that each `:workspace-regex` should be unique from every other `:workspace-regex`
+   in the `:layer-rules` entry; thus it's safe to call `first` on the matching regex."
   [workspace geofence-rules]
   (when-let [matching-geofence-rules (->> geofence-rules
                                           (filter #(re-matches (re-pattern (:workspace-regex %)) workspace))
@@ -483,25 +485,23 @@
 
 (defn geofence-rules->geofence-rules-specs
   "Determines any new GeoFence data and admin rules that need to be added.
-   Filters out existing rules that match on :workspace.
-   Doesn't add any GeoFence rules that already exist on the GeoServer."
+   We delete all existing rules that match on workspace and add all new ones that match."
   [{:keys [geoserver-workspace geofence-rules]} {:keys [existing-data-rules existing-admin-rules]}]
   (let [{:keys [matching-data-rules matching-admin-rules]} (get-matching-geofence-rules geoserver-workspace geofence-rules)
-        ;; Only consider existing rules for given workspace
-        existing-data-rules-ws?  (some #(= (:workspace %) geoserver-workspace) existing-data-rules)
-        existing-admin-rules-ws? (some #(= (:workspace %) geoserver-workspace) existing-admin-rules)
-        ;; Remove any already existing rules for given workspace
-        final-data-rules        (if existing-data-rules-ws?
-                                  []
-                                  matching-data-rules)
-        final-admin-rules       (if existing-admin-rules-ws?
-                                  []
-                                  matching-admin-rules)]
+        ;; Find all existing rules for this workspace to delete
+        data-rules-to-delete  (filter #(= (:workspace %) geoserver-workspace) existing-data-rules)
+        admin-rules-to-delete (filter #(= (:workspace %) geoserver-workspace) existing-admin-rules)]
+
     (concat
-     (when (seq final-data-rules)
-       (mapv rest/add-geofence-rule final-data-rules))
-     (when (seq final-admin-rules)
-       (mapv rest/add-geofence-admin-rule final-admin-rules)))))
+     ;; Delete all existing rules for this workspace
+     (mapv rest/delete-geofence-rule (map :id data-rules-to-delete))
+     (mapv rest/delete-geofence-admin-rule (map :id admin-rules-to-delete))
+
+     ;; Add all rules from config
+     (when (seq matching-data-rules)
+       (mapv rest/add-geofence-rule matching-data-rules))
+     (when (seq matching-admin-rules)
+       (mapv rest/add-geofence-admin-rule matching-admin-rules)))))
 
 ;;; Core
 
