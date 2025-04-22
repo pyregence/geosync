@@ -349,19 +349,6 @@
     (:workspaces %)
     (:workspace %)))
 
-(defn get-existing-layer-rules
-  "Gets existing layer rules and returns them in a set of maps of the format:
-   #{{:layer-rule \"*.*.r\", :role \"ROLE_ANONYMOUS\"
-     {:layer-rule \"*.*.w\", :role \"GROUP_ADMIN,ADMIN\"}}"
-  [config-params]
-  (as-> (rest/get-layer-rules) %
-    (make-rest-request config-params %)
-    (:body %)
-    (json/read-str %)
-    (for [[layer-rule role] %]
-      {:layer-rule layer-rule :role role})
-    (set %)))
-
 (defn workspace-exists?
   [{:keys [geoserver-workspace] :as config-params}]
   (as-> (rest/get-workspace geoserver-workspace) %
@@ -380,7 +367,9 @@
                   "/datastores"          :create-data-store
                   "/featuretypes"        :create-feature-type-alias
                   "/styles"              :create-style
-                  "/security/acl/layers" :add-layer-rules)
+                  "/security/acl/layers" :add-layer-rules
+                  "/geofence/rules"      :add-geofence-rule
+                  "/geofence/adminrules" :add-geofence-admin-rule)
        "PUT"    (condp #(s/includes? %2 %1) uri-suffix
                   "external.imagemosaic" :create-coverage-store-image-mosaic
                   "external.geotiff"     :create-coverage-via-put
@@ -390,8 +379,11 @@
                   "/layers/"             :update-layer-style
                   "/styles"              :update-style)
        "DELETE" (condp #(s/includes? %2 %1) uri-suffix
-                  "/layers/"             :delete-layer
-                  "/featuretypes/"       :delete-feature-type)))))
+                  "/layers/"              :delete-layer
+                  "/featuretypes/"        :delete-feature-type
+                  "/security/acl/layers/" :delete-layer-rule
+                  "/geofence/rules/"      :delete-geofence-rule
+                  "/geofence/adminrules/" :delete-geofence-admin-rule)))))
 
 (defn get-style-name
   "Returns the style name, given a target workspace and a file path.
@@ -420,6 +412,21 @@
   [config-params existing-styles style-file-paths]
   (keep #(file-path->style-spec config-params % existing-styles) style-file-paths))
 
+;;; Data Security Layer Rules
+
+(defn get-existing-layer-rules
+  "Gets existing layer rules and returns them in a set of maps of the format:
+   #{{:layer-rule \"*.*.r\", :role \"ROLE_ANONYMOUS\"
+     {:layer-rule \"*.*.w\", :role \"GROUP_ADMIN,ADMIN\"}}"
+  [config-params]
+  (as-> (rest/get-layer-rules) %
+    (make-rest-request config-params %)
+    (:body %)
+    (json/read-str %)
+    (for [[layer-rule role] %]
+      {:layer-rule layer-rule :role role})
+    (set %)))
+
 (defn get-matching-layer-rules
   "Matches the given `geoserver-workspace` to the `:workspace-regex` value provided
    in the `:layer-rules` section of the config file and returns the rules associated
@@ -447,25 +454,78 @@
     (when (seq final-layer-rules)
       [(rest/add-layer-rules final-layer-rules)])))
 
+;;; GeoFence Rules
+
+(defn get-existing-geofence-rules
+  "Gets existing GeoFence data and admin rules."
+  [config-params]
+  {:existing-data-rules  (as-> (rest/get-geofence-rules) %
+                           (make-rest-request config-params %)
+                           (:body %)
+                           (json/read-str % :key-fn keyword)
+                           (:rules %))
+   :existing-admin-rules (as-> (rest/get-geofence-admin-rules) %
+                           (make-rest-request config-params %)
+                           (:body %)
+                           (json/read-str % :key-fn keyword)
+                           (:rules %))})
+
+(defn get-matching-geofence-rules
+  "Returns a map with `:matching-data-rules` and/or `:matching-admin-rules` for the matching workspace
+   regex, injecting the workspace name into each rule. Returns nil if no matches are found.
+   Note that each `:workspace-regex` should be unique from every other `:workspace-regex`
+   in the `:layer-rules` entry; thus it's safe to call `first` on the matching regex."
+  [workspace geofence-rules]
+  (when-let [matching-geofence-rules (->> geofence-rules
+                                          (filter #(re-matches (re-pattern (:workspace-regex %)) workspace))
+                                          (first))]
+    (let [{:keys [data-rules admin-rules]} matching-geofence-rules]
+      (cond-> {}
+        data-rules  (assoc :matching-data-rules  (mapv #(assoc % :workspace workspace) data-rules))
+        admin-rules (assoc :matching-admin-rules (mapv #(assoc % :workspace workspace) admin-rules))))))
+
+(defn geofence-rules->geofence-rules-specs
+  "Determines any new GeoFence data and admin rules that need to be added.
+   We delete all existing rules that match on workspace and add all new ones that match."
+  [{:keys [geoserver-workspace geofence-rules]} {:keys [existing-data-rules existing-admin-rules]}]
+  (let [{:keys [matching-data-rules matching-admin-rules]} (get-matching-geofence-rules geoserver-workspace geofence-rules)
+        ;; Find all existing rules for this workspace to delete
+        data-rules-to-delete  (filter #(= (:workspace %) geoserver-workspace) existing-data-rules)
+        admin-rules-to-delete (filter #(= (:workspace %) geoserver-workspace) existing-admin-rules)]
+
+    (concat
+     ;; Delete all existing rules for this workspace
+     (mapv rest/delete-geofence-rule (map :id data-rules-to-delete))
+     (mapv rest/delete-geofence-admin-rule (map :id admin-rules-to-delete))
+
+     ;; Add all rules from config
+     (mapv rest/add-geofence-rule matching-data-rules)
+     (mapv rest/add-geofence-admin-rule matching-admin-rules))))
+
+;;; Core
+
 (defn file-specs->rest-specs
   "Generates a sequence of REST request specifications as tuples of
   [http-method uri-suffix http-body content-type]. Each file-spec may
   contribute one or more of these to the final sequence. Returns a map
   of these REST specs grouped by spec type."
   [{:keys [geoserver-workspace] :as config-params} gis-file-specs style-file-paths]
-  (let [ws-exists?            (workspace-exists? config-params)
-        layer-rules?          (some? (:layer-rules config-params))
-        existing-stores       (if ws-exists? (get-existing-stores config-params) #{})
-        existing-layer-groups (if ws-exists? (get-existing-layer-groups config-params) #{})
-        existing-styles       (if ws-exists? (get-existing-styles config-params) #{})
-        existing-layer-rules  (if layer-rules? (get-existing-layer-rules config-params) #{})
-        layer-rule-specs      (if layer-rules? (layer-rules->layer-rules-specs config-params existing-layer-rules) nil)
-        style-specs           (file-paths->style-specs config-params existing-styles style-file-paths)
-        all-styles            (concat existing-styles (map #(get-style-name geoserver-workspace %) style-file-paths))
-        layer-specs           (file-specs->layer-specs config-params existing-stores all-styles gis-file-specs)
-        layer-group-specs     (file-specs->layer-group-specs config-params existing-stores existing-layer-groups gis-file-specs)
-        rest-specs            (-> (group-by get-spec-type (concat layer-specs style-specs layer-rule-specs))
-                                  (assoc :create-layer-group layer-group-specs))]
+  (let [ws-exists?              (workspace-exists? config-params)
+        layer-rules?            (some? (:layer-rules config-params))
+        geofence-rules?         (some? (:geofence-rules config-params))
+        existing-stores         (if ws-exists? (get-existing-stores config-params) #{})
+        existing-layer-groups   (if ws-exists? (get-existing-layer-groups config-params) #{})
+        existing-styles         (if ws-exists? (get-existing-styles config-params) #{})
+        existing-layer-rules    (if layer-rules? (get-existing-layer-rules config-params) #{})
+        layer-rule-specs        (if layer-rules? (layer-rules->layer-rules-specs config-params existing-layer-rules) nil)
+        existing-geofence-rules (if geofence-rules? (get-existing-geofence-rules config-params) #{})
+        geofence-rule-specs     (if geofence-rules? (geofence-rules->geofence-rules-specs config-params existing-geofence-rules) nil)
+        style-specs             (file-paths->style-specs config-params existing-styles style-file-paths)
+        all-styles              (concat existing-styles (map #(get-style-name geoserver-workspace %) style-file-paths))
+        layer-specs             (file-specs->layer-specs config-params existing-stores all-styles gis-file-specs)
+        layer-group-specs       (file-specs->layer-group-specs config-params existing-stores existing-layer-groups gis-file-specs)
+        rest-specs              (-> (group-by get-spec-type (concat layer-specs style-specs layer-rule-specs geofence-rule-specs))
+                                    (assoc :create-layer-group layer-group-specs))]
     (if ws-exists?
       rest-specs
       (do
@@ -609,6 +669,8 @@
        (mapv #(make-rest-request-async config-params %))
        (mapv (comp :status deref))))
 
+;;; Add workspace
+
 (defn add-directory-to-workspace-aux!
   [{:keys [data-dir style-dir styles geoserver-workspace] :as config-params}]
   (tufte/profile
@@ -645,7 +707,12 @@
                                                :delete-feature-type
                                                :update-layer-style
                                                :create-layer-group
-                                               :add-layer-rules])))
+                                               :add-layer-rules
+                                               :delete-layer-rule
+                                               :add-geofence-rule
+                                               :add-geofence-admin-rule
+                                               :delete-geofence-rule
+                                               :delete-geofence-admin-rule])))
          wms-response-codes  (tufte/p :wms-requests
                                       (client/with-async-connection-pool {:insecure? true}
                                         (make-parallel-wms-requests config-params wms-specs)))
@@ -674,32 +741,61 @@
          :truncate? false)
     success?))
 
+;;; Remove workspace
+
 (defn remove-workspace!
   [{:keys [geoserver-workspace] :as config-params}]
   (let [workspaces            (->> (get-existing-workspaces config-params)
                                    (map :name)
                                    (filter (fn [w] (re-matches (re-pattern geoserver-workspace) w))))
-        layer-rules?          (some? (:layer-rules config-params))]
+        layer-rules?          (some? (:layer-rules config-params))
+        geofence-rules?       (some? (:geofence-rules config-params))]
     (log (str (count workspaces) " workspaces are queued to be removed."))
     (reduce (fn [acc current-workspace]
               (call-sql "drop_existing_schema" current-workspace)
-              (let [delete-workspace-success?  (->> (rest/delete-workspace current-workspace true)
-                                                    (make-rest-request config-params)
-                                                    (:status)
-                                                    (success-code?))
-                    existing-layer-rules      (when layer-rules?
-                                                (get-existing-layer-rules config-params))
-                    layer-rules-to-delete     (->> existing-layer-rules
-                                                   (map :layer-rule)
-                                                   (filter #(let [[rule-workspace _ _] (s/split % #"\.")]
-                                                              (= rule-workspace current-workspace))))
-                    delete-layer-rule-success? (->> layer-rules-to-delete
-                                                    (map #(->> (rest/delete-layer-rule %)
-                                                               (make-rest-request config-params)
-                                                               (:status)))
-                                                    (every? success-code?))]
+              (let [delete-workspace-success?      (->> (rest/delete-workspace current-workspace true)
+                                                        (make-rest-request config-params)
+                                                        (:status)
+                                                        (success-code?))
+                    existing-layer-rules           (when layer-rules?
+                                                     (get-existing-layer-rules config-params))
+                    layer-rules-to-delete          (->> existing-layer-rules
+                                                        (map :layer-rule)
+                                                        (filter #(let [[rule-workspace _ _] (s/split % #"\.")]
+                                                                   (= rule-workspace current-workspace))))
+                    delete-layer-rule-success?     (->> layer-rules-to-delete
+                                                        (map #(->> (rest/delete-layer-rule %)
+                                                                   (make-rest-request config-params)
+                                                                   (:status)))
+                                                        (every? success-code?))
+                    existing-geofence-rules        (when geofence-rules?
+                                                     (get-existing-geofence-rules config-params))
+                    geofence-data-rules-to-delete  (when geofence-rules?
+                                                     (->> (:existing-data-rules existing-geofence-rules)
+                                                          (filter #(= (:workspace %) current-workspace))
+                                                          (map :id)))
+                    geofence-admin-rules-to-delete (when geofence-rules?
+                                                     (->> (:existing-admin-rules existing-geofence-rules)
+                                                          (filter #(= (:workspace %) current-workspace))
+                                                          (map :id)))
+                    delete-geofence-data-success?  (->> geofence-data-rules-to-delete
+                                                        (map #(->> (rest/delete-geofence-rule %)
+                                                                   (make-rest-request config-params)
+                                                                   (:status)))
+                                                        (every? success-code?))
+                    delete-geofence-admin-success? (->> geofence-admin-rules-to-delete
+                                                        (map #(->> (rest/delete-geofence-admin-rule %)
+                                                                   (make-rest-request config-params)
+                                                                   (:status)))
+                                                        (every? success-code?))]
+
+
                 (when (and layer-rules? delete-layer-rule-success?)
                   (log (str (count layer-rules-to-delete) " layer rules were removed.")))
+                (when (and geofence-rules? delete-geofence-data-success?)
+                  (log (str (count geofence-data-rules-to-delete) " GeoFence data rules were deleted.")))
+                (when (and geofence-rules? delete-geofence-admin-success?)
+                  (log (str (count geofence-admin-rules-to-delete) " GeoFence admin rules were deleted.")))
                 (and acc delete-workspace-success? delete-layer-rule-success?)))
             true
             workspaces)))
