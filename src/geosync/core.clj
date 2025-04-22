@@ -368,8 +368,8 @@
                   "/featuretypes"        :create-feature-type-alias
                   "/styles"              :create-style
                   "/security/acl/layers" :add-layer-rules
-                  "/geofence/rules"      :add-geofence-data-rules
-                  "/geofence/adminrules" :add-geofence-admin-rules)
+                  "/geofence/rules"      :add-geofence-rule
+                  "/geofence/adminrules" :add-geofence-admin-rule)
        "PUT"    (condp #(s/includes? %2 %1) uri-suffix
                   "external.imagemosaic" :create-coverage-store-image-mosaic
                   "external.geotiff"     :create-coverage-via-put
@@ -381,7 +381,8 @@
        "DELETE" (condp #(s/includes? %2 %1) uri-suffix
                   "/layers/"              :delete-layer
                   "/featuretypes/"        :delete-feature-type
-                  "/geofence/rules/"      :delete-geofence-data-rule
+                  "/security/acl/layers/" :delete-layer-rule
+                  "/geofence/rules/"      :delete-geofence-rule
                   "/geofence/adminrules/" :delete-geofence-admin-rule)))))
 
 (defn get-style-name
@@ -706,7 +707,12 @@
                                                :delete-feature-type
                                                :update-layer-style
                                                :create-layer-group
-                                               :add-layer-rules])))
+                                               :add-layer-rules
+                                               :delete-layer-rule
+                                               :add-geofence-rule
+                                               :add-geofence-admin-rule
+                                               :delete-geofence-rule
+                                               :delete-geofence-admin-rule])))
          wms-response-codes  (tufte/p :wms-requests
                                       (client/with-async-connection-pool {:insecure? true}
                                         (make-parallel-wms-requests config-params wms-specs)))
