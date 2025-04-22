@@ -498,10 +498,8 @@
      (mapv rest/delete-geofence-admin-rule (map :id admin-rules-to-delete))
 
      ;; Add all rules from config
-     (when (seq matching-data-rules)
-       (mapv rest/add-geofence-rule matching-data-rules))
-     (when (seq matching-admin-rules)
-       (mapv rest/add-geofence-admin-rule matching-admin-rules)))))
+     (mapv rest/add-geofence-rule matching-data-rules)
+     (mapv rest/add-geofence-admin-rule matching-admin-rules))))
 
 ;;; Core
 
