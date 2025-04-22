@@ -63,21 +63,31 @@
 (spec/def ::one-layer-rule      (spec/keys :req-un [::workspace-regex ::associated-rules]))
 (spec/def ::layer-rules         (spec/coll-of ::one-layer-rule :kind vector? :distinct true))
 ;; :geofence-rules
-(spec/def ::data-rule           (spec/keys :req [:user-name
-                                                 :role-name
-                                                 :access]
-                                           :opt [:priority
-                                                 :address-range
-                                                 :valid-after
-                                                 :valid-before
-                                                 :service
-                                                 :request
-                                                 :layer]))
-(spec/def ::admin-rule          (spec/keys :req [:user-name
-                                                 :role-name
-                                                 :access]
-                                           :opt [:priority
-                                                 :address-range]))
+(spec/def ::user-name           non-empty-string?)
+(spec/def ::role-name           non-empty-string?)
+(spec/def ::access              #{"ALLOW" "DENY" "ADMIN" "USER"})
+(spec/def ::priority            int?)
+(spec/def ::address-range       non-empty-string?)
+(spec/def ::valid-after         non-empty-string?)
+(spec/def ::valid-before        non-empty-string?)
+(spec/def ::service             non-empty-string?)
+(spec/def ::request             non-empty-string?)
+(spec/def ::layer               non-empty-string?)
+(spec/def ::data-rule           (spec/keys :req-un [::user-name
+                                                    ::role-name
+                                                    ::access]
+                                           :opt-un [::priority
+                                                    ::address-range
+                                                    ::valid-after
+                                                    ::valid-before
+                                                    ::service
+                                                    ::request
+                                                    ::layer]))
+(spec/def ::admin-rule          (spec/keys :req-un [::user-name
+                                                    ::role-name
+                                                    ::access]
+                                           :opt-un [::priority
+                                                    ::address-range]))
 (spec/def ::data-rules          (spec/coll-of ::data-rule :kind vector? :distinct true))
 (spec/def ::admin-rules         (spec/coll-of ::admin-rule :kind vector? :distinct true))
 (spec/def ::one-geofence-rule   (spec/keys :req-un [::workspace-regex]
