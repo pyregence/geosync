@@ -598,8 +598,7 @@ requires ~:user-name~, ~:role-name~, and ~:access~ keys, and may optionally incl
 ~:priority~ and ~:address-range~ keys. The ~:access~ value must be either "ADMIN" or "USER".
 
 *** Important GeoFence Notes
-- In order to use GeoFence rules you need to first install the GeoFence plugin
-on your GeoServer.
+- In order to use GeoFence rules you need to first install the GeoFence plugin on your GeoServer.
 - [[https://docs.geoserver.org/main/en/user/extensions/geofence-server/tutorial.html#getting-started][The default behavior of GeoFence is to deny access to all resources]].
 - [[https://docs.geonode.org/en/3.3.x/advanced/components/#:~:text=GeoFence%20has%20its%20own%20rules%20database%20for%20the%20management%20of%20Authorization%20rules%2C%20and%20overrides%20the%20standard%20GeoServer%20security%20management%20system%20by%20implementing%20a%20sophisticated%20Resource%20Access%20Manager][GeoFence overrides the standard GeoServer data security/layer rules management system]].
   This means you should *not* use both ~:layer-rules~ and ~:geofence-rules~ in your
