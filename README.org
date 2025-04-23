@@ -570,19 +570,42 @@ Each ~:workspace-regex~ must be unique from every other ~:workspace-regex~ in bo
 ~:layer-rules~ and ~:geofence-rules~ sections, as GeoSync uses the first matching regex
 to determine which rules to apply.
 
+For an example of what this looks like, see [[file:resources/sample-config.edn][resources/sample-config.edn]].
+
+When a workspace is removed, all existing GeoFence data and admin rules associated with
+that workspace are deleted from GeoServer along with the workspace.
+
+*** GeoFence Data Rules
+
+GeoFence Data Rules control access to layers and workspaces by role, username,
+service, request, and IP address range. They work in the same way as GeoServer's default
+layer security rules (see "Important GeoFence Notes" below). Use Data Security
+Rules when you're controlling data access.
+
 The ~:data-rules~ vector contains maps that specify GeoFence data rules. Each data rule
 requires ~:user-name~, ~:role-name~, and ~:access~ keys, and may optionally include
 ~:priority~, ~:address-range~, ~:valid-after~, ~:valid-before~, ~:service~, ~:request~,
 and ~:layer~ keys. The ~:access~ value must be either "ALLOW" or "DENY".
 
+*** GeoFence Admin Rules
+
+GeoFence Admin Rules are used to manage administrative permissions, not data access .
+These include permissions such as who can edit workspaces, stores, and layers.
+Use Admin Rules when you want to restrict configuration/edit access to the GeoServer admin interface.
+
 The ~:admin-rules~ vector contains maps that specify GeoFence admin rules. Each admin rule
 requires ~:user-name~, ~:role-name~, and ~:access~ keys, and may optionally include
 ~:priority~ and ~:address-range~ keys. The ~:access~ value must be either "ADMIN" or "USER".
 
-For an example of what this looks like, see [[file:resources/sample-config.edn][resources/sample-config.edn]].
-
-When a workspace is removed, all existing GeoFence data and admin rules associated with
-that workspace are deleted from GeoServer along with the workspace.
+*** Important GeoFence Notes
+- In order to use GeoFence rules you need to first install the GeoFence plugin
+on your GeoServer.
+- [[https://docs.geoserver.org/main/en/user/extensions/geofence-server/tutorial.html#getting-started]
+   [The default behavior of GeoFence is to deny access to all resources]].
+- [[https://docs.geonode.org/en/3.3.x/advanced/components/#:~:text=GeoFence%20has%20its%20own%20rules%20database%20for%20the%20management%20of%20Authorization%20rules%2C%20and%20overrides%20the%20standard%20GeoServer%20security%20management%20system%20by%20implementing%20a%20sophisticated%20Resource%20Access%20Manager.]
+   GeoFence overrides the standard GeoServer data security/layer rules management system].
+  This means you should *not* use both ~:layer-rules~ and ~:geofence-rules~ in your
+  ~config.edn~ file. If you do, any ~:layer-rules~ will be ignored by the GeoServer.
 
 ** UberJAR
 
