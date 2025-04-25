@@ -579,7 +579,7 @@ that workspace are deleted from GeoServer along with the workspace.
 
 GeoFence Data Rules control access to layers and workspaces by role, username,
 service, request, and IP address range. They work in the same way as GeoServer's default
-layer security rules (see "Important GeoFence Notes" below). Use Data Security
+data security rules (see "Important GeoFence Notes" below). Use Data Security
 Rules when you're controlling data access.
 
 The ~:data-rules~ vector contains maps that specify GeoFence data rules. Each data rule
@@ -606,7 +606,7 @@ requires ~:user-name~, ~:role-name~, and ~:access~ keys, and may optionally incl
   ~config.edn~ file. If you do, any ~:layer-rules~ will be ignored by the GeoServer.
 - There is an undocumented bug where the Layer Preview functionality stops working
   for any non-admin users, even if they have explicit "ALLOW" access to specific layers.
-  This does not affect ther ability to make requests to these layers, just the ability
+  This does not affect their ability to make requests to these layers, just the ability
   to see them via the Layer Preview section of the GeoServer web UI.
 
 ** UberJAR
