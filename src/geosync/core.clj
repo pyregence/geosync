@@ -709,10 +709,10 @@
                                                :create-layer-group
                                                :add-layer-rules
                                                :delete-layer-rule
-                                               :add-geofence-rule
-                                               :add-geofence-admin-rule
                                                :delete-geofence-rule
-                                               :delete-geofence-admin-rule])))
+                                               :delete-geofence-admin-rule
+                                               :add-geofence-rule
+                                               :add-geofence-admin-rule])))
          wms-response-codes  (tufte/p :wms-requests
                                       (client/with-async-connection-pool {:insecure? true}
                                         (make-parallel-wms-requests config-params wms-specs)))
