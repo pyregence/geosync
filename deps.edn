@@ -6,10 +6,12 @@
            org.clojure/core.async       {:mvn/version "1.7.701"}
            org.clojure/data.json        {:mvn/version "2.5.1"}
            org.clojure/tools.cli        {:mvn/version "1.1.230"}
-           io.github.sig-gis/triangulum {:git/sha "affdf8858854cd9a018cfe1fc6d02980f977bc07"}}
+           io.github.sig-gis/triangulum {:git/sha "6557eeade4a6b8ce555b4ea3c1d506bf7bf1842f"}}
  :aliases {:build-uberjar    {:exec-fn   triangulum.packaging/build-uberjar
-                              :exec-args {:app-name geosync
-                                          :main-ns  geosync.cli}}
+                              :exec-args {:app-name      geosync
+                                          :src-dirs      ["src/geosync"]
+                                          :main-ns       geosync.cli
+                                          :resource-dirs ["src/sql"]}}
            :build-db         {:main-opts ["-m" "triangulum.build-db"]}
            :check-deps       {:deps      {com.github.liquidz/antq {:mvn/version "RELEASE"}}
                               :main-opts ["-m" "antq.core"]}
