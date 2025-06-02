@@ -1,4 +1,4 @@
-{:paths   ["src" "resources"]
+{:paths   ["src/geosync" "src/sql" "resources"]
  :deps    {clj-http/clj-http            {:mvn/version "3.13.0"}
            com.taoensso/tufte           {:mvn/version "2.6.3"}
            hiccup/hiccup                {:mvn/version "2.0.0-RC1"}
@@ -9,7 +9,7 @@
            io.github.sig-gis/triangulum {:git/sha "6557eeade4a6b8ce555b4ea3c1d506bf7bf1842f"}}
  :aliases {:build-uberjar    {:exec-fn   triangulum.packaging/build-uberjar
                               :exec-args {:app-name      geosync
-                                          :src-dirs      ["src/geosync"]
+                                          :src-dirs      ["src"]
                                           :main-ns       geosync.cli
                                           :resource-dirs ["src/sql"]}}
            :build-db         {:main-opts ["-m" "triangulum.build-db"]}

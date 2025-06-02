@@ -284,8 +284,8 @@
   (case (first args)
     ;; Needed for calling triangulum/build-db via an UberJAR
     "build-db"
-    (let [subtask-args (remove #{"build-db"} args)]
-      (apply build-db/-main subtask-args)
+    (do
+      (apply build-db/-main (rest args))
       (shutdown-agents)
       (flush))
 
