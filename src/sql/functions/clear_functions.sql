@@ -7,7 +7,7 @@ DO $$
     SELECT INTO _sql
         string_agg(format('DROP FUNCTION %s;', oid::regprocedure), E'\n')
     FROM pg_proc
-    WHERE (proowner = 'geoserver'::regrole)
+    WHERE (proowner = :'user'::regrole)
         AND prokind = 'f';
 
     IF _sql IS NOT NULL THEN
