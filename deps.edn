@@ -6,7 +6,7 @@
            org.clojure/core.async       {:mvn/version "1.7.701"}
            org.clojure/data.json        {:mvn/version "2.5.1"}
            org.clojure/tools.cli        {:mvn/version "1.1.230"}
-           io.github.sig-gis/triangulum {:git/sha "9bfcbed4111eb118d60109ed1f3ef7da7f5e35d3"}}
+           io.github.sig-gis/triangulum {:git/sha "1e0e6f189fe696ad3998cf0731c2fde1b72d6254"}}
  :aliases {:build-uberjar    {:exec-fn   triangulum.packaging/build-uberjar
                               :exec-args {:app-name      geosync
                                           :src-dirs      ["src"]
