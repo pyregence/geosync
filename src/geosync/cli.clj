@@ -1,22 +1,23 @@
 (ns geosync.cli
   (:gen-class)
   (:import java.util.Base64)
-  (:require [clojure.edn        :as edn]
-            [clojure.java.io    :as io]
-            [clojure.spec.alpha :as spec]
-            [clojure.string     :as s]
-            [clojure.tools.cli  :refer [parse-opts]]
-            [geosync.core       :refer [add-directory-to-workspace!
-                                        remove-workspace!]]
-            [geosync.server     :refer [start-server!]]
-            [geosync.utils      :refer [hostname?
-                                        nil-on-error
-                                        non-empty-string?
-                                        port?
-                                        readable-directory?
-                                        throw-message
-                                        url?
-                                        writable-directory?]]))
+  (:require [clojure.edn         :as edn]
+            [clojure.java.io     :as io]
+            [clojure.spec.alpha  :as spec]
+            [clojure.string      :as s]
+            [clojure.tools.cli   :refer [parse-opts]]
+            [geosync.core        :refer [add-directory-to-workspace!
+                                         remove-workspace!]]
+            [geosync.server      :refer [start-server!]]
+            [geosync.utils       :refer [hostname?
+                                         nil-on-error
+                                         non-empty-string?
+                                         port?
+                                         readable-directory?
+                                         throw-message
+                                         url?
+                                         writable-directory?]]
+            [triangulum.build-db :as build-db]))
 
 ;;===========================================================
 ;; Argument Validation
@@ -275,54 +276,63 @@
 
 (def program-banner
   (str "geosync: Load directory trees of GIS and style files into a running GeoServer instance.\n"
-       "Copyright © 2020-2025 Spatial Informatics Group, LLC.\n"))
+       "Copyright © 2020-" (.getValue (java.time.Year/now)) " Spatial Informatics Group, LLC.\n"))
 
 (defn -main
   [& args]
   (println program-banner)
-  (let [{:keys [options arguments summary errors]} (parse-opts args cli-options)
-        ;; {:options   The options map, keyed by :id, mapped to the parsed value
-        ;;  :arguments A vector of unprocessed arguments
-        ;;  :summary   A string containing a minimal options summary
-        ;;  :errors    A vector of error message strings thrown during parsing; nil when no errors exist
-        config-params (try
-                        (process-options options)
-                        (catch Exception e
-                          (ex-message e)))]
-    (cond (seq errors)
-          (do
-            (run! println errors)
-            (println (str "\nUsage:\n" summary)))
+  (case (first args)
+    ;; Needed for calling triangulum/build-db via an UberJAR
+    "build-db"
+    (do
+      (apply build-db/-main (rest args))
+      (shutdown-agents)
+      (flush))
 
-          (or (empty? options) (seq arguments))
-          (println (str "Usage:\n" summary))
+    ;; Default GeoSync behavior
+    (let [{:keys [options arguments summary errors]} (parse-opts args cli-options)
+          ;; {:options   The options map, keyed by :id, mapped to the parsed value
+          ;;  :arguments A vector of unprocessed arguments
+          ;;  :summary   A string containing a minimal options summary
+          ;;  :errors    A vector of error message strings thrown during parsing; nil when no errors exist
+          config-params (try
+                          (process-options options)
+                          (catch Exception e
+                            (ex-message e)))]
+      (cond (seq errors)
+            (do
+              (run! println errors)
+              (println (str "\nUsage:\n" summary)))
 
-          (string? config-params)
-          (do
-            (println config-params)
-            (println (str "Usage:\n" summary)))
+            (or (empty? options) (seq arguments))
+            (println (str "Usage:\n" summary))
 
-          ;; GeoSync is running in server mode
-          (and (:geosync-server-host config-params)
-               (:geosync-server-port config-params))
-          (start-server! config-params)
+            (string? config-params)
+            (do
+              (println config-params)
+              (println (str "Usage:\n" summary)))
 
-          ;; GeoSync is running in CLI mode with an action of "add"
-          (= (:action config-params) "add")
-          (do
-            (add-directory-to-workspace! config-params)
-            (shutdown-agents)
-            (flush))
+            ;; GeoSync is running in server mode
+            (and (:geosync-server-host config-params)
+                 (:geosync-server-port config-params))
+            (start-server! config-params)
 
-          ;; GeoSync is running in CLI mode with an action of "remove"
-          (= (:action config-params) "remove")
-          (do
-            (remove-workspace! config-params)
-            (shutdown-agents)
-            (flush))
+            ;; GeoSync is running in CLI mode with an action of "add"
+            (= (:action config-params) "add")
+            (do
+              (add-directory-to-workspace! config-params)
+              (shutdown-agents)
+              (flush))
 
-          :else
-          (do
-            (println "Something went wrong when running GeoSync.")
-            (shutdown-agents)
-            (flush)))))
+            ;; GeoSync is running in CLI mode with an action of "remove"
+            (= (:action config-params) "remove")
+            (do
+              (remove-workspace! config-params)
+              (shutdown-agents)
+              (flush))
+
+            :else
+            (do
+              (println "Something went wrong when running GeoSync.")
+              (shutdown-agents)
+              (flush))))))
