@@ -618,7 +618,7 @@ To build GeoSync as an UberJAR (generated in this repository's
 clojure -X:build-uberjar
 #+end_src
 
-If you would like to build this an isolated container, assuming you have guix installed, then run this command:
+If you would like to build this an isolated container, install [[https://guix.gnu.org/][Guix]] for your system and then run this command:
 
 #+begin_src sh
 ./geosync-shell.sh -- clojure -X:build-uberjar
