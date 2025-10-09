@@ -630,6 +630,8 @@ Once you have created the UberJAR, you can run it with the following command:
 java -jar $PATH_TO_JAR_DIR/geosync-$VERSION-standalone.jar $CLI_ARGS
 #+end_src
 
+** Vulerability checking
+To check for vulerabilities in this project, use ~clojure -M:clj-watson scan -p deps.edn -s~
 ** License and Distribution
 
 Copyright © 2020-2025 Spatial Informatics Group, LLC.
