@@ -246,7 +246,11 @@
                           (rest/delete-feature-type geoserver-workspace store-name layer-name)])
                        (when matching-style
                          [(rest/update-layer-style geoserver-workspace store-name matching-style :vector)])))
-
+        
+        :geopackage  [(rest/create-geopackage-datastore-via-put geoserver-workspace store-name file-url)
+                      (when matching-style
+                        (rest/update-layer-style geoserver-workspace store-name matching-style :vector))]
+        
         :imagemosaic (do (update-properties-file! (str file-url "/datastore.properties") "schema" geoserver-workspace)
                          (update-properties-file! (str file-url "/indexer.properties") "Name" store-name)
                          (clean-image-mosaic-folder (s/replace file-url "file://" ""))
@@ -374,6 +378,7 @@
                   "external.imagemosaic" :create-coverage-store-image-mosaic
                   "external.geotiff"     :create-coverage-via-put
                   "external.shp"         :create-feature-type-via-put
+                  "external.gpkg"        :create-geopackage-datastore-via-put
                   "/coveragestores/"     :update-coverage-store
                   "/gwc/rest/layers/"    :update-cached-layer
                   "/layers/"             :update-layer-style
@@ -540,6 +545,7 @@
   (condp re-matches file-path
     #"^.*\.tiff?$"               :geotiff
     #"^.*\.shp$"                 :shapefile
+    #"^.*\.gpkg$"                :geopackage
     #"^.*datastore\.properties$" :imagemosaic
     nil))
 
@@ -585,6 +591,7 @@
                (case store-type
                  :geotiff     raster-style
                  :shapefile   vector-style
+                 :geopackage  vector-style
                  :imagemosaic raster-style
                  nil)))
            styles))))
@@ -702,6 +709,7 @@
                                                :create-coverage-via-put
                                                :create-data-store
                                                :create-feature-type-via-put
+                                               :create-geopackage-datastore-via-put
                                                :create-feature-type-alias
                                                :delete-layer
                                                :delete-feature-type
