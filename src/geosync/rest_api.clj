@@ -120,13 +120,13 @@
 ;; NOTE: References a GeoPackage already on the server's filesystem.
 ;; NOTE: file-url should look like file:///path/to/data.gpkg
 ;; NOTE: Handles both datastore and feature type publishing
-(defn create-geopackage-datastore-via-put [workspace store file-url]
+(defn create-geopackage-data-store-via-put [workspace store file-url]
   ["PUT"
    (str "/workspaces/" workspace "/datastores/" store "/external.gpkg?configure=all")
    file-url])
 
 ;; NOTE: Alternative POST method if PUT doesn't work (currrently unused)
-(defn create-geopackage-datastore-via-post [workspace store file-url]
+(defn create-geopackage-data-store-via-post [workspace store file-url]
   ["POST"
    (str "/workspaces/" workspace "/datastores")
    (xml
