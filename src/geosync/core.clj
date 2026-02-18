@@ -246,9 +246,11 @@
                           (rest/delete-feature-type geoserver-workspace store-name layer-name)])
                        (when matching-style
                          [(rest/update-layer-style geoserver-workspace store-name matching-style :vector)])))
+
         :geopackage  [(rest/create-geopackage-data-store-via-put geoserver-workspace store-name file-url)
                       (when matching-style
                         (rest/update-layer-style geoserver-workspace store-name matching-style :vector))]
+
         :imagemosaic (do (update-properties-file! (str file-url "/datastore.properties") "schema" geoserver-workspace)
                          (update-properties-file! (str file-url "/indexer.properties") "Name" store-name)
                          (clean-image-mosaic-folder (s/replace file-url "file://" ""))
