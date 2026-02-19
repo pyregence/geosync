@@ -130,7 +130,6 @@
         [:entry {:key "dbtype"} "geopkg"]
         [:entry {:key "namespace"} (str "http://" workspace)]]]))])
 
-
 ;; NOTE: Only Shapefile feature types are currently supported.
 ;; NOTE: file-url should look like file:///path/to/nyc.shp
 ;; NOTE: currrently unused
