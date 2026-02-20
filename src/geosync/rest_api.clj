@@ -95,30 +95,44 @@
    (str "/workspaces/" workspace "/datastores/" store)
    nil])
 
-;; NOTE: Only Shapefile stores are currently supported.
-;; NOTE: file-url should look like file:///path/to/nyc.shp
-(defn create-data-store [workspace store file-url]
+;; NOTE: file-url should look like file:///path/to/nyc.shp or file:///path/to/data.gpkg
+(defn create-data-store [workspace store file-url store-type]
   ["POST"
    (str "/workspaces/" workspace "/datastores")
-   (xml
-    [:dataStore
-     [:workspace
-      [:name workspace]]
-     [:name store]
-     [:type "Shapefile"]
-     [:enabled true]
-     [:connectionParameters
-      [:entry {:key "url"} file-url]
-      [:entry {:key "fstype"} "shape"]
-      [:entry {:key "filetype"} "shapefile"]
-      [:entry {:key "charset"} "ISO-8859-1"]
-      [:entry {:key "create spatial index"} true]
-      [:entry {:key "enable spatial index"} true]
-      [:entry {:key "memory mapped buffer"} true]
-      [:entry {:key "cache and reuse memory maps"} true]]])])
+   (case store-type
+     :shapefile
+     (xml
+      [:dataStore
+       [:workspace
+        [:name workspace]]
+       [:name store]
+       [:type "Shapefile"]
+       [:enabled true]
+       [:connectionParameters
+        [:entry {:key "url"} file-url]
+        [:entry {:key "fstype"} "shape"]
+        [:entry {:key "filetype"} "shapefile"]
+        [:entry {:key "charset"} "ISO-8859-1"]
+        [:entry {:key "create spatial index"} true]
+        [:entry {:key "enable spatial index"} true]
+        [:entry {:key "memory mapped buffer"} true]
+        [:entry {:key "cache and reuse memory maps"} true]]])
+     :geopackage
+     (xml
+      [:dataStore
+       [:workspace
+        [:name workspace]]
+       [:name store]
+       [:type "GeoPackage"]
+       [:enabled true]
+       [:connectionParameters
+        [:entry {:key "database"} file-url]
+        [:entry {:key "dbtype"} "geopkg"]
+        [:entry {:key "namespace"} (str "http://" workspace)]]]))])
 
 ;; NOTE: Only Shapefile feature types are currently supported.
 ;; NOTE: file-url should look like file:///path/to/nyc.shp
+;; NOTE: currrently unused
 (defn create-data-store-via-put [workspace store file-url]
   ["PUT"
    (str "/workspaces/" workspace "/datastores/" store "/external.shp?configure=none")
@@ -261,11 +275,13 @@
      [:numDecimals num-decimals]
      [:enabled true]])])
 
-;; NOTE: Only Shapefile feature types are currently supported.
-;; NOTE: file-url should look like file:///path/to/nyc.shp
-(defn create-feature-type-via-put [workspace store file-url]
+;; NOTE: file-url should look like file:///path/to/nyc.shp or file:///path/to/data.gpkg
+(defn create-feature-type-via-put [workspace store file-url store-type]
   ["PUT"
-   (str "/workspaces/" workspace "/datastores/" store "/external.shp")
+   (str "/workspaces/" workspace "/datastores/" store
+        (case store-type
+          :shapefile  "/external.shp"
+          :geopackage "/external.gpkg"))
    file-url])
 
 (defn create-feature-type-alias [workspace store old-feature-type new-feature-type]
@@ -276,6 +292,7 @@
      [:store {:class "dataStore"}
       [:name (str workspace ":" store)]]
      [:name new-feature-type]
+     [:title new-feature-type]
      [:nativeName old-feature-type]])])
 
 (defn update-feature-type [workspace store feature-type native-name title abstract

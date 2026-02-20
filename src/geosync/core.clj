@@ -8,7 +8,7 @@
             [clojure.java.io     :as io]
             [clojure.string      :as s]
             [geosync.rest-api    :as rest]
-            [geosync.utils       :refer [nil-on-error url-path]]
+            [geosync.utils       :refer [get-gpkg-native-layer-name nil-on-error url-path]]
             [triangulum.logging  :refer [log log-str]]
             [triangulum.database :refer [call-sql]]
             [taoensso.tufte      :as tufte]))
@@ -225,7 +225,7 @@
   [{:keys [geoserver-workspace autostyle-layers]}
    existing-stores
    existing-styles
-   {:keys [store-type store-name layer-name file-url style]}]
+   {:keys [store-type store-name layer-name native-name file-url style]}]
   (let [matching-style (get-matching-style layer-name style existing-styles autostyle-layers)]
     (when-not (contains? existing-stores store-name)
       (case store-type
@@ -235,8 +235,8 @@
 
         :shapefile   (doall
                       (concat
-                       [(rest/create-data-store geoserver-workspace store-name file-url)
-                        (rest/create-feature-type-via-put geoserver-workspace store-name file-url)]
+                       [(rest/create-data-store geoserver-workspace store-name file-url :shapefile)
+                        (rest/create-feature-type-via-put geoserver-workspace store-name file-url :shapefile)]
                        (when (not= store-name layer-name)
                          [(rest/create-feature-type-alias geoserver-workspace
                                                           store-name
@@ -246,6 +246,21 @@
                           (rest/delete-feature-type geoserver-workspace store-name layer-name)])
                        (when matching-style
                          [(rest/update-layer-style geoserver-workspace store-name matching-style :vector)])))
+
+        :geopackage  (let [native-name (or native-name layer-name)]
+                       (doall
+                        (concat
+                         [(rest/create-data-store geoserver-workspace store-name file-url :geopackage)
+                          (rest/create-feature-type-via-put geoserver-workspace store-name file-url :geopackage)]
+                         (when (not= native-name layer-name)
+                           [(rest/create-feature-type-alias geoserver-workspace
+                                                            store-name
+                                                            native-name
+                                                            layer-name)
+                            (rest/delete-layer geoserver-workspace native-name)
+                            (rest/delete-feature-type geoserver-workspace store-name native-name)])
+                         (when matching-style
+                           [(rest/update-layer-style geoserver-workspace layer-name matching-style :vector)]))))
 
         :imagemosaic (do (update-properties-file! (str file-url "/datastore.properties") "schema" geoserver-workspace)
                          (update-properties-file! (str file-url "/indexer.properties") "Name" store-name)
@@ -374,6 +389,7 @@
                   "external.imagemosaic" :create-coverage-store-image-mosaic
                   "external.geotiff"     :create-coverage-via-put
                   "external.shp"         :create-feature-type-via-put
+                  "external.gpkg"        :create-feature-type-via-put
                   "/coveragestores/"     :update-coverage-store
                   "/gwc/rest/layers/"    :update-cached-layer
                   "/layers/"             :update-layer-style
@@ -540,6 +556,7 @@
   (condp re-matches file-path
     #"^.*\.tiff?$"               :geotiff
     #"^.*\.shp$"                 :shapefile
+    #"^.*\.gpkg$"                :geopackage
     #"^.*datastore\.properties$" :imagemosaic
     nil))
 
@@ -585,6 +602,7 @@
                (case store-type
                  :geotiff     raster-style
                  :shapefile   vector-style
+                 :geopackage  vector-style
                  :imagemosaic raster-style
                  nil)))
            styles))))
@@ -596,14 +614,22 @@
     (.exists (io/file data-dir spatial-index-file-path))))
 
 (defn file-paths->file-specs
+  "Converts a sequence of relative file paths into file-spec maps. For most
+  formats the published layer name can be derived from the file path alone, but
+  GeoPackage files store their table names inside the SQLite database, where the
+  name can be anything — including a SQL SELECT statement when the file contains a
+  view. For GeoPackage files, :native-name is therefore populated via ogrinfo so
+  that the internal table name is known before any GeoServer API calls are made."
   [data-dir styles file-paths]
   (mapv #(let [store-type (get-store-type %)]
-           (array-map :store-type store-type
-                      :store-name (file-path->store-name %)
-                      :layer-name (file-path->layer-name %)
-                      :file-url   (file-path->file-url % data-dir)
-                      :style      (get-style % store-type styles)
-                      :indexed?   (has-spatial-index? % data-dir)))
+           (array-map :store-type  store-type
+                      :store-name  (file-path->store-name %)
+                      :layer-name  (file-path->layer-name %)
+                      :native-name (when (= store-type :geopackage)
+                                     (get-gpkg-native-layer-name data-dir %))
+                      :file-url    (file-path->file-url % data-dir)
+                      :style       (get-style % store-type styles)
+                      :indexed?    (has-spatial-index? % data-dir)))
         file-paths))
 
 (defn gis-file-seq

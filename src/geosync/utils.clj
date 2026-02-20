@@ -58,6 +58,18 @@
       (throw (ex-info "gdalsrsinfo failed"
                       {:data-dir data-dir :file-path file-path :error (.getMessage e)})))))
 
+(defn get-gpkg-native-layer-name
+  "Returns the first feature layer name found inside a GeoPackage file
+  as reported by ogrinfo. This may differ from the desired published layer
+  name, e.g. when the GeoPackage contains a SQL view whose internal name
+  is a SELECT statement."
+  [data-dir file-path]
+  (try
+    (let [result (with-sh-dir data-dir (sh "ogrinfo" file-path))]
+      (when-not (s/blank? (:out result))
+        (second (re-find #"(?m)^\d+: (.+?) \(" (:out result)))))
+    (catch Exception _ nil)))
+
 (defn extract-path [file-url]
   (rest (re-find #"^file://(.+)/([^/]+)$" file-url)))
 
