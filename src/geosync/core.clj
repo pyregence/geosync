@@ -320,6 +320,24 @@
     (map :name %)
     (set %)))
 
+(defn get-existing-layers-in-workspace
+  "Bare layer names published under WORKSPACE.
+
+  Unlike get-existing-layers, the workspace is passed explicitly: remove-workspace!
+  iterates over every workspace matching the configured regex, not the single name
+  in config-params. GeoServer returns unqualified names here, so callers that need
+  a GeoWebCache layer name must join them as workspace:layer themselves. A
+  workspace with no layers yields an empty set rather than throwing."
+  [config-params workspace]
+  (as-> (rest/get-layers workspace) %
+    (make-rest-request config-params %)
+    (:body %)
+    (json/read-str % :key-fn keyword)
+    (:layers %)
+    (:layer %)
+    (map :name %)
+    (set %)))
+
 (defn get-existing-gwc-layer
   [{:keys [geoserver-workspace] :as config-params} store-name]
   (as-> (rest/get-cached-layer geoserver-workspace store-name) %
@@ -779,7 +797,19 @@
     (log (str (count workspaces) " workspaces are queued to be removed."))
     (reduce (fn [acc current-workspace]
               (call-sql "drop_existing_schema" current-workspace)
-              (let [delete-workspace-success?      (->> (rest/delete-workspace current-workspace true)
+              (let [cached-layers                  (get-existing-layers-in-workspace config-params
+                                                                                     current-workspace)
+                    ;; Must run BEFORE the workspace is deleted: once the catalog entry is
+                    ;; gone there is no way left to enumerate which layers it held, and the
+                    ;; tile layers become unreachable orphans. Deleting the workspace alone
+                    ;; leaves their blob directories and DiskQuota rows behind forever.
+                    ;; 404 counts as success -- the layer having no tile layer is the
+                    ;; outcome we want, not a failure.
+                    delete-cached-layers-success?  (->> cached-layers
+                                                        (mapv #(rest/delete-cached-layer current-workspace %))
+                                                        (make-parallel-rest-requests config-params)
+                                                        (every? #(or (success-code? %) (= 404 %))))
+                    delete-workspace-success?      (->> (rest/delete-workspace current-workspace true)
                                                         (make-rest-request config-params)
                                                         (:status)
                                                         (success-code?))
@@ -816,12 +846,14 @@
                                                         (every? success-code?))]
 
 
+                (when (seq cached-layers)
+                  (log (str (count cached-layers) " cached layers were removed from GeoWebCache.")))
                 (when (and layer-rules? delete-layer-rule-success?)
                   (log (str (count layer-rules-to-delete) " layer rules were removed.")))
                 (when (and geofence-rules? delete-geofence-data-success?)
                   (log (str (count geofence-data-rules-to-delete) " GeoFence data rules were deleted.")))
                 (when (and geofence-rules? delete-geofence-admin-success?)
                   (log (str (count geofence-admin-rules-to-delete) " GeoFence admin rules were deleted.")))
-                (and acc delete-workspace-success? delete-layer-rule-success?)))
+                (and acc delete-cached-layers-success? delete-workspace-success? delete-layer-rule-success?)))
             true
             workspaces)))
