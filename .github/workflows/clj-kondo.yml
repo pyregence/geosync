@@ -1,0 +1,31 @@
+name: clj-kondo linter
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'src/**/*.clj'
+      - 'test/**/*.clj'
+      - 'deps.edn'
+      - '.github/workflows/clj-kondo.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  clj-lint:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Install clj-kondo
+      uses: DeLaGuardo/setup-clojure@13.6.0
+      with:
+        clj-kondo: latest
+
+    - name: Run clj-kondo
+      run: clj-kondo --lint src test --fail-level error
