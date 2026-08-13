@@ -365,6 +365,22 @@
      [:name store]
      [:nativeName store]
      [:title store]
+     ;; Declaring the band is what makes ncWMS GetTimeSeries usable: it reads the
+     ;; band list to return a whole time series at a point in one request rather
+     ;; than one request per timestep. Without it the operation fails with an
+     ;; empty property list. GeoServer never fills the bands in itself here
+     ;; because the store is created with configure=none.
+     ;;
+     ;; Single band, because every forecast raster PyreCast publishes is
+     ;; single-band, and that is what the plain GeoTIFF path derives on its own.
+     ;; A multi-band mosaic would need the real band list read off the reader.
+     [:dimensions
+      [:coverageDimension
+       [:name "GRAY_INDEX"]
+       [:description "GridSampleDimension[-Infinity,Infinity]"]
+       [:range
+        [:min "-inf"]
+        [:max "inf"]]]]
      [:metadata
       [:entry {:key "time"}
        [:dimensionInfo
