@@ -87,15 +87,6 @@
     (is (= (count (core/file-paths->style-specs (geosync-conf {:overwrite-styles true}) #{"my-workspace:test-style"} ["test/data/test-style.css"]))
            1))))
 
-(deftest imagemosaic-workspace?-test
-  (testing "matches the configured workspace regexes"
-    (is (core/imagemosaic-workspace? ["^fire-weather-forecast_"] "fire-weather-forecast_hrrr_20260813_12"))
-    (is (core/imagemosaic-workspace? ["^fire-weather-forecast_" "^fire-risk-forecast_"] "fire-risk-forecast_all_20260813_00")))
-  (testing "leaves every other workspace alone"
-    (is (not (core/imagemosaic-workspace? ["^fire-weather-forecast_"] "fire-spread-forecast_or-paradise_20260812_112000")))
-    (is (not (core/imagemosaic-workspace? [] "fire-weather-forecast_hrrr_20260813_12")))
-    (is (not (core/imagemosaic-workspace? nil "fire-weather-forecast_hrrr_20260813_12")))))
-
 (deftest timestamped-tif-groups-test
   (let [dir (temp-dir!)]
     (try
@@ -158,6 +149,17 @@
         (is (= 0 (core/convert-time-series-to-imagemosaics! dir)))
         (is (= #{"datastore.properties" "hours-since-burned_20260813_010000.tif"}
                (file-names mosaic)))
+        (finally (delete-tree! dir)))))
+
+  (testing "leaves timestamped shapefiles alone - psps_zonal and fire_detections
+            publish one layer per timestep and are not rasters"
+    (let [dir (temp-dir!)]
+      (try
+        (doseq [ext ["shp" "dbf" "prj" "shx"]]
+          (touch! dir (str "deenergization-zones_20260812_180000." ext))
+          (touch! dir (str "deenergization-zones_20260812_190000." ext)))
+        (is (= 0 (core/convert-time-series-to-imagemosaics! dir)))
+        (is (= 8 (count (file-names dir))))
         (finally (delete-tree! dir)))))
 
   (testing "leaves untimestamped rasters registering as their own layers"

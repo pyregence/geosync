@@ -40,10 +40,6 @@
                                            :address-range "192.168.0.0/16"
                                            :access        "USER"}]}]
  :log-dir             "logs"
- ;; Workspaces whose flat `<layer>_<YYYYMMDD>_<HHMMSS>.tif` files get folded into
- ;; ImageMosaic directories before registration, so a forecast cycle publishes one
- ;; time-aware layer per parameter instead of one layer per timestep.
- :imagemosaic-workspaces ["^fire-weather-forecast_" "^fire-risk-forecast_"]
  :styles              [{:layer-pattern "fire-area"            :raster-style "fire-area"           :vector-style "line-fire-area"}
                        {:layer-pattern "fire-volume"          :raster-style "fire-volume"         :vector-style "line-fire-volume"}
                        {:layer-pattern "times-burned"         :raster-style "times-burned"        :vector-style "line-times-burned"}
