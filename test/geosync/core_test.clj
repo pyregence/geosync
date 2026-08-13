@@ -1,6 +1,31 @@
 (ns geosync.core-test
-  (:require [clojure.test :refer [deftest is testing]]
-            [geosync.core :as core]))
+  (:import java.io.File)
+  (:require [clojure.java.io :as io]
+            [clojure.test    :refer [deftest is testing]]
+            [geosync.core    :as core]))
+
+(defn- delete-tree!
+  [^File file]
+  (when (.isDirectory file)
+    (doseq [child (.listFiles file)] (delete-tree! child)))
+  (.delete file))
+
+(defn- temp-dir!
+  []
+  (doto (io/file (System/getProperty "java.io.tmpdir")
+                 (str "geosync-test-" (System/currentTimeMillis) "-" (rand-int 100000)))
+    (.mkdirs)))
+
+(defn- touch!
+  [dir file-name]
+  (let [file (io/file dir file-name)]
+    (io/make-parents file)
+    (spit file "")
+    file))
+
+(defn- file-names
+  [dir]
+  (set (map #(.getName ^File %) (.listFiles (io/file dir)))))
 
 (defn geosync-conf
   ([]
@@ -61,3 +86,85 @@
   (testing "returns one spec if styles already exists and overwrite-styles is false"
     (is (= (count (core/file-paths->style-specs (geosync-conf {:overwrite-styles true}) #{"my-workspace:test-style"} ["test/data/test-style.css"]))
            1))))
+
+(deftest imagemosaic-workspace?-test
+  (testing "matches the configured workspace regexes"
+    (is (core/imagemosaic-workspace? ["^fire-weather-forecast_"] "fire-weather-forecast_hrrr_20260813_12"))
+    (is (core/imagemosaic-workspace? ["^fire-weather-forecast_" "^fire-risk-forecast_"] "fire-risk-forecast_all_20260813_00")))
+  (testing "leaves every other workspace alone"
+    (is (not (core/imagemosaic-workspace? ["^fire-weather-forecast_"] "fire-spread-forecast_or-paradise_20260812_112000")))
+    (is (not (core/imagemosaic-workspace? [] "fire-weather-forecast_hrrr_20260813_12")))
+    (is (not (core/imagemosaic-workspace? nil "fire-weather-forecast_hrrr_20260813_12")))))
+
+(deftest timestamped-tif-groups-test
+  (let [dir (temp-dir!)]
+    (try
+      (touch! dir "ws_20260813_010000.tif")
+      (touch! dir "ws_20260813_020000.tif")
+      (touch! dir "tmpf_20260813_010000.tif")
+      (touch! dir "fuels.tif")
+      (touch! dir "perimeters_20260813_010000.shp")
+      (let [groups (core/timestamped-tif-groups dir)]
+        (testing "groups timestamped GeoTIFFs by their layer prefix"
+          (is (= #{"ws" "tmpf"} (set (keys groups))))
+          (is (= 2 (count (get groups "ws"))))
+          (is (= 1 (count (get groups "tmpf")))))
+        (testing "an untimestamped GeoTIFF keeps its own layer"
+          (is (not (contains? groups "fuels"))))
+        (testing "only GeoTIFFs are grouped"
+          (is (not (contains? groups "perimeters")))))
+      (finally (delete-tree! dir)))))
+
+(deftest convert-time-series-to-imagemosaics!-test
+  (testing "folds a flat cycle directory into one mosaic per parameter"
+    (let [dir   (temp-dir!)
+          cycle (io/file dir "cansac-wrf" "20260813_00")]
+      (try
+        (.mkdirs cycle)
+        (touch! cycle "ws_20260813_010000.tif")
+        (touch! cycle "ws_20260813_020000.tif")
+        (touch! cycle "tmpf_20260813_010000.tif")
+        (is (= 3 (core/convert-time-series-to-imagemosaics! dir)))
+        (is (= #{"ws" "tmpf"} (file-names cycle)))
+        (is (= #{"ws_20260813_010000.tif" "ws_20260813_020000.tif"
+                 "datastore.properties" "indexer.properties" "timeregex.properties"}
+               (file-names (io/file cycle "ws"))))
+        (finally (delete-tree! dir)))))
+
+  (testing "is idempotent and folds in timesteps that arrive later"
+    (let [dir   (temp-dir!)
+          cycle (io/file dir "20260813_00")]
+      (try
+        (.mkdirs cycle)
+        (touch! cycle "ws_20260813_010000.tif")
+        (core/convert-time-series-to-imagemosaics! dir)
+        (testing "a second run with nothing new moves nothing"
+          (is (= 0 (core/convert-time-series-to-imagemosaics! dir))))
+        (touch! cycle "ws_20260813_020000.tif")
+        (testing "a newly arrived timestep joins the existing mosaic"
+          (is (= 1 (core/convert-time-series-to-imagemosaics! dir)))
+          (is (= #{"ws_20260813_010000.tif" "ws_20260813_020000.tif"
+                   "datastore.properties" "indexer.properties" "timeregex.properties"}
+                 (file-names (io/file cycle "ws")))))
+        (finally (delete-tree! dir)))))
+
+  (testing "leaves an existing ImageMosaic directory untouched"
+    (let [dir    (temp-dir!)
+          mosaic (io/file dir "hours-since-burned")]
+      (try
+        (.mkdirs mosaic)
+        (touch! mosaic "datastore.properties")
+        (touch! mosaic "hours-since-burned_20260813_010000.tif")
+        (is (= 0 (core/convert-time-series-to-imagemosaics! dir)))
+        (is (= #{"datastore.properties" "hours-since-burned_20260813_010000.tif"}
+               (file-names mosaic)))
+        (finally (delete-tree! dir)))))
+
+  (testing "leaves untimestamped rasters registering as their own layers"
+    (let [dir (temp-dir!)]
+      (try
+        (touch! dir "fbp.tif")
+        (touch! dir "dem.tif")
+        (is (= 0 (core/convert-time-series-to-imagemosaics! dir)))
+        (is (= #{"fbp.tif" "dem.tif"} (file-names dir)))
+        (finally (delete-tree! dir))))))

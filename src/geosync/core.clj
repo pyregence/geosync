@@ -1,6 +1,8 @@
 (ns geosync.core
   (:import java.io.File
            java.net.SocketTimeoutException
+           java.nio.file.Files
+           java.nio.file.attribute.PosixFilePermissions
            java.util.concurrent.TimeoutException
            java.util.Properties)
   (:require [clj-http.client     :as client]
@@ -208,6 +210,103 @@
                            (s/ends-with? file-name ".tif")
                            (#{"datastore.properties" "timeregex.properties" "indexer.properties"} file-name))))]
     (io/delete-file file)))
+
+;;===========================================================
+;;
+;; Flat time series -> ImageMosaic directories
+;;
+;;===========================================================
+
+;; Weather and risk forecasts land as one GeoTIFF per timestep, all flat in the
+;; cycle directory, so a 72-hour run registers 72 layers instead of one layer
+;; with 72 timesteps. Spread forecasts avoid this because pyrecast-scripts
+;; builds their mosaic directories before upload; nothing does that for weather
+;; and risk, whose producers are elsewhere. Folding the timesteps in here keeps
+;; the fix in one place regardless of who wrote the files.
+(def timestamped-tif-regex #"^(.+)_(\d{8}_\d{6})\.tiff?$")
+
+(def imagemosaic-property-files
+  ["datastore.properties" "indexer.properties" "timeregex.properties"])
+
+;; GeoServer writes its granule index alongside the GeoTIFFs, and it runs as
+;; tomcat while GeoSync runs as geosync. Both sit in the same group, so the
+;; group write bit is what lets GeoServer index a directory GeoSync created.
+(def ^:private mosaic-dir-permissions  (PosixFilePermissions/fromString "rwxrwxr-x"))
+(def ^:private mosaic-file-permissions (PosixFilePermissions/fromString "rw-rw-r--"))
+
+(defn- set-permissions!
+  [^File file permissions]
+  (nil-on-error (Files/setPosixFilePermissions (.toPath file) permissions)))
+
+(defn timestamped-tif-groups
+  "Groups the GeoTIFFs named `<layer>_<YYYYMMDD>_<HHMMSS>.tif` sitting directly
+  in `dir` by their layer prefix. Returns a map of prefix -> sequence of files."
+  [^File dir]
+  (->> (.listFiles dir)
+       (filter #(.isFile ^File %))
+       (keep (fn [^File file]
+               (when-let [[_ prefix _] (re-matches timestamped-tif-regex (.getName file))]
+                 [prefix file])))
+       (reduce (fn [acc [prefix file]] (update acc prefix conj file)) {})))
+
+(defn imagemosaic-dir?
+  [^File dir]
+  (.exists (io/file dir "datastore.properties")))
+
+(defn- copy-imagemosaic-properties!
+  [^File mosaic-dir]
+  (doseq [property-file imagemosaic-property-files
+          :let          [dest (io/file mosaic-dir property-file)]]
+    (with-open [in (io/input-stream (io/resource (str "geosync/imagemosaic_properties/" property-file)))]
+      (io/copy in dest))
+    (set-permissions! dest mosaic-file-permissions)))
+
+(defn absorb-into-imagemosaic!
+  "Moves `files` into `dir`/`prefix`, creating that ImageMosaic directory and its
+  property files the first time. Re-running only moves whatever is newly arrived,
+  so a forecast cycle that keeps growing folds each new timestep in."
+  [^File dir prefix files]
+  (let [mosaic-dir (io/file dir prefix)
+        new-mosaic? (not (imagemosaic-dir? mosaic-dir))]
+    (.mkdirs mosaic-dir)
+    (set-permissions! mosaic-dir mosaic-dir-permissions)
+    (when new-mosaic?
+      (copy-imagemosaic-properties! mosaic-dir))
+    (doseq [^File file files
+            :let       [dest (io/file mosaic-dir (.getName file))]]
+      (.renameTo file dest)
+      (set-permissions! dest mosaic-file-permissions))
+    (count files)))
+
+(defn convert-time-series-to-imagemosaics!
+  "Walks `data-dir` and folds every flat group of timestamped GeoTIFFs into an
+  ImageMosaic directory named after the group's layer prefix. Directories that
+  are already ImageMosaics are left alone, so this is safe to run on every add."
+  [data-dir]
+  (let [root (io/file data-dir)]
+    (loop [dirs      [root]
+           converted 0]
+      (if-let [^File dir (first dirs)]
+        (if (imagemosaic-dir? dir)
+          (recur (rest dirs) converted)
+          (let [subdirs (filter #(.isDirectory ^File %) (.listFiles dir))
+                moved   (reduce-kv (fn [acc prefix files]
+                                     (+ acc (absorb-into-imagemosaic! dir prefix files)))
+                                   0
+                                   (timestamped-tif-groups dir))]
+            (recur (concat (rest dirs) subdirs) (+ converted moved))))
+        (do
+          (when (pos? converted)
+            (log-str "Folded " converted " timestamped GeoTIFFs into ImageMosaic directories under " data-dir))
+          converted)))))
+
+(defn imagemosaic-workspace?
+  "True when `geoserver-workspace` matches any of the `:imagemosaic-workspaces`
+  regexes. Opt-in, so a deployment that does not set the key keeps registering
+  one layer per file."
+  [imagemosaic-workspaces geoserver-workspace]
+  (boolean (some #(re-find (re-pattern %) (str geoserver-workspace))
+                 imagemosaic-workspaces)))
 
 (defn get-matching-style
   [layer-name style existing-styles autostyle-layers]
@@ -716,10 +815,13 @@
 ;;; Add workspace
 
 (defn add-directory-to-workspace-aux!
-  [{:keys [data-dir style-dir styles geoserver-workspace] :as config-params}]
+  [{:keys [data-dir style-dir styles geoserver-workspace imagemosaic-workspaces] :as config-params}]
   (tufte/profile
    {:id :add-directory-to-workspace!}
-   (let [style-file-paths    (tufte/p :style-file-paths
+   (let [_                   (when (imagemosaic-workspace? imagemosaic-workspaces geoserver-workspace)
+                               (tufte/p :imagemosaic-conversion
+                                        (convert-time-series-to-imagemosaics! data-dir)))
+         style-file-paths    (tufte/p :style-file-paths
                                       (load-style-file-paths style-dir))
          gis-file-specs      (tufte/p :gis-file-specs
                                       (->> (load-gis-file-paths data-dir)
