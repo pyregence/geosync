@@ -94,6 +94,7 @@
 (spec/def ::one-geofence-rule   (spec/keys :req-un [::workspace-regex]
                                            :opt-un [::data-rules ::admin-rules]))
 (spec/def ::geofence-rules      (spec/coll-of ::one-geofence-rule :kind vector? :distinct true))
+(spec/def ::imagemosaic-workspaces (spec/coll-of non-empty-string? :kind vector? :distinct true))
 ;; config.edn
 (spec/def ::geosync-config-file (spec/keys :opt-un [::geoserver-rest-uri
                                                     ::geoserver-username
@@ -111,7 +112,8 @@
                                                     ::action-hooks
                                                     ::file-watcher
                                                     ::layer-rules
-                                                    ::geofence-rules]))
+                                                    ::geofence-rules
+                                                    ::imagemosaic-workspaces]))
 
 ;; Key Combination Rules
 

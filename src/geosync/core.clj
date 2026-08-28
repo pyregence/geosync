@@ -223,11 +223,6 @@
 ;; builds their mosaic directories before upload; nothing does that for weather
 ;; and risk, whose producers are elsewhere. Folding the timesteps in here keeps
 ;; the fix in one place regardless of who wrote the files.
-;;
-;; The `<layer>_<YYYYMMDD>_<HHMMSS>.tif` name IS the time-series convention, so
-;; matching it is the whole opt-in - no config key. Only rasters fold: the
-;; timestamped shapefiles under psps_zonal and fire_detections keep publishing
-;; one layer per timestep.
 (def timestamped-tif-regex #"^(.+)_(\d{8}_\d{6})\.tiff?$")
 
 (def imagemosaic-property-files
@@ -304,6 +299,14 @@
           (when (pos? converted)
             (log-str "Folded " converted " timestamped GeoTIFFs into ImageMosaic directories under " data-dir))
           converted)))))
+
+(defn imagemosaic-workspace?
+  "True when `geoserver-workspace` matches any of the `:imagemosaic-workspaces`
+  regexes. Opt-in, so a deployment that does not set the key keeps registering
+  one layer per file."
+  [imagemosaic-workspaces geoserver-workspace]
+  (boolean (some #(re-find (re-pattern %) (str geoserver-workspace))
+                 imagemosaic-workspaces)))
 
 (defn get-matching-style
   [layer-name style existing-styles autostyle-layers]
@@ -812,11 +815,12 @@
 ;;; Add workspace
 
 (defn add-directory-to-workspace-aux!
-  [{:keys [data-dir style-dir styles geoserver-workspace] :as config-params}]
+  [{:keys [data-dir style-dir styles geoserver-workspace imagemosaic-workspaces] :as config-params}]
   (tufte/profile
    {:id :add-directory-to-workspace!}
-   (let [_                   (tufte/p :imagemosaic-conversion
-                                      (convert-time-series-to-imagemosaics! data-dir))
+   (let [_                   (when (imagemosaic-workspace? imagemosaic-workspaces geoserver-workspace)
+                               (tufte/p :imagemosaic-conversion
+                                        (convert-time-series-to-imagemosaics! data-dir)))
          style-file-paths    (tufte/p :style-file-paths
                                       (load-style-file-paths style-dir))
          gis-file-specs      (tufte/p :gis-file-specs
