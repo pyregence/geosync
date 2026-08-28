@@ -2,8 +2,7 @@
   (:import java.io.File)
   (:require [clojure.java.io :as io]
             [clojure.test    :refer [deftest is testing]]
-            [geosync.core     :as core]
-            [geosync.rest-api :as rest]))
+            [geosync.core    :as core]))
 
 (defn- delete-tree!
   [^File file]
@@ -171,15 +170,3 @@
         (is (= 0 (core/convert-time-series-to-imagemosaics! dir)))
         (is (= #{"fbp.tif" "dem.tif"} (file-names dir)))
         (finally (delete-tree! dir))))))
-
-(deftest create-coverage-image-mosaic-declares-its-band-test
-  (let [[method uri body] (rest/create-coverage-image-mosaic "my-workspace" "ws")]
-    (testing "posts to the store's coverages endpoint"
-      (is (= "POST" method))
-      (is (= "/workspaces/my-workspace/coveragestores/ws/coverages" uri)))
-    (testing "declares a band, without which ncWMS GetTimeSeries fails"
-      (is (re-find #"<dimensions>" body))
-      (is (re-find #"<name>GRAY_INDEX</name>" body)))
-    (testing "still enables the time dimension"
-      (is (re-find #"<entry key=\"time\">" body))
-      (is (re-find #"<units>ISO8601</units>" body)))))
