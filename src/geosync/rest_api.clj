@@ -36,9 +36,13 @@
     [:workspace
      [:name workspace]])])
 
+;; GeoServer strips everything after the last "." of the final path segment as a
+;; format extension, so a dotted workspace name ("...landfire-2.5.0") resolves to
+;; "...landfire-2.5" and 404s. The trailing "/" leaves nothing to strip, the same
+;; way get-workspace and update-workspace above already do it.
 (defn delete-workspace [workspace recurse?]
   ["DELETE"
-   (str "/workspaces/" workspace "?recurse=" recurse?)
+   (str "/workspaces/" workspace "/?recurse=" recurse?)
    nil])
 
 ;;===============================================================================================================
@@ -805,9 +809,11 @@
 ;;
 ;;===============================================================================================================
 
+;; ".json" both defeats the extension parsing described above and keeps the body
+;; JSON, which get-existing-gwc-layer reads with json/read-str.
 (defn get-cached-layer [workspace layer]
   ["GET"
-   (str "/../gwc/rest/layers/" workspace ":" layer)
+   (str "/../gwc/rest/layers/" workspace ":" layer ".json")
    nil])
 
 ;;FIXME: gridsubsets comes from the existing gwc layer. Figure out a way to
@@ -855,7 +861,7 @@
 ;; rows afterwards costs 83% less because the freed pages get reused.
 (defn delete-cached-layer [workspace layer]
   ["DELETE"
-   (str "/../gwc/rest/layers/" workspace ":" layer)
+   (str "/../gwc/rest/layers/" workspace ":" layer ".xml")
    nil])
 
 ;;===============================================================================================================
