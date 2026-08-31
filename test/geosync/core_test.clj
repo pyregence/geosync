@@ -1,6 +1,7 @@
 (ns geosync.core-test
   (:require [clojure.test :refer [deftest is testing]]
-            [geosync.core :as core]))
+            [geosync.core :as core]
+            [triangulum.database]))
 
 (defn geosync-conf
   ([]
@@ -61,3 +62,28 @@
   (testing "returns one spec if styles already exists and overwrite-styles is false"
     (is (= (count (core/file-paths->style-specs (geosync-conf {:overwrite-styles true}) #{"my-workspace:test-style"} ["test/data/test-style.css"]))
            1))))
+
+(defn- record-sql-calls
+  "Runs f with call-sql captured, returning the [fn-name & args] vectors it made."
+  [f]
+  (let [calls (atom [])]
+    (with-redefs [triangulum.database/call-sql (fn [& args] (swap! calls conj (vec args)) nil)]
+      (f))
+    @calls))
+
+(deftest ensure-mosaic-schema!-test
+  (testing "a brand new workspace gets a freshly dropped and recreated schema"
+    (is (= [["create_new_schema" "my-workspace"]]
+           (record-sql-calls
+            #(core/ensure-mosaic-schema! "my-workspace" false {:create-coverage-store-image-mosaic [:spec]})))))
+  (testing "an existing workspace gaining a mosaic store gets its schema created without a drop"
+    (is (= [["ensure_schema_exists" "my-workspace"]]
+           (record-sql-calls
+            #(core/ensure-mosaic-schema! "my-workspace" true {:create-coverage-store-image-mosaic [:spec]})))))
+  (testing "no mosaic stores means no schema call at all"
+    (is (= []
+           (record-sql-calls
+            #(core/ensure-mosaic-schema! "my-workspace" true {:create-coverage [:spec]}))))
+    (is (= []
+           (record-sql-calls
+            #(core/ensure-mosaic-schema! "my-workspace" false {:create-coverage [:spec]}))))))

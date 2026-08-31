@@ -538,6 +538,20 @@
 
 ;;; Core
 
+(defn ensure-mosaic-schema!
+  "Creates the Postgres schema that ImageMosaic stores index into, named after
+   the workspace. A workspace outlives its schema: it is created on any sync,
+   including one that finds no GIS files, while the schema is only made
+   alongside mosaic stores. So key the call on the mosaic stores going in, not
+   on the workspace being new, or the mosaics fail to open with \"Failed to
+   create reader\". Only a new workspace may take the destructive variant -
+   dropping a schema an existing workspace is already serving from would
+   discard the indexes of its working mosaics."
+  [geoserver-workspace ws-exists? rest-specs]
+  (when (contains? rest-specs :create-coverage-store-image-mosaic)
+    (call-sql (if ws-exists? "ensure_schema_exists" "create_new_schema")
+              geoserver-workspace)))
+
 (defn file-specs->rest-specs
   "Generates a sequence of REST request specifications as tuples of
   [http-method uri-suffix http-body content-type]. Each file-spec may
@@ -560,12 +574,10 @@
         layer-group-specs       (file-specs->layer-group-specs config-params existing-stores existing-layer-groups gis-file-specs)
         rest-specs              (-> (group-by get-spec-type (concat layer-specs style-specs layer-rule-specs geofence-rule-specs))
                                     (assoc :create-layer-group layer-group-specs))]
+    (ensure-mosaic-schema! geoserver-workspace ws-exists? rest-specs)
     (if ws-exists?
       rest-specs
-      (do
-        (when (contains? rest-specs :create-coverage-store-image-mosaic)
-          (call-sql "create_new_schema" geoserver-workspace))
-        (assoc rest-specs :create-workspace [(rest/create-workspace geoserver-workspace)])))))
+      (assoc rest-specs :create-workspace [(rest/create-workspace geoserver-workspace)]))))
 
 (defn get-store-type
   "Returns a string describing the class of data or coverage store

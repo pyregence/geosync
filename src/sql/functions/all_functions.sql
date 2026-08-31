@@ -12,6 +12,16 @@ CREATE OR REPLACE FUNCTION create_new_schema(_schema_name text)
 
 $$ LANGUAGE PLPGSQL;
 
+CREATE OR REPLACE FUNCTION ensure_schema_exists(_schema_name text)
+ RETURNS void AS $$
+
+ DECLARE
+ BEGIN
+    EXECUTE 'CREATE SCHEMA IF NOT EXISTS "' || _schema_name || '"';
+ END
+
+$$ LANGUAGE PLPGSQL;
+
 CREATE OR REPLACE FUNCTION drop_existing_schema(_schema_name text)
  RETURNS void AS $$
 
