@@ -247,20 +247,23 @@
                        (when matching-style
                          [(rest/update-layer-style geoserver-workspace store-name matching-style :vector)])))
 
+        ;; Publishes under store-name, not the bare filename: consumers parse the
+        ;; directory prefix back out of the layer name to recover the model and fuel
+        ;; (elmfire_landfire_fire-area_...), and a basename drops them.
         :geopackage  (let [native-name (or native-name layer-name)]
                        (doall
                         (concat
                          [(rest/create-data-store geoserver-workspace store-name file-url :geopackage)
                           (rest/create-feature-type-via-put geoserver-workspace store-name file-url :geopackage)]
-                         (when (not= native-name layer-name)
+                         (when (not= native-name store-name)
                            [(rest/create-feature-type-alias geoserver-workspace
                                                             store-name
                                                             native-name
-                                                            layer-name)
+                                                            store-name)
                             (rest/delete-layer geoserver-workspace native-name)
                             (rest/delete-feature-type geoserver-workspace store-name native-name)])
                          (when matching-style
-                           [(rest/update-layer-style geoserver-workspace layer-name matching-style :vector)]))))
+                           [(rest/update-layer-style geoserver-workspace store-name matching-style :vector)]))))
 
         :imagemosaic (do (update-properties-file! (str file-url "/datastore.properties") "schema" geoserver-workspace)
                          (update-properties-file! (str file-url "/indexer.properties") "Name" store-name)
