@@ -247,9 +247,6 @@
                        (when matching-style
                          [(rest/update-layer-style geoserver-workspace store-name matching-style :vector)])))
 
-        ;; Publishes under store-name, not the bare filename: consumers parse the
-        ;; directory prefix back out of the layer name to recover the model and fuel
-        ;; (elmfire_landfire_fire-area_...), and a basename drops them.
         :geopackage  (let [native-name (or native-name layer-name)]
                        (doall
                         (concat
