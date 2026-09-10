@@ -1,6 +1,7 @@
 (ns geosync.core-test
-  (:require [clojure.test :refer [deftest is testing]]
-            [geosync.core :as core]))
+  (:require [clojure.string      :as s]
+            [clojure.test        :refer [deftest is testing]]
+            [geosync.core        :as core]))
 
 (defn geosync-conf
   ([]
@@ -61,3 +62,54 @@
   (testing "returns one spec if styles already exists and overwrite-styles is false"
     (is (= (count (core/file-paths->style-specs (geosync-conf {:overwrite-styles true}) #{"my-workspace:test-style"} ["test/data/test-style.css"]))
            1))))
+
+(defn- gpkg-file-spec
+  [store-name layer-name native-name]
+  {:store-type  :geopackage
+   :store-name  store-name
+   :layer-name  layer-name
+   :native-name native-name
+   :file-url    (str "file:///srv/gis/" store-name ".gpkg")
+   :style       nil
+   :indexed?    false})
+
+(defn- published-feature-type-names
+  "The feature type names a spec list POSTs to the featuretypes endpoint."
+  [specs]
+  (->> specs
+       (filter (fn [[method uri]]
+                 (and (= "POST" method) (s/ends-with? uri "/featuretypes"))))
+       ;; the first <name> belongs to the nested <store>; the feature type's own follows it
+       (map (fn [[_ _ body]] (second (re-find #"</store><name>([^<]+)</name>" body))))))
+
+(defn- deleted-feature-type-names
+  [specs]
+  (->> specs
+       (filter (fn [[method uri]]
+                 (and (= "DELETE" method) (s/includes? uri "/featuretypes/"))))
+       (map (fn [[_ uri]] (last (s/split uri #"/"))))))
+
+(deftest geopackage-layer-specs-test
+  (testing "a nested GeoPackage publishes under the path-joined store name, not the bare filename"
+    (let [store-name "elmfire_landfire_fire-area_20260909_130000"
+          specs      (core/file-spec->layer-specs (geosync-conf)
+                                                  #{}
+                                                  []
+                                                  (gpkg-file-spec store-name
+                                                                  "fire-area_20260909_130000"
+                                                                  "fire_area"))]
+      (is (= [store-name] (published-feature-type-names specs)))
+      (is (= ["fire_area"] (deleted-feature-type-names specs)))))
+  (testing "a flat GeoPackage keeps the name it publishes under today"
+    (let [specs (core/file-spec->layer-specs (geosync-conf)
+                                             #{}
+                                             []
+                                             (gpkg-file-spec "state-boundaries" "state-boundaries" "states"))]
+      (is (= ["state-boundaries"] (published-feature-type-names specs)))))
+  (testing "no alias is created when the internal table already matches the store name"
+    (let [specs (core/file-spec->layer-specs (geosync-conf)
+                                             #{}
+                                             []
+                                             (gpkg-file-spec "viirs-timestamped" "viirs-timestamped" "viirs-timestamped"))]
+      (is (empty? (published-feature-type-names specs)))
+      (is (= 2 (count specs))))))
