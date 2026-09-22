@@ -133,3 +133,16 @@
       (is (true? (core/delete-cached-layers! (geosync-conf) "my-workspace" ["a"]))))
     (with-redefs [core/make-rest-request (fn [_ _] {:status 500})]
       (is (false? (core/delete-cached-layers! (geosync-conf) "my-workspace" ["a"]))))))
+
+(deftest file-specs->vector-gwc-specs-test
+  (let [file-specs [{:store-type :geopackage  :store-name "fire-history"}
+                    {:store-type :shapefile   :store-name "boundaries"}
+                    {:store-type :imagemosaic :store-name "hrrr-ws"}
+                    {:store-type :geotiff     :store-name "cbh"}]]
+    (testing "picks the vector stores, whose tile layers GeoServer auto-creates as vector tiles"
+      (is (= [{:store-type :geopackage :store-name "fire-history"}
+              {:store-type :shapefile  :store-name "boundaries"}]
+             (core/file-specs->vector-gwc-specs file-specs))))
+    (testing "leaves the raster stores to file-specs->gwc-specs"
+      (is (= [{:store-type :imagemosaic :store-name "hrrr-ws"}]
+             (core/file-specs->gwc-specs file-specs))))))
