@@ -702,9 +702,14 @@
        (mapv #(make-rest-request-async config-params %))
        (mapv (comp :status deref))))
 
+(defn cached-layer-delete-ok?
+  "404 counts as success: the layer having no tile layer is the outcome asked for."
+  [status]
+  (boolean (or (success-code? status) (= 404 status))))
+
 (defn delete-cached-layers!
   "Deregisters each of LAYERS' tile layers from GeoWebCache, one request at a
-   time. 404 counts as success: the layer having no tile layer is the outcome.
+   time.
 
    Sequential on purpose. GeoServer's DiskQuota store bills every delete to a
    single ___GLOBAL_QUOTA___ row inside a SERIALIZABLE transaction, so two
@@ -714,7 +719,7 @@
        (mapv #(->> (rest/delete-cached-layer workspace %)
                    (make-rest-request config-params)
                    (:status)))
-       (every? #(or (success-code? %) (= 404 %)))))
+       (every? cached-layer-delete-ok?)))
 
 (defn make-parallel-wms-requests
   [config-params wms-specs]

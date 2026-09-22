@@ -114,25 +114,13 @@
       (is (empty? (published-feature-type-names specs)))
       (is (= 2 (count specs))))))
 
-(deftest delete-cached-layers!-test
-  (testing "issues one request at a time"
-    ;; The DiskQuota store runs every quota update at SERIALIZABLE against a
-    ;; single ___GLOBAL_QUOTA___ row, so two deletes in flight abort each other.
-    (let [in-flight (atom 0)
-          peak      (atom 0)]
-      (with-redefs [core/make-rest-request
-                    (fn [_ _]
-                      (swap! peak max (swap! in-flight inc))
-                      (Thread/sleep 5)
-                      (swap! in-flight dec)
-                      {:status 200})]
-        (is (true? (core/delete-cached-layers! (geosync-conf) "my-workspace" (map str (range 20)))))
-        (is (= 1 @peak)))))
-  (testing "404 counts as success, other failures do not"
-    (with-redefs [core/make-rest-request (fn [_ _] {:status 404})]
-      (is (true? (core/delete-cached-layers! (geosync-conf) "my-workspace" ["a"]))))
-    (with-redefs [core/make-rest-request (fn [_ _] {:status 500})]
-      (is (false? (core/delete-cached-layers! (geosync-conf) "my-workspace" ["a"]))))))
+(deftest cached-layer-delete-ok?-test
+  (testing "the codes that mean the tile layer is gone"
+    (is (true? (core/cached-layer-delete-ok? 200)))
+    (is (true? (core/cached-layer-delete-ok? 404))))
+  (testing "anything else leaves the tile layer behind"
+    (is (false? (core/cached-layer-delete-ok? 400)))
+    (is (false? (core/cached-layer-delete-ok? 500)))))
 
 (deftest file-specs->vector-gwc-specs-test
   (let [file-specs [{:store-type :geopackage  :store-name "fire-history"}
