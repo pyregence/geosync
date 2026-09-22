@@ -692,6 +692,20 @@
        (mapv #(make-rest-request-async config-params %))
        (mapv (comp :status deref))))
 
+(defn delete-cached-layers!
+  "Deregisters each of LAYERS' tile layers from GeoWebCache, one request at a
+   time. 404 counts as success: the layer having no tile layer is the outcome.
+
+   Sequential on purpose. GeoServer's DiskQuota store bills every delete to a
+   single ___GLOBAL_QUOTA___ row inside a SERIALIZABLE transaction, so two
+   deletes in flight conflict and Postgres aborts the loser."
+  [config-params workspace layers]
+  (->> layers
+       (mapv #(->> (rest/delete-cached-layer workspace %)
+                   (make-rest-request config-params)
+                   (:status)))
+       (every? #(or (success-code? %) (= 404 %)))))
+
 (defn make-parallel-wms-requests
   [config-params wms-specs]
   (->> wms-specs
@@ -805,10 +819,9 @@
                     ;; leaves their blob directories and DiskQuota rows behind forever.
                     ;; 404 counts as success -- the layer having no tile layer is the
                     ;; outcome we want, not a failure.
-                    delete-cached-layers-success?  (->> cached-layers
-                                                        (mapv #(rest/delete-cached-layer current-workspace %))
-                                                        (make-parallel-rest-requests config-params)
-                                                        (every? #(or (success-code? %) (= 404 %))))
+                    delete-cached-layers-success?  (delete-cached-layers! config-params
+                                                                         current-workspace
+                                                                         cached-layers)
                     delete-workspace-success?      (->> (rest/delete-workspace current-workspace true)
                                                         (make-rest-request config-params)
                                                         (:status)
