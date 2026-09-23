@@ -83,6 +83,16 @@
   [file-specs]
   (filterv #(= :imagemosaic (:store-type %)) file-specs))
 
+;; GeoServer auto-creates a tile layer for these from the gwc-gs*.xml defaults,
+;; which put mapbox-vector-tile first and the metatile at 4x4. Since 2.27 that
+;; metatile applies to vector tiles too, so the default has to be walked back
+;; per layer -- geosync is the only thing that knows these layers exist.
+(def ^:private vector-store-types #{:geopackage :shapefile})
+
+(defn file-specs->vector-gwc-specs
+  [file-specs]
+  (filterv #(contains? vector-store-types (:store-type %)) file-specs))
+
 ;;===========================================================
 ;;
 ;; Files -> REST Requests
@@ -692,9 +702,14 @@
        (mapv #(make-rest-request-async config-params %))
        (mapv (comp :status deref))))
 
+(defn cached-layer-delete-ok?
+  "404 counts as success: the layer having no tile layer is the outcome asked for."
+  [status]
+  (boolean (or (success-code? status) (= 404 status))))
+
 (defn delete-cached-layers!
   "Deregisters each of LAYERS' tile layers from GeoWebCache, one request at a
-   time. 404 counts as success: the layer having no tile layer is the outcome.
+   time.
 
    Sequential on purpose. GeoServer's DiskQuota store bills every delete to a
    single ___GLOBAL_QUOTA___ row inside a SERIALIZABLE transaction, so two
@@ -704,7 +719,7 @@
        (mapv #(->> (rest/delete-cached-layer workspace %)
                    (make-rest-request config-params)
                    (:status)))
-       (every? #(or (success-code? %) (= 404 %)))))
+       (every? cached-layer-delete-ok?)))
 
 (defn make-parallel-wms-requests
   [config-params wms-specs]
@@ -727,6 +742,28 @@
        (mapv #(make-rest-request-async config-params %))
        (mapv (comp :status deref))))
 
+(def ^:private vector-metatile-size
+  "One tile per request. A 4x4 metatile of a CONUS polygon layer exceeds the WMS
+   max rendering memory and GeoServer aborts the whole metatile, so every tile in
+   it is lost rather than just the dense ones."
+  1)
+
+(defn update-gwc-vector-metatiling
+  [{:keys [geoserver-workspace] :as config-params} {:keys [store-name]}]
+  (let [{:keys [gridSubsets mimeFormats]} (get-existing-gwc-layer config-params store-name)]
+    (rest/update-cached-layer-metatiling geoserver-workspace
+                                         store-name
+                                         vector-metatile-size
+                                         mimeFormats
+                                         gridSubsets)))
+
+(defn make-parallel-vector-gwc-requests
+  [config-params vector-gwc-specs]
+  (->> vector-gwc-specs
+       (mapv #(update-gwc-vector-metatiling config-params %))
+       (mapv #(make-rest-request-async config-params %))
+       (mapv (comp :status deref))))
+
 ;;; Add workspace
 
 (defn add-directory-to-workspace-aux!
@@ -744,6 +781,8 @@
                                       (file-specs->wms-specs gis-file-specs))
          gwc-specs           (tufte/p :gwc-specs
                                       (file-specs->gwc-specs gis-file-specs))
+         vector-gwc-specs    (tufte/p :vector-gwc-specs
+                                      (file-specs->vector-gwc-specs gis-file-specs))
          rest-response-codes (tufte/p :rest-requests
                                       (client/with-async-connection-pool {:insecure? true}
                                         (into []
@@ -777,7 +816,13 @@
          gwc-response-codes  (tufte/p :gwc-requests
                                       (client/with-async-connection-pool {:insecure? true}
                                         (make-parallel-gwc-requests config-params gwc-specs)))
-         http-response-codes (into [] (concat rest-response-codes wms-response-codes gwc-response-codes))
+         vector-gwc-response-codes (tufte/p :vector-gwc-requests
+                                            (client/with-async-connection-pool {:insecure? true}
+                                              (make-parallel-vector-gwc-requests config-params vector-gwc-specs)))
+         http-response-codes (into [] (concat rest-response-codes
+                                              wms-response-codes
+                                              gwc-response-codes
+                                              vector-gwc-response-codes))
          num-success-codes   (count (filter success-code? http-response-codes))
          num-failure-codes   (- (count http-response-codes) num-success-codes)]
      (call-sql "clear_connection" geoserver-workspace)

@@ -870,6 +870,45 @@
         [:locale ""]]]]])
    "application/xml"])
 
+;; Since GeoServer 2.27 (GEOS-12037) vector tiles go through the same metatile as
+;; rasters, so a 4x4 metatile renders 16 tiles' worth of features in one pass and
+;; is measured against the WMS max rendering memory. A CONUS polygon layer blows
+;; that: one 4x4 metatile of fire-history pulls 16,623 of its 17,579 features to
+;; paint a tile that needs 57, and GeoServer aborts the request.
+(defn update-cached-layer-metatiling
+  "Set a tile layer's metatile to METATILE-SIZE square, keeping the mime formats
+   and grid subsets GeoServer already holds. No TIME filter: the vector stores
+   this is for carry no time dimension."
+  [workspace layer metatile-size mime-formats gridsubsets]
+  ["PUT"
+   (str "/../gwc/rest/layers/" workspace ":" layer ".xml")
+   (xml
+    [:GeoServerLayer
+     [:name (str workspace ":" layer)]
+     [:enabled true]
+     [:inMemoryCached true]
+     [:mimeFormats
+      (for [mime-format mime-formats]
+        [:string mime-format])]
+     [:metaWidthHeight
+      [:int metatile-size]
+      [:int metatile-size]]
+     [:expireCache 0]
+     [:expireClients 0]
+     [:gutter 0]
+     [:gridSubsets
+      (for [{:keys [extent gridSetName]} gridsubsets]
+        [:gridSubset
+         [:gridSetName gridSetName]
+         [:extent
+          [:coords (for [coord (:coords extent)]
+                     [:double coord])]]])]
+     [:parameterFilters
+      [:styleParameterFilter
+       [:key "STYLES"]
+       [:defaultValue ""]]]])
+   "application/xml"])
+
 ;; Removing a workspace from the GeoServer catalog does NOT reclaim the tile
 ;; layer behind it: the blob directory under data/gwc and the layer's rows in the
 ;; DiskQuota store both survive. This call reclaims both. Measured on staging:
