@@ -855,9 +855,10 @@
       (for [{:keys [extent gridSetName]} gridsubsets]
         [:gridSubset
          [:gridSetName gridSetName]
-         [:extent
-          [:coords (for [coord (:coords extent)]
-                     [:double coord])]]])]
+         (when (seq (:coords extent))
+           [:extent
+            [:coords (for [coord (:coords extent)]
+                       [:double coord])]])])]
      [:parameterFilters
       [:styleParameterFilter
        [:key "STYLES"]
@@ -900,9 +901,10 @@
       (for [{:keys [extent gridSetName]} gridsubsets]
         [:gridSubset
          [:gridSetName gridSetName]
-         [:extent
-          [:coords (for [coord (:coords extent)]
-                     [:double coord])]]])]
+         (when (seq (:coords extent))
+           [:extent
+            [:coords (for [coord (:coords extent)]
+                       [:double coord])]])])]
      [:parameterFilters
       [:styleParameterFilter
        [:key "STYLES"]

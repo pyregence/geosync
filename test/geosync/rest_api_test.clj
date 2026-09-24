@@ -8,6 +8,12 @@
     :extent      {:coords [-1.3846911764546365E7 2903056.3663414554
                            -7855025.754906493 6284985.119406082]}}])
 
+;; What GeoServer returns for a tile layer it created itself: full gridset
+;; coverage, no extent.
+(def ^:private gridsubsets-without-extent
+  [{:gridSetName "EPSG:4326"}
+   {:gridSetName "EPSG:900913"}])
+
 (deftest update-cached-layer-metatiling-test
   (let [[method uri body content-type] (rest/update-cached-layer-metatiling
                                         "fire-detections_fire-history"
@@ -29,7 +35,8 @@
       (is (s/includes? body "<string>image/jpeg</string>")))
 
     (testing "keeps the grid subsets it was handed"
-      (is (s/includes? body "<gridSetName>EPSG:900913</gridSetName>")))
+      (is (s/includes? body "<gridSetName>EPSG:900913</gridSetName>"))
+      (is (s/includes? body "<double>-7855025.754906493</double>")))
 
     (testing "sets no TIME filter: vector stores carry no time dimension"
       (is (not (s/includes? body "TIME"))))))
@@ -38,3 +45,21 @@
   (testing "the metatile size is the one passed in, not a constant"
     (let [[_ _ body] (rest/update-cached-layer-metatiling "ws" "l" 4 ["image/png"] gridsubsets)]
       (is (s/includes? body "<metaWidthHeight><int>4</int><int>4</int></metaWidthHeight>")))))
+
+;; GWC throws ArrayIndexOutOfBoundsException hashing an empty <coords/> and the
+;; PUT comes back 500.
+(deftest update-cached-layer-metatiling-without-extent-test
+  (let [[_ _ body] (rest/update-cached-layer-metatiling "ws" "l" 1 ["image/png"] gridsubsets-without-extent)]
+    (testing "keeps every grid subset"
+      (is (s/includes? body "<gridSetName>EPSG:4326</gridSetName>"))
+      (is (s/includes? body "<gridSetName>EPSG:900913</gridSetName>")))
+    (testing "writes no extent for a subset that has none"
+      (is (not (s/includes? body "<extent>"))))))
+
+(deftest update-cached-layer-without-extent-test
+  (let [[_ _ body] (rest/update-cached-layer "ws" "l" #"^\d+$" gridsubsets-without-extent)]
+    (testing "keeps every grid subset"
+      (is (s/includes? body "<gridSetName>EPSG:4326</gridSetName>"))
+      (is (s/includes? body "<gridSetName>EPSG:900913</gridSetName>")))
+    (testing "writes no extent for a subset that has none"
+      (is (not (s/includes? body "<extent>"))))))
