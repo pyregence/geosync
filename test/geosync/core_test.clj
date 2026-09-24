@@ -114,6 +114,49 @@
       (is (empty? (published-feature-type-names specs)))
       (is (= 2 (count specs))))))
 
+(defn- shp-file-spec
+  [store-name layer-name style]
+  {:store-type :shapefile
+   :store-name store-name
+   :layer-name layer-name
+   :file-url   (str "file:///srv/gis/" store-name ".shp")
+   :style      style
+   :indexed?   false})
+
+(defn- auto-publishing-puts
+  "PUTs to external.shp: each one makes GeoServer publish a feature type named
+   after the shapefile, suffixed when another store already took that name."
+  [specs]
+  (filter (fn [[method uri]] (and (= "PUT" method) (s/includes? uri "external.shp"))) specs))
+
+(deftest shapefile-layer-specs-test
+  (testing "a nested shapefile publishes one feature type under the store name, from the shapefile's native name"
+    (let [store-name "elmfire_landfire_30_isochrones"
+          specs      (core/file-spec->layer-specs (geosync-conf)
+                                                  #{}
+                                                  []
+                                                  (shp-file-spec store-name "isochrones" nil))]
+      (is (= [store-name] (published-feature-type-names specs)))
+      (is (s/includes? (nth (first (filter #(s/ends-with? (second %) "/featuretypes") specs)) 2)
+                       "<nativeName>isochrones</nativeName>"))
+      (is (empty? (auto-publishing-puts specs)))
+      (is (empty? (deleted-feature-type-names specs)))))
+  (testing "a flat shapefile publishes under its own name without the auto-publishing PUT"
+    (let [specs (core/file-spec->layer-specs (geosync-conf)
+                                             #{}
+                                             []
+                                             (shp-file-spec "boundaries" "boundaries" nil))]
+      (is (= ["boundaries"] (published-feature-type-names specs)))
+      (is (empty? (auto-publishing-puts specs)))))
+  (testing "a matching style is still applied to the published layer"
+    (let [specs (core/file-spec->layer-specs (geosync-conf)
+                                             #{}
+                                             []
+                                             (shp-file-spec "boundaries" "boundaries" "my-workspace:boundaries-css"))
+          [method uri] (last specs)]
+      (is (= "PUT" method))
+      (is (s/ends-with? uri "/layers/boundaries")))))
+
 (deftest cached-layer-delete-ok?-test
   (testing "the codes that mean the tile layer is gone"
     (is (true? (core/cached-layer-delete-ok? 200)))
