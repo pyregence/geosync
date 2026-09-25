@@ -243,17 +243,17 @@
                       (when matching-style
                         (rest/update-layer-style geoserver-workspace store-name matching-style :raster))]
 
+        ;; No PUT to external.shp: it auto-publishes a feature type named after
+        ;; the shapefile, and the parallel PUTs of shapefiles sharing a basename
+        ;; (five isochrones.shp per fire) leave GeoServer-suffixed copies that
+        ;; no cleanup by name can find.
         :shapefile   (doall
                       (concat
                        [(rest/create-data-store geoserver-workspace store-name file-url :shapefile)
-                        (rest/create-feature-type-via-put geoserver-workspace store-name file-url :shapefile)]
-                       (when (not= store-name layer-name)
-                         [(rest/create-feature-type-alias geoserver-workspace
-                                                          store-name
-                                                          layer-name
-                                                          store-name)
-                          (rest/delete-layer geoserver-workspace layer-name)
-                          (rest/delete-feature-type geoserver-workspace store-name layer-name)])
+                        (rest/create-feature-type-alias geoserver-workspace
+                                                        store-name
+                                                        layer-name
+                                                        store-name)]
                        (when matching-style
                          [(rest/update-layer-style geoserver-workspace store-name matching-style :vector)])))
 
