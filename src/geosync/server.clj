@@ -8,6 +8,7 @@
             [geosync.core           :refer [add-directory-to-workspace!
                                             remove-workspace!]]
             [geosync.file-watcher   :as file-watcher]
+            [geosync.sentry         :as sentry]
             [geosync.simple-sockets :as sockets]
             [geosync.utils          :refer [nil-on-error
                                             camel->kebab
@@ -109,8 +110,16 @@
                                       (let [_      (run-action-hooks! action-hooks request :before)
                                             status (process-request! config-params request)
                                             _      (run-action-hooks! action-hooks request :after)]
+                                        (when-not (zero? (long (first status)))
+                                          (sentry/report-failure!
+                                           :geoserver-sync-errors
+                                           (str (second status) " (workspace=" geoserver-workspace ")")
+                                           {:geosync.action      (:action request)
+                                            :geoserver.workspace geoserver-workspace}))
                                         status)
                                       (catch Exception e
+                                        (sentry/report-exception! e {:geosync.action      (:action request)
+                                                                     :geoserver.workspace geoserver-workspace})
                                         [1 (str "GeoSync: Error updating GeoServer: " (ex-message e))]))]
         (log-str "-> " status-msg)
         (when (spec/valid? ::geosync-server-response-minimal request)
@@ -140,8 +149,14 @@
                                       [2 (format "GeoSync: You are number %d in the queue." queue-size)])
                                     [1 (str "GeoSync: Invalid request: " (spec/explain-str ::geosync-server-request request))])
                                   (catch AssertionError _
+                                    (sentry/report-failure!
+                                     :job-queue-limit-exceeded
+                                     "GeoSync: Job queue limit exceeded! Dropping request!"
+                                     {:geosync.action      (:action request)
+                                      :geoserver.workspace (:geoserver-workspace request)})
                                     [1 "GeoSync: Job queue limit exceeded! Dropping request!"])
                                   (catch Exception e
+                                    (sentry/report-exception! e {:geosync.phase "request-validation"})
                                     [1 (str "GeoSync: Request validation error: " (ex-message e))]))]
         (log-str "-> " status-msg)
         (when (spec/valid? ::geosync-server-response-minimal request)
@@ -163,6 +178,7 @@
 
 (defn start-server!
   [{:keys [geosync-server-host geosync-server-port file-watcher log-dir] :as config-params}]
+  (sentry/init! config-params)
   (when log-dir
     (log-str "You've specified " log-dir " as your logging directory. All future logs will be redirected there.")
     (set-log-path! log-dir))

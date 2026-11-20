@@ -8,6 +8,7 @@
             [clojure.tools.cli   :refer [parse-opts]]
             [geosync.core        :refer [add-directory-to-workspace!
                                          remove-workspace!]]
+            [geosync.sentry      :as sentry]
             [geosync.server      :refer [start-server!]]
             [geosync.utils       :refer [hostname?
                                          nil-on-error
@@ -94,6 +95,8 @@
 (spec/def ::one-geofence-rule   (spec/keys :req-un [::workspace-regex]
                                            :opt-un [::data-rules ::admin-rules]))
 (spec/def ::geofence-rules      (spec/coll-of ::one-geofence-rule :kind vector? :distinct true))
+;; :sentry (optional)
+(spec/def ::sentry              (spec/map-of keyword? any?))
 ;; config.edn
 (spec/def ::geosync-config-file (spec/keys :opt-un [::geoserver-rest-uri
                                                     ::geoserver-username
@@ -111,7 +114,8 @@
                                                     ::action-hooks
                                                     ::file-watcher
                                                     ::layer-rules
-                                                    ::geofence-rules]))
+                                                    ::geofence-rules
+                                                    ::sentry]))
 
 ;; Key Combination Rules
 
@@ -320,16 +324,28 @@
             ;; GeoSync is running in CLI mode with an action of "add"
             (= (:action config-params) "add")
             (do
-              (add-directory-to-workspace! config-params)
-              (shutdown-agents)
-              (flush))
+              (sentry/init! config-params)
+              (try
+                (add-directory-to-workspace! config-params)
+                (catch Throwable t
+                  (throw (sentry/report-exception! t {:geosync.action "add"})))
+                (finally
+                  (sentry/close!)
+                  (shutdown-agents)
+                  (flush))))
 
             ;; GeoSync is running in CLI mode with an action of "remove"
             (= (:action config-params) "remove")
             (do
-              (remove-workspace! config-params)
-              (shutdown-agents)
-              (flush))
+              (sentry/init! config-params)
+              (try
+                (remove-workspace! config-params)
+                (catch Throwable t
+                  (throw (sentry/report-exception! t {:geosync.action "remove"})))
+                (finally
+                  (sentry/close!)
+                  (shutdown-agents)
+                  (flush))))
 
             :else
             (do
