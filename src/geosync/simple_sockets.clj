@@ -3,6 +3,7 @@
            (java.net ConnectException Socket ServerSocket))
   (:require [clojure.java.io    :as io]
             [clojure.string     :as s]
+            [geosync.sentry     :as sentry]
             [geosync.utils      :refer [nil-on-error]]
             [triangulum.logging :refer [log log-str]]))
 
@@ -40,6 +41,7 @@
         (->> (read-socket! socket)
              (handler))
         (catch Exception e
+          (sentry/report-exception! e {:geosync.phase "socket-handler"})
           (log-str "Server error: " e))
         (finally (.close socket))))))
 
@@ -63,5 +65,6 @@
                   (reset! global-server-socket server-socket)
                   (accept-connections! server-socket handler))
                 (catch Exception e
+                  (sentry/report-exception! e {:geosync.phase "socket-server"})
                   (log-str "Error creating server socket: " e)
                   (stop-server!)))))))

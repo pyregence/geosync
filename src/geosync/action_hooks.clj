@@ -1,5 +1,6 @@
 (ns geosync.action-hooks
   (:require [clj-http.client    :as client]
+            [geosync.sentry     :as sentry]
             [geosync.utils      :refer [camel->kebab]]
             [triangulum.logging :refer [log-str]]))
 
@@ -34,4 +35,7 @@
                                       :headers      headers})]
         (log-str (:body response)))
       (catch Exception e
+        (sentry/report-exception! e {:hook.runtime (name selected-run-time)
+                                     :hook.action  (:action request)
+                                     :hook.url     url})
         (log-str (:body (ex-message e)))))))

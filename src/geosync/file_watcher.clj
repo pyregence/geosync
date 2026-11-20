@@ -2,6 +2,7 @@
   (:require [clojure.core.async :refer [<! >! >!! go-loop timeout]]
             [clojure.java.io    :as io]
             [clojure.string     :as s]
+            [geosync.sentry     :as sentry]
             [triangulum.logging :refer [log-str]])
   (:import java.io.File
            (java.nio.file Path
@@ -86,6 +87,7 @@
                           watch-keys
                           (.pollEvents watch-key))
                (catch Exception e
+                 (sentry/report-exception! e {:geosync.phase "file-watcher"})
                  (log-str "Exception: " e)))))))
 
 (defn run-file-watcher!
@@ -104,6 +106,7 @@
           _            (log-str "File watcher has been initialized.")]
       watch-thread)
     (catch Exception e
+      (sentry/report-exception! e {:geosync.phase "file-watcher-init"})
       (log-str "Exception: " e))))
 
 ;;-----------------------------------------------------------------------------
@@ -185,6 +188,7 @@
                                   (start-counter config workspace)))
           nil)))
     (catch Exception e
+      (sentry/report-exception! e {:geosync.phase "file-watcher-event"})
       (log-str "Exception: " e))))
 
 (defn- make-handler [config]

@@ -2,6 +2,7 @@
  :deps    {clj-http/clj-http            {:mvn/version "3.13.0"}
            com.taoensso/tufte           {:mvn/version "2.6.3"}
            hiccup/hiccup                {:mvn/version "2.0.0-RC1"}
+           io.sentry/sentry             {:mvn/version "8.65.0"}
            org.clojure/clojure          {:mvn/version "1.12.0"}
            org.clojure/core.async       {:mvn/version "1.7.701"}
            org.clojure/data.json        {:mvn/version "2.5.1"}
@@ -16,6 +17,7 @@
            :check-deps       {:deps      {com.github.liquidz/antq {:mvn/version "RELEASE"}}
                               :main-opts ["-m" "antq.core"]}
            :check-reflection {:main-opts ["-e" "(do,(set!,*warn-on-reflection*,true),nil)"
+                                          "-e" "(require,'geosync.sentry)"
                                           "-e" "(require,'geosync.cli)"]}
            :rebel            {:extra-deps {com.bhauman/rebel-readline {:mvn/version "0.1.5"}}
                               :main-opts  ["-m" "rebel-readline.main"]}
